@@ -1,0 +1,201 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../bloc/shopping_bloc.dart';
+import '../bloc/shopping_event.dart';
+import '../../data/models/shopping_item_model.dart';
+
+class ShoppingForm extends StatefulWidget {
+  final ShoppingItemModel? item;
+
+  const ShoppingForm({super.key, this.item});
+
+  @override
+  State<ShoppingForm> createState() => _ShoppingFormState();
+}
+
+class _ShoppingFormState extends State<ShoppingForm> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _titleController;
+  late TextEditingController _amountController;
+  late TextEditingController _quantityController;
+  late TextEditingController _noteController;
+
+  @override
+  void initState() {
+    super.initState();
+    final i = widget.item;
+    _titleController = TextEditingController(text: i?.title ?? '');
+    _amountController = TextEditingController(
+      text: i?.amount != null ? (i!.amount! / 100.0).toStringAsFixed(2) : '',
+    );
+    _quantityController = TextEditingController(text: i?.quantity ?? '');
+    _noteController = TextEditingController(text: i?.note ?? '');
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _amountController.dispose();
+    _quantityController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+
+    int? amountCents;
+    final amountText = _amountController.text.trim();
+    if (amountText.isNotEmpty) {
+      final amountDouble = double.tryParse(amountText);
+      if (amountDouble != null) {
+        amountCents = (amountDouble * 100).round();
+      }
+    }
+
+    if (widget.item == null) {
+      final now = DateTime.now();
+      context.read<ShoppingBloc>().add(
+            AddShoppingItem(
+              ShoppingItemModel(
+                title: _titleController.text.trim(),
+                amount: amountCents,
+                quantity: _quantityController.text.trim().isEmpty
+                    ? null
+                    : _quantityController.text.trim(),
+                note: _noteController.text.trim().isEmpty
+                    ? null
+                    : _noteController.text.trim(),
+                createdAt: now,
+                updatedAt: now,
+              ),
+            ),
+          );
+    } else {
+      context.read<ShoppingBloc>().add(
+            UpdateShoppingItem(
+              widget.item!.copyWith(
+                title: _titleController.text.trim(),
+                amount: () => amountCents,
+                quantity: () => _quantityController.text.trim().isEmpty
+                    ? null
+                    : _quantityController.text.trim(),
+                note: () => _noteController.text.trim().isEmpty
+                    ? null
+                    : _noteController.text.trim(),
+                updatedAt: DateTime.now(),
+              ),
+            ),
+          );
+    }
+
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEditing = widget.item != null;
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomPadding),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header
+            Row(
+              children: [
+                Text(
+                  isEditing ? '항목 수정' : '항목 추가',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Title
+            TextFormField(
+              controller: _titleController,
+              decoration: const InputDecoration(
+                labelText: '항목명 *',
+                prefixIcon: Icon(Icons.shopping_cart_outlined),
+              ),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? '항목명을 입력해주세요' : null,
+              textInputAction: TextInputAction.next,
+              autofocus: true,
+            ),
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                // Quantity
+                Expanded(
+                  child: TextFormField(
+                    controller: _quantityController,
+                    decoration: const InputDecoration(
+                      labelText: '수량',
+                      prefixIcon: Icon(Icons.format_list_numbered),
+                      hintText: '예: 2개, 500g',
+                    ),
+                    textInputAction: TextInputAction.next,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Amount
+                Expanded(
+                  child: TextFormField(
+                    controller: _amountController,
+                    decoration: const InputDecoration(
+                      labelText: '예상 금액',
+                      prefixIcon: Icon(Icons.attach_money),
+                      hintText: '0.00',
+                    ),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d+\.?\d{0,2}'),
+                      ),
+                    ],
+                    textInputAction: TextInputAction.next,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Note
+            TextFormField(
+              controller: _noteController,
+              decoration: const InputDecoration(
+                labelText: '메모',
+                prefixIcon: Icon(Icons.notes),
+              ),
+              textInputAction: TextInputAction.done,
+            ),
+            const SizedBox(height: 20),
+
+            ElevatedButton(
+              onPressed: _submit,
+              child: Text(isEditing ? '수정 완료' : '추가'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
