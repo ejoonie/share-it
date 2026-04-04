@@ -11,8 +11,7 @@ class ShoppingRepository {
   }
 
   Future<ShoppingItemModel> addItem(ShoppingItemModel item) async {
-    final now = DateTime.now();
-    final model = item.copyWith(createdAt: now, updatedAt: now);
+    final model = item.copyWith(updatedAt: DateTime.now());
     final id = await _db.insert(_table, model.toMap());
     return model.copyWith(id: id);
   }

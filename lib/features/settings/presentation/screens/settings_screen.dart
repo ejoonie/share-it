@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/database/database_helper.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -110,6 +111,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _clearAllData() async {
+    final db = await DatabaseHelper.instance.database;
+    await db.delete(DatabaseHelper.expenseTable);
+    await db.delete(DatabaseHelper.shoppingTable);
+  }
+
   void _confirmClearData(BuildContext context) {
     showDialog<void>(
       context: context,
@@ -122,7 +129,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text('취소'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await _clearAllData();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('모든 데이터가 삭제되었습니다.')),
+                );
+              }
+            },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('삭제'),
           ),

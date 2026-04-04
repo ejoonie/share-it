@@ -33,8 +33,7 @@ class ExpenseRepository {
   }
 
   Future<ExpenseModel> addExpense(ExpenseModel expense) async {
-    final now = DateTime.now();
-    final model = expense.copyWith(createdAt: now, updatedAt: now);
+    final model = expense.copyWith(updatedAt: DateTime.now());
     final id = await _db.insert(_table, model.toMap());
     return model.copyWith(id: id);
   }

@@ -84,20 +84,21 @@ class DatabaseHelper {
 
   Future<List<Map<String, dynamic>>> queryAll(String table) async {
     final db = await database;
-    return db.query(table, orderBy: '$colCreatedAt DESC');
+    return db.query(table, orderBy: '$colCreatedAt ASC');
   }
 
   Future<List<Map<String, dynamic>>> queryWhere(
     String table,
     String where,
-    List<dynamic> whereArgs,
-  ) async {
+    List<dynamic> whereArgs, {
+    String orderBy = '$colCreatedAt ASC',
+  }) async {
     final db = await database;
     return db.query(
       table,
       where: where,
       whereArgs: whereArgs,
-      orderBy: '$colCreatedAt ASC',
+      orderBy: orderBy,
     );
   }
 

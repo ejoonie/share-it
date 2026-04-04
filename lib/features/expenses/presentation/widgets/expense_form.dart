@@ -246,21 +246,11 @@ class _ExpenseFormState extends State<ExpenseForm> {
               onSelected: (option) => _categoryController.text = option,
               fieldViewBuilder:
                   (context, controller, focusNode, onEditingComplete) {
-                // Sync with our controller
-                if (controller.text != _categoryController.text) {
-                  controller.text = _categoryController.text;
-                }
-                controller.addListener(
-                    () => _categoryController.text = controller.text);
-                return TextFormField(
-                  controller: controller,
+                return _CategoryField(
+                  autocompleteController: controller,
+                  categoryController: _categoryController,
                   focusNode: focusNode,
                   onEditingComplete: onEditingComplete,
-                  decoration: const InputDecoration(
-                    labelText: '카테고리',
-                    prefixIcon: Icon(Icons.category_outlined),
-                  ),
-                  textInputAction: TextInputAction.next,
                 );
               },
             ),
@@ -286,6 +276,59 @@ class _ExpenseFormState extends State<ExpenseForm> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Stateful widget that syncs the autocomplete controller with the external
+/// category controller, properly managing the listener lifecycle.
+class _CategoryField extends StatefulWidget {
+  final TextEditingController autocompleteController;
+  final TextEditingController categoryController;
+  final FocusNode focusNode;
+  final VoidCallback onEditingComplete;
+
+  const _CategoryField({
+    required this.autocompleteController,
+    required this.categoryController,
+    required this.focusNode,
+    required this.onEditingComplete,
+  });
+
+  @override
+  State<_CategoryField> createState() => _CategoryFieldState();
+}
+
+class _CategoryFieldState extends State<_CategoryField> {
+  late VoidCallback _listener;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.autocompleteController.text = widget.categoryController.text;
+    _listener = () {
+      widget.categoryController.text = widget.autocompleteController.text;
+    };
+    widget.autocompleteController.addListener(_listener);
+  }
+
+  @override
+  void dispose() {
+    widget.autocompleteController.removeListener(_listener);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: widget.autocompleteController,
+      focusNode: widget.focusNode,
+      onEditingComplete: widget.onEditingComplete,
+      decoration: const InputDecoration(
+        labelText: '카테고리',
+        prefixIcon: Icon(Icons.category_outlined),
+      ),
+      textInputAction: TextInputAction.next,
     );
   }
 }
