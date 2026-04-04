@@ -111,7 +111,7 @@ class _ShoppingFormState extends State<ShoppingForm> {
             Row(
               children: [
                 Text(
-                  isEditing ? '항목 수정' : '항목 추가',
+                  isEditing ? 'Edit Item' : 'Add Item',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -130,11 +130,11 @@ class _ShoppingFormState extends State<ShoppingForm> {
             TextFormField(
               controller: _titleController,
               decoration: const InputDecoration(
-                labelText: '항목명 *',
+                labelText: 'Item name *',
                 prefixIcon: Icon(Icons.shopping_cart_outlined),
               ),
               validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? '항목명을 입력해주세요' : null,
+                  (v == null || v.trim().isEmpty) ? 'Please enter an item name' : null,
               textInputAction: TextInputAction.next,
               autofocus: true,
             ),
@@ -147,9 +147,9 @@ class _ShoppingFormState extends State<ShoppingForm> {
                   child: TextFormField(
                     controller: _quantityController,
                     decoration: const InputDecoration(
-                      labelText: '수량',
+                      labelText: 'Qty',
                       prefixIcon: Icon(Icons.format_list_numbered),
-                      hintText: '예: 2개, 500g',
+                      hintText: 'e.g. 2, 500g',
                     ),
                     textInputAction: TextInputAction.next,
                   ),
@@ -160,7 +160,7 @@ class _ShoppingFormState extends State<ShoppingForm> {
                   child: TextFormField(
                     controller: _amountController,
                     decoration: const InputDecoration(
-                      labelText: '예상 금액',
+                      labelText: 'Est. price',
                       prefixIcon: Icon(Icons.attach_money),
                       hintText: '0.00',
                     ),
@@ -182,7 +182,7 @@ class _ShoppingFormState extends State<ShoppingForm> {
             TextFormField(
               controller: _noteController,
               decoration: const InputDecoration(
-                labelText: '메모',
+                labelText: 'Note',
                 prefixIcon: Icon(Icons.notes),
               ),
               textInputAction: TextInputAction.done,
@@ -191,7 +191,7 @@ class _ShoppingFormState extends State<ShoppingForm> {
 
             ElevatedButton(
               onPressed: _submit,
-              child: Text(isEditing ? '수정 완료' : '추가'),
+              child: Text(isEditing ? 'Save Changes' : 'Add'),
             ),
           ],
         ),

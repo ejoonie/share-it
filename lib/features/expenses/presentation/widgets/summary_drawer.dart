@@ -44,7 +44,7 @@ class _SummaryDrawerBody extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  '월간 요약',
+                  'Monthly Summary',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 22,
@@ -53,7 +53,7 @@ class _SummaryDrawerBody extends StatelessWidget {
                 ),
                 if (loaded != null)
                   Text(
-                    DateFormat('yyyy년 MM월').format(loaded.focusedMonth),
+                    DateFormat('MMM yyyy').format(loaded.focusedMonth),
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 14,
@@ -66,7 +66,7 @@ class _SummaryDrawerBody extends StatelessWidget {
             _SummaryTile(
               icon: Icons.arrow_downward,
               iconColor: const Color(0xFF43A047),
-              label: '총 수입',
+              label: 'Total Income',
               value: formatter.format(loaded.monthlyIncomeTotal / 100.0),
               valueColor: const Color(0xFF43A047),
             ),
@@ -74,7 +74,7 @@ class _SummaryDrawerBody extends StatelessWidget {
             _SummaryTile(
               icon: Icons.arrow_upward,
               iconColor: const Color(0xFFE53935),
-              label: '총 지출',
+              label: 'Total Expense',
               value: formatter.format(loaded.monthlyExpenseTotal / 100.0),
               valueColor: const Color(0xFFE53935),
             ),
@@ -82,7 +82,7 @@ class _SummaryDrawerBody extends StatelessWidget {
             _SummaryTile(
               icon: Icons.account_balance_wallet,
               iconColor: Colors.blueGrey,
-              label: '순 수지',
+              label: 'Net Balance',
               value: formatter.format(
                 (loaded.monthlyIncomeTotal - loaded.monthlyExpenseTotal) /
                     100.0,
@@ -95,7 +95,7 @@ class _SummaryDrawerBody extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                '카테고리별 지출',
+                'Expense by Category',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -134,7 +134,7 @@ class _CategoryBreakdown extends StatelessWidget {
     final Map<String, int> catTotals = {};
     for (final e in expenses) {
       if (e.isExpense) {
-        final cat = e.category ?? '기타';
+        final cat = e.category ?? 'Other';
         catTotals[cat] = (catTotals[cat] ?? 0) + e.amount;
       }
     }
@@ -142,7 +142,7 @@ class _CategoryBreakdown extends StatelessWidget {
     if (catTotals.isEmpty) {
       return const Padding(
         padding: EdgeInsets.all(16),
-        child: Text('지출 내역이 없습니다', style: TextStyle(color: Colors.grey)),
+        child: Text('No expenses', style: TextStyle(color: Colors.grey)),
       );
     }
 

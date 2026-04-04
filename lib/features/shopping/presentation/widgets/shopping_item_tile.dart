@@ -30,12 +30,12 @@ class ShoppingItemTile extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('삭제 확인'),
-        content: Text('"${item.title}" 항목을 삭제할까요?'),
+        title: const Text('Confirm Delete'),
+        content: Text('Delete "${item.title}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('취소'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
@@ -45,7 +45,7 @@ class ShoppingItemTile extends StatelessWidget {
               Navigator.pop(ctx);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('삭제'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -99,8 +99,8 @@ class ShoppingItemTile extends StatelessWidget {
                 if (value == 'delete') _confirmDelete(context);
               },
               itemBuilder: (_) => const [
-                PopupMenuItem(value: 'edit', child: Text('수정')),
-                PopupMenuItem(value: 'delete', child: Text('삭제')),
+                PopupMenuItem(value: 'edit', child: Text('Edit')),
+                PopupMenuItem(value: 'delete', child: Text('Delete')),
               ],
             ),
           ],

@@ -70,12 +70,12 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '필터',
+              'Filter',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             _FilterTile(
-              label: '전체',
+              label: 'All',
               selected: current == null,
               onTap: () {
                 context.read<ExpenseBloc>().add(const FilterExpenses(null));
@@ -83,7 +83,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               },
             ),
             _FilterTile(
-              label: '지출',
+              label: 'Expense',
               selected: current == ExpenseType.expense,
               onTap: () {
                 context
@@ -93,7 +93,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               },
             ),
             _FilterTile(
-              label: '수입',
+              label: 'Income',
               selected: current == ExpenseType.income,
               onTap: () {
                 context
@@ -135,7 +135,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
             leading: Builder(
               builder: (ctx) => IconButton(
                 icon: const Icon(Icons.summarize_outlined),
-                tooltip: '요약',
+                tooltip: 'Summary',
                 onPressed: () => _openSummaryDrawer(ctx),
               ),
             ),
@@ -146,7 +146,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                     style: const TextStyle(color: Colors.white),
                     cursorColor: Colors.white,
                     decoration: const InputDecoration(
-                      hintText: '검색...',
+                      hintText: 'Search...',
                       hintStyle: TextStyle(color: Colors.white70),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
@@ -168,7 +168,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                       GestureDetector(
                         onTap: () => _pickMonth(context, focusedMonth),
                         child: Text(
-                          DateFormat('yyyy년 MM월').format(focusedMonth),
+                          DateFormat('MMM yyyy').format(focusedMonth),
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -211,7 +211,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
               if (state is ExpenseError) {
-                return Center(child: Text('오류: ${state.message}'));
+                return Center(child: Text('Error: ${state.message}'));
               }
               if (state is ExpenseLoaded) {
                 return Column(
@@ -263,7 +263,7 @@ class _MonthlySummaryBar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('수입', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Text('Income', style: TextStyle(fontSize: 12, color: Colors.grey)),
                 Text(
                   formatter.format(income),
                   style: const TextStyle(
@@ -280,7 +280,7 @@ class _MonthlySummaryBar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                const Text('지출', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Text('Expense', style: TextStyle(fontSize: 12, color: Colors.grey)),
                 Text(
                   formatter.format(expense),
                   style: const TextStyle(

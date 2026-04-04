@@ -20,7 +20,7 @@ class ExpenseCalendar extends StatelessWidget {
       focusedDay: state.focusedMonth,
       selectedDayPredicate: (day) => isSameDay(day, state.selectedDate),
       calendarFormat: CalendarFormat.month,
-      availableCalendarFormats: const {CalendarFormat.month: '월'},
+      availableCalendarFormats: const {CalendarFormat.month: 'Month'},
       headerVisible: false,
       daysOfWeekStyle: DaysOfWeekStyle(
         weekdayStyle: const TextStyle(fontSize: 12),

@@ -30,12 +30,12 @@ class ShoppingScreen extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('완료 항목 삭제'),
-        content: const Text('체크된 항목을 모두 삭제할까요?'),
+        title: const Text('Delete Checked Items'),
+        content: const Text('Remove all checked items?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('취소'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
@@ -43,7 +43,7 @@ class ShoppingScreen extends StatelessWidget {
               Navigator.pop(ctx);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('삭제'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -54,7 +54,7 @@ class ShoppingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('장볼 목록'),
+        title: const Text('Shopping List'),
         actions: [
           BlocBuilder<ShoppingBloc, ShoppingState>(
             builder: (context, state) {
@@ -63,7 +63,7 @@ class ShoppingScreen extends StatelessWidget {
               if (!hasChecked) return const SizedBox.shrink();
               return IconButton(
                 icon: const Icon(Icons.delete_sweep_outlined),
-                tooltip: '완료 항목 삭제',
+                tooltip: 'Delete checked items',
                 onPressed: () => _confirmDeleteChecked(context),
               );
             },
@@ -76,7 +76,7 @@ class ShoppingScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (state is ShoppingError) {
-            return Center(child: Text('오류: ${state.message}'));
+            return Center(child: Text('Error: ${state.message}'));
           }
           if (state is ShoppingLoaded) {
             return _ShoppingBody(state: state);
@@ -112,7 +112,7 @@ class _ShoppingBody extends StatelessWidget {
                 size: 60, color: Colors.grey.shade400),
             const SizedBox(height: 12),
             Text(
-              '장볼 목록이 비어있습니다\n+ 버튼으로 추가하세요',
+              'Shopping list is empty\nTap + to add items',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
             ),
@@ -135,12 +135,12 @@ class _ShoppingBody extends StatelessWidget {
                     color: Colors.grey, size: 18),
                 const SizedBox(width: 8),
                 Text(
-                  '총 ${state.items.length}개',
+                  '${state.items.length} items',
                   style: const TextStyle(color: Colors.grey),
                 ),
                 const Spacer(),
                 Text(
-                  '예상: ${formatter.format(state.totalEstimated / 100.0)}',
+                  'Est: ${formatter.format(state.totalEstimated / 100.0)}',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ],
@@ -161,7 +161,7 @@ class _ShoppingBody extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 4),
                   child: Text(
-                    '완료 (${checked.length})',
+                    'Done (${checked.length})',
                     style: TextStyle(
                         color: Colors.grey.shade600, fontSize: 13),
                   ),

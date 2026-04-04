@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('로그인 성공!'),
+          content: Text('Login successful!'),
           backgroundColor: Color(0xFF43A047),
         ),
       );
@@ -54,7 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       setState(() {
         _isLoading = false;
-        _errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
+        _errorMessage = 'Incorrect email or password.';
       });
     }
   }
@@ -64,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text('로그인'),
+        title: const Text('Sign In'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: Colors.black87,
@@ -102,7 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '공유 기능을 위해 로그인하세요',
+                  'Sign in to share your data',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -154,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextFormField(
                             controller: _emailController,
                             decoration: const InputDecoration(
-                              labelText: '이메일',
+                              labelText: 'Email',
                               prefixIcon: Icon(Icons.email_outlined),
                               hintText: 'example@email.com',
                             ),
@@ -162,10 +162,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             textInputAction: TextInputAction.next,
                             validator: (v) {
                               if (v == null || v.trim().isEmpty) {
-                                return '이메일을 입력해주세요';
+                                return 'Please enter your email';
                               }
                               if (!v.contains('@')) {
-                                return '올바른 이메일 형식이 아닙니다';
+                                return 'Please enter a valid email';
                               }
                               return null;
                             },
@@ -176,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextFormField(
                             controller: _passwordController,
                             decoration: InputDecoration(
-                              labelText: '비밀번호',
+                              labelText: 'Password',
                               prefixIcon:
                                   const Icon(Icons.lock_outlined),
                               suffixIcon: IconButton(
@@ -196,10 +196,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             onFieldSubmitted: (_) => _login(),
                             validator: (v) {
                               if (v == null || v.isEmpty) {
-                                return '비밀번호를 입력해주세요';
+                                return 'Please enter your password';
                               }
                               if (v.length < 6) {
-                                return '비밀번호는 6자 이상이어야 합니다';
+                                return 'Password must be at least 6 characters';
                               }
                               return null;
                             },
@@ -221,7 +221,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     )
                                   : const Text(
-                                      '로그인',
+                                      'Sign In',
                                       style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600),
@@ -236,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 20),
                 Text(
-                  '로그인 없이도 앱의 모든 기본 기능을\n사용할 수 있습니다.',
+                  'All basic features are available\nwithout signing in.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 13,

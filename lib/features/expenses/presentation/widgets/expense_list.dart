@@ -27,7 +27,7 @@ class ExpenseList extends StatelessWidget {
                 size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 8),
             Text(
-              '${formatter.format(state.selectedDate)}\n내역이 없습니다',
+              '${formatter.format(state.selectedDate)}\nNo transactions',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade500),
             ),
@@ -71,12 +71,12 @@ class _ExpenseListTile extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('삭제 확인'),
-        content: Text('"${expense.title}" 항목을 삭제할까요?'),
+        title: const Text('Confirm Delete'),
+        content: Text('Delete "${expense.title}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('취소'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
@@ -84,7 +84,7 @@ class _ExpenseListTile extends StatelessWidget {
               Navigator.pop(ctx);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('삭제'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -142,8 +142,8 @@ class _ExpenseListTile extends StatelessWidget {
                 if (value == 'delete') _confirmDelete(context);
               },
               itemBuilder: (_) => const [
-                PopupMenuItem(value: 'edit', child: Text('수정')),
-                PopupMenuItem(value: 'delete', child: Text('삭제')),
+                PopupMenuItem(value: 'edit', child: Text('Edit')),
+                PopupMenuItem(value: 'delete', child: Text('Delete')),
               ],
             ),
           ],

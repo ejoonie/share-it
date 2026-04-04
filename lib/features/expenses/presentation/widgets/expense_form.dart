@@ -27,14 +27,14 @@ class _ExpenseFormState extends State<ExpenseForm> {
   late DateTime _selectedDate;
 
   final List<String> _categories = [
-    '식비',
-    '교통',
-    '쇼핑',
-    '의료',
-    '문화',
-    '통신',
-    '주거',
-    '기타',
+    'Food',
+    'Transport',
+    'Shopping',
+    'Medical',
+    'Entertainment',
+    'Utilities',
+    'Housing',
+    'Other',
   ];
 
   @override
@@ -133,7 +133,7 @@ class _ExpenseFormState extends State<ExpenseForm> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.expense != null;
-    final dateFormatter = DateFormat('yyyy년 MM월 dd일');
+    final dateFormatter = DateFormat('MMM dd, yyyy');
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
 
     return Padding(
@@ -148,7 +148,7 @@ class _ExpenseFormState extends State<ExpenseForm> {
             Row(
               children: [
                 Text(
-                  isEditing ? '내역 수정' : '내역 추가',
+                  isEditing ? 'Edit Transaction' : 'Add Transaction',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -168,12 +168,12 @@ class _ExpenseFormState extends State<ExpenseForm> {
               segments: const [
                 ButtonSegment(
                   value: ExpenseType.expense,
-                  label: Text('지출'),
+                  label: Text('Expense'),
                   icon: Icon(Icons.remove_circle_outline),
                 ),
                 ButtonSegment(
                   value: ExpenseType.income,
-                  label: Text('수입'),
+                  label: Text('Income'),
                   icon: Icon(Icons.add_circle_outline),
                 ),
               ],
@@ -189,7 +189,7 @@ class _ExpenseFormState extends State<ExpenseForm> {
               borderRadius: BorderRadius.circular(12),
               child: InputDecorator(
                 decoration: const InputDecoration(
-                  labelText: '날짜',
+                  labelText: 'Date',
                   prefixIcon: Icon(Icons.calendar_today),
                 ),
                 child: Text(dateFormatter.format(_selectedDate)),
@@ -201,11 +201,11 @@ class _ExpenseFormState extends State<ExpenseForm> {
             TextFormField(
               controller: _titleController,
               decoration: const InputDecoration(
-                labelText: '제목 *',
+                labelText: 'Title *',
                 prefixIcon: Icon(Icons.title),
               ),
               validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? '제목을 입력해주세요' : null,
+                  (v == null || v.trim().isEmpty) ? 'Please enter a title' : null,
               textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 12),
@@ -214,7 +214,7 @@ class _ExpenseFormState extends State<ExpenseForm> {
             TextFormField(
               controller: _amountController,
               decoration: const InputDecoration(
-                labelText: '금액 (USD) *',
+                labelText: 'Amount (USD) *',
                 prefixIcon: Icon(Icons.attach_money),
                 hintText: '0.00',
               ),
@@ -224,9 +224,9 @@ class _ExpenseFormState extends State<ExpenseForm> {
                 FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
               ],
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return '금액을 입력해주세요';
+                if (v == null || v.trim().isEmpty) return 'Please enter an amount';
                 final amount = double.tryParse(v);
-                if (amount == null || amount <= 0) return '올바른 금액을 입력해주세요';
+                if (amount == null || amount <= 0) return 'Please enter a valid amount';
                 return null;
               },
               textInputAction: TextInputAction.next,
@@ -260,7 +260,7 @@ class _ExpenseFormState extends State<ExpenseForm> {
             TextFormField(
               controller: _noteController,
               decoration: const InputDecoration(
-                labelText: '메모',
+                labelText: 'Note',
                 prefixIcon: Icon(Icons.notes),
               ),
               maxLines: 2,
@@ -271,7 +271,7 @@ class _ExpenseFormState extends State<ExpenseForm> {
             // Submit
             ElevatedButton(
               onPressed: _submit,
-              child: Text(isEditing ? '수정 완료' : '추가'),
+              child: Text(isEditing ? 'Save Changes' : 'Add'),
             ),
           ],
         ),
@@ -325,7 +325,7 @@ class _CategoryFieldState extends State<_CategoryField> {
       focusNode: widget.focusNode,
       onEditingComplete: widget.onEditingComplete,
       decoration: const InputDecoration(
-        labelText: '카테고리',
+        labelText: 'Category',
         prefixIcon: Icon(Icons.category_outlined),
       ),
       textInputAction: TextInputAction.next,

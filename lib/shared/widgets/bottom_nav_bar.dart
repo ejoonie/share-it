@@ -34,17 +34,17 @@ class BottomNavBar extends StatelessWidget {
           NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
             selectedIcon: Icon(Icons.receipt_long),
-            label: '소비내역',
+            label: 'Expenses',
           ),
           NavigationDestination(
             icon: Icon(Icons.shopping_cart_outlined),
             selectedIcon: Icon(Icons.shopping_cart),
-            label: '장볼 목록',
+            label: 'Shopping',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
-            label: '설정',
+            label: 'Settings',
           ),
         ],
       ),

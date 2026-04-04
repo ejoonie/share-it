@@ -14,21 +14,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _currency = 'USD';
   bool _notifications = false;
   bool _darkMode = false;
-  String _startDay = '월요일';
+  String _startDay = 'Monday';
 
   final List<String> _currencies = ['USD', 'EUR', 'KRW', 'JPY', 'GBP'];
-  final List<String> _startDays = ['월요일', '일요일'];
+  final List<String> _startDays = ['Monday', 'Sunday'];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('설정')),
+      appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
-          _SectionHeader(title: '일반'),
+          _SectionHeader(title: 'General'),
           ListTile(
             leading: const Icon(Icons.attach_money),
-            title: const Text('기본 통화'),
+            title: const Text('Default Currency'),
             trailing: DropdownButton<String>(
               value: _currency,
               underline: const SizedBox.shrink(),
@@ -45,7 +45,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(indent: 16, endIndent: 16),
           ListTile(
             leading: const Icon(Icons.calendar_today),
-            title: const Text('주 시작일'),
+            title: const Text('Week starts on'),
             trailing: DropdownButton<String>(
               value: _startDay,
               underline: const SizedBox.shrink(),
@@ -59,27 +59,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
           ),
-          _SectionHeader(title: '알림'),
+          _SectionHeader(title: 'Notifications'),
           SwitchListTile(
             secondary: const Icon(Icons.notifications_outlined),
-            title: const Text('알림'),
-            subtitle: const Text('지출 알림을 받습니다'),
+            title: const Text('Notifications'),
+            subtitle: const Text('Receive expense reminders'),
             value: _notifications,
             onChanged: (v) => setState(() => _notifications = v),
           ),
-          _SectionHeader(title: '테마'),
+          _SectionHeader(title: 'Theme'),
           SwitchListTile(
             secondary: const Icon(Icons.dark_mode_outlined),
-            title: const Text('다크 모드'),
-            subtitle: const Text('어두운 테마 사용'),
+            title: const Text('Dark Mode'),
+            subtitle: const Text('Use dark theme'),
             value: _darkMode,
             onChanged: (v) => setState(() => _darkMode = v),
           ),
-          _SectionHeader(title: '계정'),
+          _SectionHeader(title: 'Account'),
           ListTile(
             leading: const Icon(Icons.login),
-            title: const Text('로그인'),
-            subtitle: const Text('공유 기능을 위한 로그인'),
+            title: const Text('Sign In'),
+            subtitle: const Text('Sign in for sharing features'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.push<void>(
@@ -90,20 +90,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
-          _SectionHeader(title: '데이터'),
+          _SectionHeader(title: 'Data'),
           ListTile(
             leading: const Icon(Icons.delete_forever_outlined,
                 color: Colors.red),
             title: const Text(
-              '모든 데이터 삭제',
+              'Delete all data',
               style: TextStyle(color: Colors.red),
             ),
             onTap: () => _confirmClearData(context),
           ),
-          _SectionHeader(title: '정보'),
+          _SectionHeader(title: 'About'),
           const ListTile(
             leading: Icon(Icons.info_outline),
-            title: Text('버전'),
+            title: Text('Version'),
             trailing: Text('1.0.0'),
           ),
         ],
@@ -121,12 +121,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('데이터 삭제'),
-        content: const Text('모든 데이터를 삭제할까요? 이 작업은 되돌릴 수 없습니다.'),
+        title: const Text('Delete Data'),
+        content: const Text('Delete all data? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('취소'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () async {
@@ -134,12 +134,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               await _clearAllData();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('모든 데이터가 삭제되었습니다.')),
+                  const SnackBar(content: Text('All data has been deleted.')),
                 );
               }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('삭제'),
+            child: const Text('Delete'),
           ),
         ],
       ),
