@@ -1,0 +1,317 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+
+import '../providers/expense_provider.dart';
+import '../../data/models/expense_model.dart';
+
+class ExpenseForm extends ConsumerStatefulWidget {
+  final ExpenseModel? expense;
+  final DateTime initialDate;
+
+  const ExpenseForm({super.key, this.expense, required this.initialDate});
+
+  @override
+  ConsumerState<ExpenseForm> createState() => _ExpenseFormState();
+}
+
+class _ExpenseFormState extends ConsumerState<ExpenseForm> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _titleController;
+  late TextEditingController _amountController;
+  late TextEditingController _noteController;
+  late TextEditingController _categoryController;
+  late ExpenseType _type;
+  late DateTime _selectedDate;
+
+  final List<String> _categories = [
+    'Food',
+    'Transport',
+    'Shopping',
+    'Medical',
+    'Entertainment',
+    'Utilities',
+    'Housing',
+    'Other',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.expense;
+    _titleController = TextEditingController(text: e?.title ?? '');
+    _amountController = TextEditingController(
+      text: e != null ? (e.amount / 100.0).toStringAsFixed(2) : '',
+    );
+    _noteController = TextEditingController(text: e?.note ?? '');
+    _categoryController = TextEditingController(text: e?.category ?? '');
+    _type = e?.type ?? ExpenseType.expense;
+    _selectedDate = widget.initialDate;
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _amountController.dispose();
+    _noteController.dispose();
+    _categoryController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() => _selectedDate = picked);
+    }
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+
+    final amountText = _amountController.text.replaceAll(',', '');
+    final amountDouble = double.tryParse(amountText) ?? 0.0;
+    final amountCents = (amountDouble * 100).round();
+
+    if (widget.expense == null) {
+      final now = DateTime.now();
+      final createdAt = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        now.hour,
+        now.minute,
+        now.second,
+      );
+      ref.read(expenseNotifierProvider.notifier).addExpense(
+            ExpenseModel(
+              title: _titleController.text.trim(),
+              amount: amountCents,
+              note: _noteController.text.trim().isEmpty
+                  ? null
+                  : _noteController.text.trim(),
+              category: _categoryController.text.trim().isEmpty
+                  ? null
+                  : _categoryController.text.trim(),
+              type: _type,
+              createdAt: createdAt,
+              updatedAt: createdAt,
+            ),
+          );
+    } else {
+      ref.read(expenseNotifierProvider.notifier).updateExpense(
+            widget.expense!.copyWith(
+              title: _titleController.text.trim(),
+              amount: amountCents,
+              note: _noteController.text.trim().isEmpty
+                  ? null
+                  : _noteController.text.trim(),
+              category: _categoryController.text.trim().isEmpty
+                  ? null
+                  : _categoryController.text.trim(),
+              type: _type,
+              updatedAt: DateTime.now(),
+            ),
+          );
+    }
+
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEditing = widget.expense != null;
+    final dateFormatter = DateFormat('MMM dd, yyyy');
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomPadding),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Text(
+                  isEditing ? 'Edit Transaction' : 'Add Transaction',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SegmentedButton<ExpenseType>(
+              segments: const [
+                ButtonSegment(
+                  value: ExpenseType.expense,
+                  label: Text('Expense'),
+                  icon: Icon(Icons.remove_circle_outline),
+                ),
+                ButtonSegment(
+                  value: ExpenseType.income,
+                  label: Text('Income'),
+                  icon: Icon(Icons.add_circle_outline),
+                ),
+              ],
+              selected: {_type},
+              onSelectionChanged: (selection) =>
+                  setState(() => _type = selection.first),
+            ),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: _pickDate,
+              borderRadius: BorderRadius.circular(12),
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Date',
+                  prefixIcon: Icon(Icons.calendar_today),
+                ),
+                child: Text(dateFormatter.format(_selectedDate)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _titleController,
+              decoration: const InputDecoration(
+                labelText: 'Title *',
+                prefixIcon: Icon(Icons.title),
+              ),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty)
+                      ? 'Please enter a title'
+                      : null,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _amountController,
+              decoration: const InputDecoration(
+                labelText: 'Amount (USD) *',
+                prefixIcon: Icon(Icons.attach_money),
+                hintText: '0.00',
+              ),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(
+                    RegExp(r'^\d+\.?\d{0,2}')),
+              ],
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) {
+                  return 'Please enter an amount';
+                }
+                final amount = double.tryParse(v);
+                if (amount == null || amount <= 0) {
+                  return 'Please enter a valid amount';
+                }
+                return null;
+              },
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 12),
+            Autocomplete<String>(
+              initialValue:
+                  TextEditingValue(text: _categoryController.text),
+              optionsBuilder: (value) {
+                if (value.text.isEmpty) return _categories;
+                return _categories.where(
+                  (c) => c.contains(value.text),
+                );
+              },
+              onSelected: (option) => _categoryController.text = option,
+              fieldViewBuilder:
+                  (context, controller, focusNode, onEditingComplete) {
+                return _CategoryField(
+                  autocompleteController: controller,
+                  categoryController: _categoryController,
+                  focusNode: focusNode,
+                  onEditingComplete: onEditingComplete,
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _noteController,
+              decoration: const InputDecoration(
+                labelText: 'Note',
+                prefixIcon: Icon(Icons.notes),
+              ),
+              maxLines: 2,
+              textInputAction: TextInputAction.done,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _submit,
+              child: Text(isEditing ? 'Save Changes' : 'Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryField extends StatefulWidget {
+  final TextEditingController autocompleteController;
+  final TextEditingController categoryController;
+  final FocusNode focusNode;
+  final VoidCallback onEditingComplete;
+
+  const _CategoryField({
+    required this.autocompleteController,
+    required this.categoryController,
+    required this.focusNode,
+    required this.onEditingComplete,
+  });
+
+  @override
+  State<_CategoryField> createState() => _CategoryFieldState();
+}
+
+class _CategoryFieldState extends State<_CategoryField> {
+  late VoidCallback _listener;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.autocompleteController.text = widget.categoryController.text;
+    _listener = () {
+      widget.categoryController.text = widget.autocompleteController.text;
+    };
+    widget.autocompleteController.addListener(_listener);
+  }
+
+  @override
+  void dispose() {
+    widget.autocompleteController.removeListener(_listener);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: widget.autocompleteController,
+      focusNode: widget.focusNode,
+      onEditingComplete: widget.onEditingComplete,
+      decoration: const InputDecoration(
+        labelText: 'Category',
+        prefixIcon: Icon(Icons.category_outlined),
+      ),
+      textInputAction: TextInputAction.next,
+    );
+  }
+}
