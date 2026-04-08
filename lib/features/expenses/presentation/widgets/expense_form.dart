@@ -1,23 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../bloc/expense_bloc.dart';
-import '../bloc/expense_event.dart';
+import '../providers/expense_provider.dart';
 import '../../data/models/expense_model.dart';
 
-class ExpenseForm extends StatefulWidget {
+class ExpenseForm extends ConsumerStatefulWidget {
   final ExpenseModel? expense;
   final DateTime initialDate;
 
   const ExpenseForm({super.key, this.expense, required this.initialDate});
 
   @override
-  State<ExpenseForm> createState() => _ExpenseFormState();
+  ConsumerState<ExpenseForm> createState() => _ExpenseFormState();
 }
 
-class _ExpenseFormState extends State<ExpenseForm> {
+class _ExpenseFormState extends ConsumerState<ExpenseForm> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
   late TextEditingController _amountController;
@@ -80,7 +79,6 @@ class _ExpenseFormState extends State<ExpenseForm> {
     final amountCents = (amountDouble * 100).round();
 
     if (widget.expense == null) {
-      // Create new
       final now = DateTime.now();
       final createdAt = DateTime(
         _selectedDate.year,
@@ -90,39 +88,34 @@ class _ExpenseFormState extends State<ExpenseForm> {
         now.minute,
         now.second,
       );
-      context.read<ExpenseBloc>().add(
-            AddExpense(
-              ExpenseModel(
-                title: _titleController.text.trim(),
-                amount: amountCents,
-                note: _noteController.text.trim().isEmpty
-                    ? null
-                    : _noteController.text.trim(),
-                category: _categoryController.text.trim().isEmpty
-                    ? null
-                    : _categoryController.text.trim(),
-                type: _type,
-                createdAt: createdAt,
-                updatedAt: createdAt,
-              ),
+      ref.read(expenseNotifierProvider.notifier).addExpense(
+            ExpenseModel(
+              title: _titleController.text.trim(),
+              amount: amountCents,
+              note: _noteController.text.trim().isEmpty
+                  ? null
+                  : _noteController.text.trim(),
+              category: _categoryController.text.trim().isEmpty
+                  ? null
+                  : _categoryController.text.trim(),
+              type: _type,
+              createdAt: createdAt,
+              updatedAt: createdAt,
             ),
           );
     } else {
-      // Update existing
-      context.read<ExpenseBloc>().add(
-            UpdateExpense(
-              widget.expense!.copyWith(
-                title: _titleController.text.trim(),
-                amount: amountCents,
-                note: _noteController.text.trim().isEmpty
-                    ? null
-                    : _noteController.text.trim(),
-                category: _categoryController.text.trim().isEmpty
-                    ? null
-                    : _categoryController.text.trim(),
-                type: _type,
-                updatedAt: DateTime.now(),
-              ),
+      ref.read(expenseNotifierProvider.notifier).updateExpense(
+            widget.expense!.copyWith(
+              title: _titleController.text.trim(),
+              amount: amountCents,
+              note: _noteController.text.trim().isEmpty
+                  ? null
+                  : _noteController.text.trim(),
+              category: _categoryController.text.trim().isEmpty
+                  ? null
+                  : _categoryController.text.trim(),
+              type: _type,
+              updatedAt: DateTime.now(),
             ),
           );
     }
@@ -144,7 +137,6 @@ class _ExpenseFormState extends State<ExpenseForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header
             Row(
               children: [
                 Text(
@@ -162,8 +154,6 @@ class _ExpenseFormState extends State<ExpenseForm> {
               ],
             ),
             const SizedBox(height: 12),
-
-            // Type toggle
             SegmentedButton<ExpenseType>(
               segments: const [
                 ButtonSegment(
@@ -182,8 +172,6 @@ class _ExpenseFormState extends State<ExpenseForm> {
                   setState(() => _type = selection.first),
             ),
             const SizedBox(height: 12),
-
-            // Date
             InkWell(
               onTap: _pickDate,
               borderRadius: BorderRadius.circular(12),
@@ -196,8 +184,6 @@ class _ExpenseFormState extends State<ExpenseForm> {
               ),
             ),
             const SizedBox(height: 12),
-
-            // Title
             TextFormField(
               controller: _titleController,
               decoration: const InputDecoration(
@@ -205,12 +191,12 @@ class _ExpenseFormState extends State<ExpenseForm> {
                 prefixIcon: Icon(Icons.title),
               ),
               validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Please enter a title' : null,
+                  (v == null || v.trim().isEmpty)
+                      ? 'Please enter a title'
+                      : null,
               textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 12),
-
-            // Amount
             TextFormField(
               controller: _amountController,
               decoration: const InputDecoration(
@@ -221,19 +207,22 @@ class _ExpenseFormState extends State<ExpenseForm> {
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                FilteringTextInputFormatter.allow(
+                    RegExp(r'^\d+\.?\d{0,2}')),
               ],
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Please enter an amount';
+                if (v == null || v.trim().isEmpty) {
+                  return 'Please enter an amount';
+                }
                 final amount = double.tryParse(v);
-                if (amount == null || amount <= 0) return 'Please enter a valid amount';
+                if (amount == null || amount <= 0) {
+                  return 'Please enter a valid amount';
+                }
                 return null;
               },
               textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 12),
-
-            // Category
             Autocomplete<String>(
               initialValue:
                   TextEditingValue(text: _categoryController.text),
@@ -255,8 +244,6 @@ class _ExpenseFormState extends State<ExpenseForm> {
               },
             ),
             const SizedBox(height: 12),
-
-            // Note
             TextFormField(
               controller: _noteController,
               decoration: const InputDecoration(
@@ -267,8 +254,6 @@ class _ExpenseFormState extends State<ExpenseForm> {
               textInputAction: TextInputAction.done,
             ),
             const SizedBox(height: 20),
-
-            // Submit
             ElevatedButton(
               onPressed: _submit,
               child: Text(isEditing ? 'Save Changes' : 'Add'),
@@ -280,8 +265,6 @@ class _ExpenseFormState extends State<ExpenseForm> {
   }
 }
 
-/// Stateful widget that syncs the autocomplete controller with the external
-/// category controller, properly managing the listener lifecycle.
 class _CategoryField extends StatefulWidget {
   final TextEditingController autocompleteController;
   final TextEditingController categoryController;

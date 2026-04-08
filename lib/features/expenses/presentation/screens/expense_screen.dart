@@ -1,24 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../bloc/expense_bloc.dart';
-import '../bloc/expense_event.dart';
-import '../bloc/expense_state.dart';
+import '../providers/expense_provider.dart';
 import '../../data/models/expense_model.dart';
 import '../widgets/expense_calendar.dart';
 import '../widgets/expense_list.dart';
 import '../widgets/expense_form.dart';
 import '../widgets/summary_drawer.dart';
 
-class ExpenseScreen extends StatefulWidget {
+class ExpenseScreen extends ConsumerStatefulWidget {
   const ExpenseScreen({super.key});
 
   @override
-  State<ExpenseScreen> createState() => _ExpenseScreenState();
+  ConsumerState<ExpenseScreen> createState() => _ExpenseScreenState();
 }
 
-class _ExpenseScreenState extends State<ExpenseScreen> {
+class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
 
@@ -32,17 +30,17 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     Scaffold.of(context).openDrawer();
   }
 
-  void _navigateToPrevMonth(BuildContext context, DateTime current) {
+  void _navigateToPrevMonth(DateTime current) {
     final prev = DateTime(current.year, current.month - 1);
-    context.read<ExpenseBloc>().add(ChangeMonth(prev));
+    ref.read(expenseNotifierProvider.notifier).changeMonth(prev);
   }
 
-  void _navigateToNextMonth(BuildContext context, DateTime current) {
+  void _navigateToNextMonth(DateTime current) {
     final next = DateTime(current.year, current.month + 1);
-    context.read<ExpenseBloc>().add(ChangeMonth(next));
+    ref.read(expenseNotifierProvider.notifier).changeMonth(next);
   }
 
-  Future<void> _pickMonth(BuildContext context, DateTime current) async {
+  Future<void> _pickMonth(DateTime current) async {
     final picked = await showDatePicker(
       context: context,
       initialDate: current,
@@ -50,14 +48,14 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       lastDate: DateTime(2100),
       initialDatePickerMode: DatePickerMode.year,
     );
-    if (picked != null && context.mounted) {
-      context
-          .read<ExpenseBloc>()
-          .add(ChangeMonth(DateTime(picked.year, picked.month)));
+    if (picked != null && mounted) {
+      ref
+          .read(expenseNotifierProvider.notifier)
+          .changeMonth(DateTime(picked.year, picked.month));
     }
   }
 
-  void _showFilterDialog(BuildContext context, ExpenseType? current) {
+  void _showFilterDialog(ExpenseType? current) {
     showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -78,7 +76,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               label: 'All',
               selected: current == null,
               onTap: () {
-                context.read<ExpenseBloc>().add(const FilterExpenses(null));
+                ref
+                    .read(expenseNotifierProvider.notifier)
+                    .filterExpenses(null);
                 Navigator.pop(context);
               },
             ),
@@ -86,9 +86,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               label: 'Expense',
               selected: current == ExpenseType.expense,
               onTap: () {
-                context
-                    .read<ExpenseBloc>()
-                    .add(const FilterExpenses(ExpenseType.expense));
+                ref
+                    .read(expenseNotifierProvider.notifier)
+                    .filterExpenses(ExpenseType.expense);
                 Navigator.pop(context);
               },
             ),
@@ -96,9 +96,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               label: 'Income',
               selected: current == ExpenseType.income,
               onTap: () {
-                context
-                    .read<ExpenseBloc>()
-                    .add(const FilterExpenses(ExpenseType.income));
+                ref
+                    .read(expenseNotifierProvider.notifier)
+                    .filterExpenses(ExpenseType.income);
                 Navigator.pop(context);
               },
             ),
@@ -108,143 +108,123 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     );
   }
 
-  void _showAddExpenseForm(BuildContext context, DateTime selectedDate) {
+  void _showAddExpenseForm(DateTime selectedDate) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => BlocProvider.value(
-        value: context.read<ExpenseBloc>(),
-        child: ExpenseForm(initialDate: selectedDate),
-      ),
+      builder: (_) => ExpenseForm(initialDate: selectedDate),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ExpenseBloc, ExpenseState>(
-      builder: (context, state) {
-        final loaded = state is ExpenseLoaded ? state : null;
-        final focusedMonth = loaded?.focusedMonth ?? DateTime.now();
+    final state = ref.watch(expenseNotifierProvider);
+    final focusedMonth = state.focusedMonth;
 
-        return Scaffold(
-          drawer: const SummaryDrawer(),
-          appBar: AppBar(
-            leading: Builder(
-              builder: (ctx) => IconButton(
-                icon: const Icon(Icons.summarize_outlined),
-                tooltip: 'Summary',
-                onPressed: () => _openSummaryDrawer(ctx),
-              ),
-            ),
-            title: _isSearching
-                ? TextField(
-                    controller: _searchController,
-                    autofocus: true,
-                    style: const TextStyle(color: Colors.white),
-                    cursorColor: Colors.white,
-                    decoration: const InputDecoration(
-                      hintText: 'Search...',
-                      hintStyle: TextStyle(color: Colors.white70),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      filled: false,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    onChanged: (q) =>
-                        context.read<ExpenseBloc>().add(SearchExpenses(q)),
-                  )
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.chevron_left),
-                        onPressed: () =>
-                            _navigateToPrevMonth(context, focusedMonth),
-                      ),
-                      GestureDetector(
-                        onTap: () => _pickMonth(context, focusedMonth),
-                        child: Text(
-                          DateFormat('MMM yyyy').format(focusedMonth),
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.chevron_right),
-                        onPressed: () =>
-                            _navigateToNextMonth(context, focusedMonth),
-                      ),
-                    ],
-                  ),
-            actions: [
-              IconButton(
-                icon: Icon(_isSearching ? Icons.close : Icons.search),
-                onPressed: () {
-                  setState(() {
-                    _isSearching = !_isSearching;
-                    if (!_isSearching) {
-                      _searchController.clear();
-                      context
-                          .read<ExpenseBloc>()
-                          .add(const SearchExpenses(''));
-                    }
-                  });
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.filter_list),
-                onPressed: () =>
-                    _showFilterDialog(context, loaded?.activeFilter),
-              ),
-            ],
+    return Scaffold(
+      drawer: const SummaryDrawer(),
+      appBar: AppBar(
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.summarize_outlined),
+            tooltip: 'Summary',
+            onPressed: () => _openSummaryDrawer(ctx),
           ),
-          body: Builder(
-            builder: (ctx) {
-              if (state is ExpenseLoading) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (state is ExpenseError) {
-                return Center(child: Text('Error: ${state.message}'));
-              }
-              if (state is ExpenseLoaded) {
-                return Column(
-                  children: [
-                    // Income / Expense summary bar
-                    _MonthlySummaryBar(state: state),
-                    // Calendar
-                    ExpenseCalendar(state: state),
-                    // Divider
-                    const Divider(height: 1),
-                    // List of expenses for selected date
-                    Expanded(child: ExpenseList(state: state)),
-                  ],
-                );
-              }
-              return const SizedBox.shrink();
+        ),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                cursorColor: Colors.white,
+                decoration: const InputDecoration(
+                  hintText: 'Search...',
+                  hintStyle: TextStyle(color: Colors.white70),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                onChanged: (q) =>
+                    ref.read(expenseNotifierProvider.notifier).searchExpenses(q),
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left),
+                    onPressed: () => _navigateToPrevMonth(focusedMonth),
+                  ),
+                  GestureDetector(
+                    onTap: () => _pickMonth(focusedMonth),
+                    child: Text(
+                      DateFormat('MMM yyyy').format(focusedMonth),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: () => _navigateToNextMonth(focusedMonth),
+                  ),
+                ],
+              ),
+        actions: [
+          IconButton(
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            onPressed: () {
+              setState(() {
+                _isSearching = !_isSearching;
+                if (!_isSearching) {
+                  _searchController.clear();
+                  ref
+                      .read(expenseNotifierProvider.notifier)
+                      .searchExpenses('');
+                }
+              });
             },
           ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () => _showAddExpenseForm(
-              context,
-              loaded?.selectedDate ?? DateTime.now(),
-            ),
-            child: const Icon(Icons.add),
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: () => _showFilterDialog(state.activeFilter),
           ),
-        );
-      },
+        ],
+      ),
+      body: Builder(
+        builder: (ctx) {
+          if (state.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (state.error != null) {
+            return Center(child: Text('Error: ${state.error}'));
+          }
+          return Column(
+            children: [
+              _MonthlySummaryBar(state: state),
+              ExpenseCalendar(state: state),
+              const Divider(height: 1),
+              Expanded(child: ExpenseList(state: state)),
+            ],
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddExpenseForm(state.selectedDate),
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }
 
 class _MonthlySummaryBar extends StatelessWidget {
-  final ExpenseLoaded state;
+  final ExpenseState state;
 
   const _MonthlySummaryBar({required this.state});
 
@@ -263,7 +243,8 @@ class _MonthlySummaryBar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Income', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Text('Income',
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
                 Text(
                   formatter.format(income),
                   style: const TextStyle(
@@ -280,7 +261,8 @@ class _MonthlySummaryBar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                const Text('Expense', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Text('Expense',
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
                 Text(
                   formatter.format(expense),
                   style: const TextStyle(
@@ -313,7 +295,9 @@ class _FilterTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       title: Text(label),
-      trailing: selected ? const Icon(Icons.check, color: Color(0xFF4CAF50)) : null,
+      trailing: selected
+          ? const Icon(Icons.check, color: Color(0xFF4CAF50))
+          : null,
       onTap: onTap,
     );
   }

@@ -1,13 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/app_theme.dart';
-import 'features/expenses/data/repositories/expense_repository.dart';
-import 'features/expenses/presentation/bloc/expense_bloc.dart';
-import 'features/expenses/presentation/bloc/expense_event.dart';
-import 'features/shopping/data/repositories/shopping_repository.dart';
-import 'features/shopping/presentation/bloc/shopping_bloc.dart';
-import 'features/shopping/presentation/bloc/shopping_event.dart';
 import 'shared/widgets/bottom_nav_bar.dart';
 
 class ShareItApp extends StatelessWidget {
@@ -15,31 +9,11 @@ class ShareItApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiRepositoryProvider(
-      providers: [
-        RepositoryProvider(create: (_) => ExpenseRepository()),
-        RepositoryProvider(create: (_) => ShoppingRepository()),
-      ],
-      child: MultiBlocProvider(
-        providers: [
-          BlocProvider(
-            create: (context) => ExpenseBloc(
-              repository: context.read<ExpenseRepository>(),
-            )..add(LoadExpenses(DateTime.now())),
-          ),
-          BlocProvider(
-            create: (context) => ShoppingBloc(
-              repository: context.read<ShoppingRepository>(),
-            )..add(const LoadShoppingItems()),
-          ),
-        ],
-        child: MaterialApp(
-          title: 'Share It',
-          theme: AppTheme.lightTheme,
-          home: const MainScreen(),
-          debugShowCheckedModeBanner: false,
-        ),
-      ),
+    return MaterialApp(
+      title: 'Share It',
+      theme: AppTheme.lightTheme,
+      home: const MainScreen(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }

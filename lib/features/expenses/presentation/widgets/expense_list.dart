@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../bloc/expense_bloc.dart';
-import '../bloc/expense_event.dart';
-import '../bloc/expense_state.dart';
+import '../providers/expense_provider.dart';
 import '../../data/models/expense_model.dart';
 import 'expense_form.dart';
 
 class ExpenseList extends StatelessWidget {
-  final ExpenseLoaded state;
+  final ExpenseState state;
 
   const ExpenseList({super.key, required this.state});
 
@@ -48,7 +46,7 @@ class ExpenseList extends StatelessWidget {
   }
 }
 
-class _ExpenseListTile extends StatelessWidget {
+class _ExpenseListTile extends ConsumerWidget {
   final ExpenseModel expense;
 
   const _ExpenseListTile({required this.expense});
@@ -60,14 +58,12 @@ class _ExpenseListTile extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => BlocProvider.value(
-        value: context.read<ExpenseBloc>(),
-        child: ExpenseForm(expense: expense, initialDate: expense.createdAt),
-      ),
+      builder: (_) =>
+          ExpenseForm(expense: expense, initialDate: expense.createdAt),
     );
   }
 
-  void _confirmDelete(BuildContext context) {
+  void _confirmDelete(BuildContext context, WidgetRef ref) {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -80,7 +76,9 @@ class _ExpenseListTile extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              context.read<ExpenseBloc>().add(DeleteExpense(expense.id!));
+              ref
+                  .read(expenseNotifierProvider.notifier)
+                  .deleteExpense(expense.id!);
               Navigator.pop(ctx);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -92,13 +90,12 @@ class _ExpenseListTile extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isIncome = expense.isIncome;
     final amountColor =
         isIncome ? const Color(0xFF43A047) : const Color(0xFFE53935);
     final amountPrefix = isIncome ? '+' : '-';
-    final formatter =
-        NumberFormat.currency(symbol: '\$', decimalDigits: 2);
+    final formatter = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
 
     return Card(
       margin: EdgeInsets.zero,
@@ -139,7 +136,7 @@ class _ExpenseListTile extends StatelessWidget {
             PopupMenuButton<String>(
               onSelected: (value) {
                 if (value == 'edit') _showEditForm(context);
-                if (value == 'delete') _confirmDelete(context);
+                if (value == 'delete') _confirmDelete(context, ref);
               },
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'edit', child: Text('Edit')),

@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 
-import '../bloc/expense_bloc.dart';
-import '../bloc/expense_event.dart';
-import '../bloc/expense_state.dart';
+import '../providers/expense_provider.dart';
 
-class ExpenseCalendar extends StatelessWidget {
-  final ExpenseLoaded state;
+class ExpenseCalendar extends ConsumerWidget {
+  final ExpenseState state;
 
   const ExpenseCalendar({super.key, required this.state});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return TableCalendar<Object>(
       firstDay: DateTime(2000),
       lastDay: DateTime(2100),
@@ -42,12 +40,12 @@ class ExpenseCalendar extends StatelessWidget {
         cellMargin: const EdgeInsets.all(2),
       ),
       onDaySelected: (selectedDay, focusedDay) {
-        context.read<ExpenseBloc>().add(SelectDate(selectedDay));
+        ref.read(expenseNotifierProvider.notifier).selectDate(selectedDay);
       },
       onPageChanged: (focusedDay) {
-        context
-            .read<ExpenseBloc>()
-            .add(ChangeMonth(DateTime(focusedDay.year, focusedDay.month)));
+        ref
+            .read(expenseNotifierProvider.notifier)
+            .changeMonth(DateTime(focusedDay.year, focusedDay.month));
       },
       calendarBuilders: CalendarBuilders(
         defaultBuilder: (context, day, focusedDay) {
@@ -102,9 +100,10 @@ class _CalendarCell extends StatelessWidget {
     final primary = Theme.of(context).colorScheme.primary;
 
     Color bgColor = Colors.transparent;
-    Color textColor = day.weekday == DateTime.sunday || day.weekday == DateTime.saturday
-        ? Colors.red.shade400
-        : Colors.black87;
+    Color textColor =
+        day.weekday == DateTime.sunday || day.weekday == DateTime.saturday
+            ? Colors.red.shade400
+            : Colors.black87;
 
     if (isSelected) {
       bgColor = primary;
@@ -126,7 +125,8 @@ class _CalendarCell extends StatelessWidget {
             '${day.day}',
             style: TextStyle(
               fontSize: 13,
-              fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.normal,
+              fontWeight:
+                  isSelected || isToday ? FontWeight.bold : FontWeight.normal,
               color: textColor,
             ),
           ),
@@ -145,7 +145,8 @@ class _CalendarCell extends StatelessWidget {
               _formatShort(expense),
               style: TextStyle(
                 fontSize: 7,
-                color: isSelected ? Colors.white70 : const Color(0xFFE53935),
+                color:
+                    isSelected ? Colors.white70 : const Color(0xFFE53935),
                 height: 1,
               ),
               overflow: TextOverflow.ellipsis,

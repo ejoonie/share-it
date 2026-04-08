@@ -1,8 +1,6 @@
-import 'package:equatable/equatable.dart';
-
 enum ExpenseType { income, expense }
 
-class ExpenseModel extends Equatable {
+class ExpenseModel {
   final int? id;
   final String title;
   final int amount; // stored in cents
@@ -23,7 +21,6 @@ class ExpenseModel extends Equatable {
     required this.updatedAt,
   });
 
-  /// Amount in dollars as a double (for display)
   double get amountInDollars => amount / 100.0;
 
   bool get isIncome => type == ExpenseType.income;
@@ -76,8 +73,4 @@ class ExpenseModel extends Equatable {
       updatedAt: DateTime.parse(map['updated_at'] as String),
     );
   }
-
-  @override
-  List<Object?> get props =>
-      [id, title, amount, note, category, type, createdAt, updatedAt];
 }

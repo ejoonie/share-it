@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../bloc/shopping_bloc.dart';
-import '../bloc/shopping_event.dart';
+import '../providers/shopping_provider.dart';
 import '../../data/models/shopping_item_model.dart';
 
-class ShoppingForm extends StatefulWidget {
+class ShoppingForm extends ConsumerStatefulWidget {
   final ShoppingItemModel? item;
 
   const ShoppingForm({super.key, this.item});
 
   @override
-  State<ShoppingForm> createState() => _ShoppingFormState();
+  ConsumerState<ShoppingForm> createState() => _ShoppingFormState();
 }
 
-class _ShoppingFormState extends State<ShoppingForm> {
+class _ShoppingFormState extends ConsumerState<ShoppingForm> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
   late TextEditingController _amountController;
@@ -28,7 +27,9 @@ class _ShoppingFormState extends State<ShoppingForm> {
     final i = widget.item;
     _titleController = TextEditingController(text: i?.title ?? '');
     _amountController = TextEditingController(
-      text: i?.amount != null ? (i!.amount! / 100.0).toStringAsFixed(2) : '',
+      text: i?.amount != null
+          ? (i!.amount! / 100.0).toStringAsFixed(2)
+          : '',
     );
     _quantityController = TextEditingController(text: i?.quantity ?? '');
     _noteController = TextEditingController(text: i?.note ?? '');
@@ -57,36 +58,32 @@ class _ShoppingFormState extends State<ShoppingForm> {
 
     if (widget.item == null) {
       final now = DateTime.now();
-      context.read<ShoppingBloc>().add(
-            AddShoppingItem(
-              ShoppingItemModel(
-                title: _titleController.text.trim(),
-                amount: amountCents,
-                quantity: _quantityController.text.trim().isEmpty
-                    ? null
-                    : _quantityController.text.trim(),
-                note: _noteController.text.trim().isEmpty
-                    ? null
-                    : _noteController.text.trim(),
-                createdAt: now,
-                updatedAt: now,
-              ),
+      ref.read(shoppingNotifierProvider.notifier).addItem(
+            ShoppingItemModel(
+              title: _titleController.text.trim(),
+              amount: amountCents,
+              quantity: _quantityController.text.trim().isEmpty
+                  ? null
+                  : _quantityController.text.trim(),
+              note: _noteController.text.trim().isEmpty
+                  ? null
+                  : _noteController.text.trim(),
+              createdAt: now,
+              updatedAt: now,
             ),
           );
     } else {
-      context.read<ShoppingBloc>().add(
-            UpdateShoppingItem(
-              widget.item!.copyWith(
-                title: _titleController.text.trim(),
-                amount: () => amountCents,
-                quantity: () => _quantityController.text.trim().isEmpty
-                    ? null
-                    : _quantityController.text.trim(),
-                note: () => _noteController.text.trim().isEmpty
-                    ? null
-                    : _noteController.text.trim(),
-                updatedAt: DateTime.now(),
-              ),
+      ref.read(shoppingNotifierProvider.notifier).updateItem(
+            widget.item!.copyWith(
+              title: _titleController.text.trim(),
+              amount: () => amountCents,
+              quantity: () => _quantityController.text.trim().isEmpty
+                  ? null
+                  : _quantityController.text.trim(),
+              note: () => _noteController.text.trim().isEmpty
+                  ? null
+                  : _noteController.text.trim(),
+              updatedAt: DateTime.now(),
             ),
           );
     }
@@ -107,7 +104,6 @@ class _ShoppingFormState extends State<ShoppingForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header
             Row(
               children: [
                 Text(
@@ -125,24 +121,21 @@ class _ShoppingFormState extends State<ShoppingForm> {
               ],
             ),
             const SizedBox(height: 12),
-
-            // Title
             TextFormField(
               controller: _titleController,
               decoration: const InputDecoration(
                 labelText: 'Item name *',
                 prefixIcon: Icon(Icons.shopping_cart_outlined),
               ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Please enter an item name' : null,
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Please enter an item name'
+                  : null,
               textInputAction: TextInputAction.next,
               autofocus: true,
             ),
             const SizedBox(height: 12),
-
             Row(
               children: [
-                // Quantity
                 Expanded(
                   child: TextFormField(
                     controller: _quantityController,
@@ -155,7 +148,6 @@ class _ShoppingFormState extends State<ShoppingForm> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Amount
                 Expanded(
                   child: TextFormField(
                     controller: _amountController,
@@ -164,8 +156,8 @@ class _ShoppingFormState extends State<ShoppingForm> {
                       prefixIcon: Icon(Icons.attach_money),
                       hintText: '0.00',
                     ),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
                         RegExp(r'^\d+\.?\d{0,2}'),
@@ -177,8 +169,6 @@ class _ShoppingFormState extends State<ShoppingForm> {
               ],
             ),
             const SizedBox(height: 12),
-
-            // Note
             TextFormField(
               controller: _noteController,
               decoration: const InputDecoration(
@@ -188,7 +178,6 @@ class _ShoppingFormState extends State<ShoppingForm> {
               textInputAction: TextInputAction.done,
             ),
             const SizedBox(height: 20),
-
             ElevatedButton(
               onPressed: _submit,
               child: Text(isEditing ? 'Save Changes' : 'Add'),

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../bloc/shopping_bloc.dart';
-import '../bloc/shopping_event.dart';
+import '../providers/shopping_provider.dart';
 import '../../data/models/shopping_item_model.dart';
 import '../widgets/shopping_form.dart';
 
-class ShoppingItemTile extends StatelessWidget {
+class ShoppingItemTile extends ConsumerWidget {
   final ShoppingItemModel item;
 
   const ShoppingItemTile({super.key, required this.item});
@@ -19,14 +18,11 @@ class ShoppingItemTile extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => BlocProvider.value(
-        value: context.read<ShoppingBloc>(),
-        child: ShoppingForm(item: item),
-      ),
+      builder: (_) => ShoppingForm(item: item),
     );
   }
 
-  void _confirmDelete(BuildContext context) {
+  void _confirmDelete(BuildContext context, WidgetRef ref) {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -39,9 +35,9 @@ class ShoppingItemTile extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              context
-                  .read<ShoppingBloc>()
-                  .add(DeleteShoppingItem(item.id!));
+              ref
+                  .read(shoppingNotifierProvider.notifier)
+                  .deleteItem(item.id!);
               Navigator.pop(ctx);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -53,7 +49,7 @@ class ShoppingItemTile extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final formatter = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
 
     return Card(
@@ -67,9 +63,9 @@ class ShoppingItemTile extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(4),
           ),
-          onChanged: (_) => context
-              .read<ShoppingBloc>()
-              .add(ToggleShoppingItem(item)),
+          onChanged: (_) => ref
+              .read(shoppingNotifierProvider.notifier)
+              .toggleItem(item),
         ),
         title: Text(
           item.title,
@@ -96,7 +92,7 @@ class ShoppingItemTile extends StatelessWidget {
             PopupMenuButton<String>(
               onSelected: (value) {
                 if (value == 'edit') _showEditForm(context);
-                if (value == 'delete') _confirmDelete(context);
+                if (value == 'delete') _confirmDelete(context, ref);
               },
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'edit', child: Text('Edit')),
@@ -105,9 +101,9 @@ class ShoppingItemTile extends StatelessWidget {
             ),
           ],
         ),
-        onTap: () => context
-            .read<ShoppingBloc>()
-            .add(ToggleShoppingItem(item)),
+        onTap: () => ref
+            .read(shoppingNotifierProvider.notifier)
+            .toggleItem(item),
       ),
     );
   }

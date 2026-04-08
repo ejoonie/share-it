@@ -1,120 +1,105 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../bloc/expense_bloc.dart';
-import '../bloc/expense_state.dart';
+import '../providers/expense_provider.dart';
 import '../../data/models/expense_model.dart';
 
-class SummaryDrawer extends StatelessWidget {
+class SummaryDrawer extends ConsumerWidget {
   const SummaryDrawer({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Drawer(
-      child: BlocBuilder<ExpenseBloc, ExpenseState>(
-        builder: (context, state) {
-          final loaded = state is ExpenseLoaded ? state : null;
-          return _SummaryDrawerBody(loadedState: loaded);
-        },
-      ),
-    );
-  }
-}
-
-class _SummaryDrawerBody extends StatelessWidget {
-  final ExpenseLoaded? loadedState;
-
-  const _SummaryDrawerBody({required this.loadedState});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(expenseNotifierProvider);
     final formatter = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
-    final loaded = loadedState;
 
-    return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            color: Theme.of(context).colorScheme.primary,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Monthly Summary',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (loaded != null)
-                  Text(
-                    DateFormat('MMM yyyy').format(loaded.focusedMonth),
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              color: Theme.of(context).colorScheme.primary,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Monthly Summary',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-              ],
-            ),
-          ),
-          if (loaded != null) ...[
-            _SummaryTile(
-              icon: Icons.arrow_downward,
-              iconColor: const Color(0xFF43A047),
-              label: 'Total Income',
-              value: formatter.format(loaded.monthlyIncomeTotal / 100.0),
-              valueColor: const Color(0xFF43A047),
-            ),
-            const Divider(indent: 16, endIndent: 16),
-            _SummaryTile(
-              icon: Icons.arrow_upward,
-              iconColor: const Color(0xFFE53935),
-              label: 'Total Expense',
-              value: formatter.format(loaded.monthlyExpenseTotal / 100.0),
-              valueColor: const Color(0xFFE53935),
-            ),
-            const Divider(indent: 16, endIndent: 16),
-            _SummaryTile(
-              icon: Icons.account_balance_wallet,
-              iconColor: Colors.blueGrey,
-              label: 'Net Balance',
-              value: formatter.format(
-                (loaded.monthlyIncomeTotal - loaded.monthlyExpenseTotal) /
-                    100.0,
+                  if (!state.isLoading)
+                    Text(
+                      DateFormat('MMM yyyy').format(state.focusedMonth),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                ],
               ),
-              valueColor: loaded.monthlyIncomeTotal >= loaded.monthlyExpenseTotal
-                  ? const Color(0xFF43A047)
-                  : const Color(0xFFE53935),
             ),
-            const Divider(height: 32),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Expense by Category',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade700,
+            if (state.isLoading)
+              const Expanded(
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else ...[
+              _SummaryTile(
+                icon: Icons.arrow_downward,
+                iconColor: const Color(0xFF43A047),
+                label: 'Total Income',
+                value: formatter.format(state.monthlyIncomeTotal / 100.0),
+                valueColor: const Color(0xFF43A047),
+              ),
+              const Divider(indent: 16, endIndent: 16),
+              _SummaryTile(
+                icon: Icons.arrow_upward,
+                iconColor: const Color(0xFFE53935),
+                label: 'Total Expense',
+                value: formatter.format(state.monthlyExpenseTotal / 100.0),
+                valueColor: const Color(0xFFE53935),
+              ),
+              const Divider(indent: 16, endIndent: 16),
+              _SummaryTile(
+                icon: Icons.account_balance_wallet,
+                iconColor: Colors.blueGrey,
+                label: 'Net Balance',
+                value: formatter.format(
+                  (state.monthlyIncomeTotal - state.monthlyExpenseTotal) /
+                      100.0,
+                ),
+                valueColor:
+                    state.monthlyIncomeTotal >= state.monthlyExpenseTotal
+                        ? const Color(0xFF43A047)
+                        : const Color(0xFFE53935),
+              ),
+              const Divider(height: 32),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Expense by Category',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade700,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: _CategoryBreakdown(
-                expenses: loaded.monthlyExpenses,
-                formatter: formatter,
+              const SizedBox(height: 8),
+              Expanded(
+                child: _CategoryBreakdown(
+                  expenses: state.monthlyExpenses,
+                  formatter: formatter,
+                ),
               ),
-            ),
-          ] else
-            const Expanded(
-              child: Center(child: CircularProgressIndicator()),
-            ),
-        ],
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -155,7 +140,8 @@ class _CategoryBreakdown extends StatelessWidget {
             (entry) => ListTile(
               dense: true,
               leading: const Icon(Icons.label_outline, size: 18),
-              title: Text(entry.key, style: const TextStyle(fontSize: 14)),
+              title:
+                  Text(entry.key, style: const TextStyle(fontSize: 14)),
               trailing: Text(
                 formatter.format(entry.value / 100.0),
                 style: const TextStyle(

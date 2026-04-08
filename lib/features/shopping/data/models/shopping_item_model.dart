@@ -1,6 +1,4 @@
-import 'package:equatable/equatable.dart';
-
-class ShoppingItemModel extends Equatable {
+class ShoppingItemModel {
   final int? id;
   final String title;
   final int? amount; // estimated price in cents, optional
@@ -71,8 +69,4 @@ class ShoppingItemModel extends Equatable {
       updatedAt: DateTime.parse(map['updated_at'] as String),
     );
   }
-
-  @override
-  List<Object?> get props =>
-      [id, title, amount, quantity, note, isChecked, createdAt, updatedAt];
 }
