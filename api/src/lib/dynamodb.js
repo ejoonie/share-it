@@ -14,7 +14,7 @@ if (process.env.DYNAMODB_ENDPOINT) {
 const client = new DynamoDBClient(clientConfig);
 const docClient = DynamoDBDocumentClient.from(client);
 
-const TOPICS_TABLE = process.env.TOPICS_TABLE || 't_topics-development';
+const TOPICS_TABLE = process.env.TOPICS_TABLE || 't_topics-dev';
 
 async function putTopic(item) {
   await docClient.send(
