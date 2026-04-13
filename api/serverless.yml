@@ -1,0 +1,64 @@
+service: share-it-api
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-west-2
+  stage: ${opt:stage, 'development'}
+  environment:
+    STAGE: ${self:provider.stage}
+    TOPICS_TABLE: t_topics-${self:provider.stage}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:GetItem
+            - dynamodb:Query
+          Resource:
+            - !GetAtt TopicsTable.Arn
+            - !Sub '${TopicsTable.Arn}/index/*'
+
+functions:
+  createTopic:
+    handler: src/handlers/topics.createTopic
+    events:
+      - httpApi:
+          path: /api/v1/topics
+          method: post
+
+  getOwnedTopics:
+    handler: src/handlers/topics.getOwnedTopics
+    events:
+      - httpApi:
+          path: /api/v1/topics/owned
+          method: get
+
+resources:
+  Resources:
+    TopicsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: t_topics-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: topic_id
+            AttributeType: S
+          - AttributeName: owner_id
+            AttributeType: S
+          - AttributeName: created_at
+            AttributeType: S
+        KeySchema:
+          - AttributeName: topic_id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: owner-index
+            KeySchema:
+              - AttributeName: owner_id
+                KeyType: HASH
+              - AttributeName: created_at
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
