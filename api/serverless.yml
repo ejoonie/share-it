@@ -1,6 +1,15 @@
 # 서비스 이름 (Serverless Framework 프로젝트 단위)
 service: share-it-api
 
+plugins:
+  - serverless-offline  # 로컬 실행용 플러그인 (API Gateway + Lambda 에뮬레이션)
+
+custom:
+  serverless-offline:
+    httpPort: 3000        # 로컬 HTTP 포트 (기본값 3000)
+    lambdaPort: 3002      # 로컬 Lambda 포트
+    noPrependStageInUrl: true  # URL 에 스테이지 접두사 제거 (/api/v1/topics 형태 유지)
+
 provider:
   name: aws           # 클라우드 공급자: AWS
   runtime: nodejs20.x # Lambda 런타임
@@ -10,6 +19,7 @@ provider:
     STAGE: ${self:provider.stage}                      # Lambda 환경변수: 현재 스테이지
     TOPICS_TABLE: t_topics-${self:provider.stage}      # Lambda 환경변수: DynamoDB 테이블명 (스테이지별 분리)
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'           # HTTP Keep-Alive 활성화 (성능 최적화)
+    DYNAMODB_ENDPOINT: ${env:DYNAMODB_ENDPOINT, ''}    # 로컬 DynamoDB 엔드포인트 (로컬 실행 시 http://localhost:8000)
   iam:
     role:
       statements:
