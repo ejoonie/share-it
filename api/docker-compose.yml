@@ -1,0 +1,9 @@
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest  # AWS 공식 DynamoDB Local 이미지
+    container_name: share-it-dynamodb
+    ports:
+      - '8000:8000'                       # 로컬 포트 8000 으로 노출
+    command: ['-jar', 'DynamoDBLocal.jar', '-sharedDb', '-inMemory']
+    # -sharedDb  : 모든 요청이 단일 파일 공유 (리전 무관)
+    # -inMemory  : 컨테이너 종료 시 데이터 초기화 (재시작 시 db:setup 재실행 필요)
