@@ -6,7 +6,7 @@ plugins:
 
 custom:
   serverless-offline:
-    httpPort: 3000        # 로컬 HTTP 포트 (기본값 3000)
+    httpPort: 3001        # 로컬 HTTP 포트 (기본값 3000)
     lambdaPort: 3002      # 로컬 Lambda 포트
     noPrependStageInUrl: true  # URL 에 스테이지 접두사 제거 (/api/v1/topics 형태 유지)
 

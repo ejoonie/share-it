@@ -19,7 +19,7 @@ Node.js Lambda 함수 + API Gateway (HTTP API) + DynamoDB로 구성된 topics CR
 
 ```bash
 cd api
-npm install
+yarn install
 ```
 
 ### 2단계 — 환경 변수 설정
@@ -47,7 +47,7 @@ docker compose up -d
 ### 4단계 — 테이블 생성
 
 ```bash
-npm run db:setup
+yarn run db:setup
 ```
 
 `t_topics-dev` 테이블과 `owner-index` GSI가 생성됩니다.  
@@ -56,10 +56,10 @@ npm run db:setup
 ### 5단계 — API 서버 시작
 
 ```bash
-npm run dev
+yarn run dev
 ```
 
-`serverless-offline`이 실행되며 `http://localhost:3000` 에서 API를 사용할 수 있습니다.
+`serverless-offline`이 실행되며 `http://localhost:3001` 에서 API를 사용할 수 있습니다.
 
 ---
 
@@ -68,10 +68,10 @@ npm run dev
 ### 토픽 생성
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/topics \
+curl -X POST http://localhost:3001/api/v1/topics \
   -H "x-user-id: u_1" \
   -H "content-type: application/json" \
-  -d '{"title": "생활비 가계부"}'
+  -d '{"title": "My Expenses"}'
 ```
 
 **응답 (201)**
@@ -80,7 +80,7 @@ curl -X POST http://localhost:3000/api/v1/topics \
 {
   "topic_id": "tp_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
   "owner_id": "u_1",
-  "title": "생활비 가계부",
+  "title": "My Expenses",
   "last_sequence": 0,
   "created_at": "2026-01-01T00:00:00.000Z"
 }
@@ -89,7 +89,7 @@ curl -X POST http://localhost:3000/api/v1/topics \
 ### 내 토픽 목록 조회
 
 ```bash
-curl http://localhost:3000/api/v1/topics/owned \
+curl http://localhost:3001/api/v1/topics/owned \
   -H "x-user-id: u_1"
 ```
 
@@ -101,7 +101,7 @@ curl http://localhost:3000/api/v1/topics/owned \
     {
       "topic_id": "tp_...",
       "owner_id": "u_1",
-      "title": "생활비 가계부",
+      "title": "My Expenses",
       "last_sequence": 0,
       "created_at": "2026-01-01T00:00:00.000Z",
       "updated_at": "2026-01-01T00:00:00.000Z"
@@ -115,8 +115,8 @@ curl http://localhost:3000/api/v1/topics/owned \
 ## 테스트
 
 ```bash
-npm test          # 전체 테스트 + 커버리지
-npm run test:unit # 유닛 테스트만
+yarn test          # 전체 테스트 + 커버리지
+yarn run test:unit # 유닛 테스트만
 ```
 
 ---
@@ -124,8 +124,8 @@ npm run test:unit # 유닛 테스트만
 ## 배포
 
 ```bash
-npm run deploy:dev   # → t_topics-dev (development stage)
-npm run deploy:prod  # → t_topics-prod (production stage)
+yarn run deploy:dev   # → t_topics-dev (development stage)
+yarn run deploy:prod  # → t_topics-prod (production stage)
 ```
 
 > AWS 자격증명이 설정되어 있어야 합니다 (`aws configure` 또는 환경 변수).
