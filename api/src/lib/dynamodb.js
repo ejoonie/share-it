@@ -94,7 +94,7 @@ async function setTopicDeleted(topicId) {
   return result.Attributes;
 }
 
-async function updateTopicDefaultFlag(topicId, isDefault, updatedAt) {
+async function _setTopicDefaultFlag(topicId, isDefault, updatedAt) {
   const result = await docClient.send(
     new UpdateCommand({
       TableName: TOPICS_TABLE,
@@ -119,10 +119,10 @@ async function setTopicDefault(ownerId, topicId) {
   await Promise.all(
     ownerTopics
       .filter((ownerTopic) => ownerTopic.topic_id !== topicId)
-      .map((ownerTopic) => updateTopicDefaultFlag(ownerTopic.topic_id, false, updatedAt)),
+      .map((ownerTopic) => _setTopicDefaultFlag(ownerTopic.topic_id, false, updatedAt)),
   );
 
-  return updateTopicDefaultFlag(topicId, true, updatedAt);
+  return _setTopicDefaultFlag(topicId, true, updatedAt);
 }
 
 async function putSubscription(topicId, userId) {
