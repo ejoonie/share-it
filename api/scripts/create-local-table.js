@@ -79,7 +79,7 @@ async function run() {
         AttributeDefinitions: [
           { AttributeName: 'event_id', AttributeType: 'S' },
           { AttributeName: 'topic_id', AttributeType: 'S' },
-          { AttributeName: 'created_at', AttributeType: 'S' },
+          { AttributeName: 'occurred_at', AttributeType: 'S' },
         ],
         KeySchema: [{ AttributeName: 'event_id', KeyType: 'HASH' }],
         GlobalSecondaryIndexes: [
@@ -87,7 +87,7 @@ async function run() {
             IndexName: 'topic-index',
             KeySchema: [
               { AttributeName: 'topic_id', KeyType: 'HASH' },
-              { AttributeName: 'created_at', KeyType: 'RANGE' },
+              { AttributeName: 'occurred_at', KeyType: 'RANGE' },
             ],
             Projection: { ProjectionType: 'ALL' },
           },

@@ -160,7 +160,7 @@ resources:
             AttributeType: S
           - AttributeName: topic_id
             AttributeType: S
-          - AttributeName: created_at
+          - AttributeName: occurred_at
             AttributeType: S
         KeySchema:
           - AttributeName: event_id
@@ -170,7 +170,7 @@ resources:
             KeySchema:
               - AttributeName: topic_id
                 KeyType: HASH
-              - AttributeName: created_at
+              - AttributeName: occurred_at
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL

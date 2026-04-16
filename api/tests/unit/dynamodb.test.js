@@ -39,6 +39,8 @@ const {
   setTopicDeleted,
   setTopicDefault,
   putSubscription,
+  putEvent,
+  updateEventData,
 } = require('../../src/lib/dynamodb');
 
 describe('lib/dynamodb - queryTopicsByOwner', () => {
@@ -155,5 +157,68 @@ describe('lib/dynamodb - putSubscription', () => {
     );
     expect(result.pk).toBe('TOPIC#tp_1');
     expect(result.sk).toBe('USER#u_1');
+  });
+});
+
+describe('lib/dynamodb - events', () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it('putEvent should construct event item without data field', async () => {
+    mockSend.mockResolvedValue({});
+
+    await putEvent({
+      eventId: 'ev_1',
+      topicId: 'tp_1',
+      ownerId: 'u_owner',
+      updatedBy: 'u_updater',
+      sequence: 1,
+      kind: 'expense',
+      amount: 1200,
+      category: 'food',
+      content: 'lunch',
+      checked: false,
+      occurredAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          Item: expect.objectContaining({
+            event_id: 'ev_1',
+            topic_id: 'tp_1',
+            owner_id: 'u_owner',
+            update_by: 'u_updater',
+            sequence: 1,
+            kind: 'expense',
+            amount: 1200,
+            category: 'food',
+            content: 'lunch',
+            checked: false,
+            occurred_at: '2026-01-01T00:00:00.000Z',
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('updateEventData should set update_by and provided fields', async () => {
+    mockSend.mockResolvedValue({ Attributes: { event_id: 'ev_1' } });
+
+    await updateEventData('ev_1', 'u_updater', { amount: null, checked: true });
+
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          Key: { event_id: 'ev_1' },
+          ExpressionAttributeValues: expect.objectContaining({
+            ':updated_by': 'u_updater',
+            ':amount': null,
+            ':checked': true,
+          }),
+        }),
+      }),
+    );
   });
 });

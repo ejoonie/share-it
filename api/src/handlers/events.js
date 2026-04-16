@@ -9,18 +9,7 @@ const {
   updateEventData,
   setEventDeleted,
 } = require('../lib/dynamodb');
-
-const createResponse = (statusCode, body) => ({
-  statusCode,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify(body),
-});
-
-function getUserId(headers = {}) {
-  return headers['x-user-id'] || headers['X-User-Id'];
-}
+const { createResponse, getUserId, parseJsonBody } = require('./common');
 
 module.exports.createEvent = async (event) => {
   try {
@@ -39,28 +28,29 @@ module.exports.createEvent = async (event) => {
       return createResponse(404, { message: 'Topic not found' });
     }
 
-    let body;
-    try {
-      body = JSON.parse(event.body || '{}');
-    } catch {
+    const parsedBody = parseJsonBody(event.body);
+    if (!parsedBody.ok) {
       return createResponse(400, { message: 'Invalid JSON body' });
     }
+    const body = parsedBody.body;
 
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return createResponse(400, { message: 'event body must be an object' });
     }
 
-    const now = new Date().toISOString();
-    const eventItem = {
-      event_id: `ev_${uuidv4()}`,
-      topic_id: topicId,
-      user_id: userId,
-      data: body,
-      created_at: now,
-      updated_at: now,
-    };
-
-    await putEvent(eventItem);
+    const eventItem = await putEvent({
+      eventId: `ev_${uuidv4()}`,
+      topicId,
+      ownerId: topic.owner_id,
+      updatedBy: userId,
+      sequence: body.sequence ?? 0,
+      kind: body.kind ?? null,
+      amount: body.amount ?? null,
+      category: body.category ?? null,
+      content: body.content ?? null,
+      checked: body.checked ?? false,
+      occurredAt: body.occurred_at ?? new Date().toISOString(),
+    });
     return createResponse(201, { event: eventItem });
   } catch (error) {
     console.error('Error creating event:', error);
@@ -116,18 +106,17 @@ module.exports.updateEvent = async (event) => {
       return createResponse(404, { message: 'Event not found' });
     }
 
-    let body;
-    try {
-      body = JSON.parse(event.body || '{}');
-    } catch {
+    const parsedBody = parseJsonBody(event.body);
+    if (!parsedBody.ok) {
       return createResponse(400, { message: 'Invalid JSON body' });
     }
+    const body = parsedBody.body;
 
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return createResponse(400, { message: 'event body must be an object' });
     }
 
-    const updatedEvent = await updateEventData(eventId, body);
+    const updatedEvent = await updateEventData(eventId, userId, body);
     return createResponse(200, { event: updatedEvent });
   } catch (error) {
     console.error('Error updating event:', error);

@@ -94,7 +94,8 @@ async function setTopicDeleted(topicId) {
   return result.Attributes;
 }
 
-async function _setTopicDefaultFlag(topicId, isDefault, updatedAt) {
+async function _setTopicDefaultFlag(topicId, isDefault) {
+  const updatedAt = new Date().toISOString();
   const result = await docClient.send(
     new UpdateCommand({
       TableName: TOPICS_TABLE,
@@ -113,16 +114,15 @@ async function _setTopicDefaultFlag(topicId, isDefault, updatedAt) {
 }
 
 async function setTopicDefault(ownerId, topicId) {
-  const updatedAt = new Date().toISOString();
   const ownerTopics = await queryTopicsByOwner(ownerId);
 
   await Promise.all(
     ownerTopics
       .filter((ownerTopic) => ownerTopic.topic_id !== topicId)
-      .map((ownerTopic) => _setTopicDefaultFlag(ownerTopic.topic_id, false, updatedAt)),
+      .map((ownerTopic) => _setTopicDefaultFlag(ownerTopic.topic_id, false)),
   );
 
-  return _setTopicDefaultFlag(topicId, true, updatedAt);
+  return _setTopicDefaultFlag(topicId, true);
 }
 
 async function putSubscription(topicId, userId) {
@@ -146,13 +146,40 @@ async function putSubscription(topicId, userId) {
   return item;
 }
 
-async function putEvent(item) {
+async function putEvent({
+  eventId,
+  topicId,
+  ownerId,
+  updatedBy,
+  sequence,
+  kind,
+  amount,
+  category,
+  content,
+  checked,
+  occurredAt,
+}) {
+  const item = {
+    event_id: eventId,
+    topic_id: topicId,
+    owner_id: ownerId,
+    update_by: updatedBy,
+    sequence,
+    kind,
+    amount: amount ?? null,
+    category: category ?? null,
+    content: content ?? null,
+    checked: checked ?? false,
+    occurred_at: occurredAt,
+  };
+
   await docClient.send(
     new PutCommand({
       TableName: EVENTS_TABLE,
       Item: item,
     }),
   );
+  return item;
 }
 
 async function queryEventsByTopic(topicId) {
@@ -183,22 +210,29 @@ async function getEventById(eventId) {
   return result.Item;
 }
 
-async function updateEventData(eventId, data) {
-  const updatedAt = new Date().toISOString();
+async function updateEventData(eventId, updatedBy, data) {
+  const expressionValues = {
+    ':updated_by': updatedBy,
+  };
+  const updateExpressions = ['update_by = :updated_by'];
+
+  const updatableFields = ['sequence', 'kind', 'amount', 'category', 'content', 'checked', 'occurred_at'];
+  updatableFields.forEach((field) => {
+    if (Object.prototype.hasOwnProperty.call(data, field)) {
+      const valueKey = `:${field}`;
+      expressionValues[valueKey] = data[field];
+      updateExpressions.push(`${field} = ${valueKey}`);
+    }
+  });
+
   const result = await docClient.send(
     new UpdateCommand({
       TableName: EVENTS_TABLE,
       Key: {
         event_id: eventId,
       },
-      UpdateExpression: 'SET #data = :data, updated_at = :updated_at',
-      ExpressionAttributeNames: {
-        '#data': 'data',
-      },
-      ExpressionAttributeValues: {
-        ':data': data,
-        ':updated_at': updatedAt,
-      },
+      UpdateExpression: `SET ${updateExpressions.join(', ')}`,
+      ExpressionAttributeValues: expressionValues,
       ReturnValues: 'ALL_NEW',
     }),
   );
