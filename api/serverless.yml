@@ -117,21 +117,21 @@ resources:
         TableName: t_topics-${self:provider.stage} # 스테이지별 테이블 이름 (예: t_topics-dev)
         BillingMode: PAY_PER_REQUEST               # 온디맨드 과금 방식
         AttributeDefinitions:
-          - AttributeName: topic_id    # PK 속성
+          - AttributeName: PK    # PK 속성
             AttributeType: S
-          - AttributeName: owner_id    # GSI PK 속성
-            AttributeType: S
-          - AttributeName: created_at  # GSI Range Key 속성
+          - AttributeName: SK    # GSI PK 속성
             AttributeType: S
         KeySchema:
-          - AttributeName: topic_id    # 기본 키 (PK)
+          - AttributeName: PK    # 기본 키 (PK)
             KeyType: HASH
+          - AttributeName: SK    # 정렬 키 (SK)
+            KeyType: RANGE
         GlobalSecondaryIndexes:
           - IndexName: owner-index     # 소유자별 조회용 GSI
             KeySchema:
-              - AttributeName: owner_id    # GSI PK: 소유자 ID
+              - AttributeName: GSI1PK    # GSI PK: 소유자 ID
                 KeyType: HASH
-              - AttributeName: created_at  # GSI 정렬 키: 생성일시
+              - AttributeName: GSI1SK  # GSI 정렬 키: 생성일시
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL          # 모든 속성 포함
@@ -141,36 +141,57 @@ resources:
         TableName: t_subscriptions-${self:provider.stage}
         BillingMode: PAY_PER_REQUEST
         AttributeDefinitions:
-          - AttributeName: pk
+          - AttributeName: PK
             AttributeType: S
-          - AttributeName: sk
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
             AttributeType: S
         KeySchema:
-          - AttributeName: pk
-            KeyType: HASH
-          - AttributeName: sk
-            KeyType: RANGE
+          - AttributeName: PK
+            KeyType: HASH # 이 속성은 파티션 키(Primary Key)다
+          - AttributeName: SK
+            KeyType: RANGE # 이 속성은 정렬 키 (Sort Key)다
+        GlobalSecondaryIndexes:
+          - IndexName: user-index
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL # "이 인덱스에서 테이블의 모든 컬럼을 조회할 수 있게 해줘"라는 뜻입니다.보통 인덱스만으로 모든 데이터를 빠르게 읽고 싶을 때 사용합니다.
     EventsTable:
       Type: AWS::DynamoDB::Table
       Properties:
         TableName: t_events-${self:provider.stage}
         BillingMode: PAY_PER_REQUEST
         AttributeDefinitions:
-          - AttributeName: event_id
+          - AttributeName: PK
             AttributeType: S
-          - AttributeName: topic_id
+          - AttributeName: SK
             AttributeType: S
           - AttributeName: occurred_at
             AttributeType: S
+          - AttributeName: update_at
+            AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
+            AttributeType: S
         KeySchema:
-          - AttributeName: event_id
+          - AttributeName: PK
             KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
         GlobalSecondaryIndexes:
           - IndexName: topic-index
             KeySchema:
-              - AttributeName: topic_id
+              - AttributeName: GSI1PK
                 KeyType: HASH
-              - AttributeName: occurred_at
+              - AttributeName: update_at
                 KeyType: RANGE
             Projection:
-              ProjectionType: ALL
+              ProjectionType: ALL # "이 인덱스에서 테이블의 모든 컬럼을 조회할 수 있게 해줘"라는 뜻입니다. 보통 인덱스만으로 모든 데이터를 빠르게 읽고 싶을 때 사용합니다.
