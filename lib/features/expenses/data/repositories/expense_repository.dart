@@ -39,20 +39,14 @@ class ExpenseRepository {
 
   Future<ExpenseModel> addExpense(ExpenseModel expense) async {
     final model = expense.copyWith(updatedAt: DateTime.now());
-    final row = model.toMap()
-      ..[DatabaseHelper.colEventType] = _eventType
-      ..[DatabaseHelper.colIsChecked] = 0
-      ..[DatabaseHelper.colQuantity] = null;
+    final row = {...model.toMap(), DatabaseHelper.colEventType: _eventType};
     final id = await _db.insert(_table, row);
     return model.copyWith(id: id);
   }
 
   Future<ExpenseModel> updateExpense(ExpenseModel expense) async {
     final updated = expense.copyWith(updatedAt: DateTime.now());
-    final row = updated.toMap()
-      ..[DatabaseHelper.colEventType] = _eventType
-      ..[DatabaseHelper.colIsChecked] = 0
-      ..[DatabaseHelper.colQuantity] = null;
+    final row = {...updated.toMap(), DatabaseHelper.colEventType: _eventType};
     await _db.update(_table, row, expense.id!);
     return updated;
   }

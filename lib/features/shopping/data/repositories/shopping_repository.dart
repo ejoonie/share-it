@@ -17,20 +17,14 @@ class ShoppingRepository {
 
   Future<ShoppingItemModel> addItem(ShoppingItemModel item) async {
     final model = item.copyWith(updatedAt: DateTime.now());
-    final row = model.toMap()
-      ..[DatabaseHelper.colEventType] = _eventType
-      ..[DatabaseHelper.colType] = null
-      ..[DatabaseHelper.colCategory] = null;
+    final row = {...model.toMap(), DatabaseHelper.colEventType: _eventType};
     final id = await _db.insert(_table, row);
     return model.copyWith(id: id);
   }
 
   Future<ShoppingItemModel> updateItem(ShoppingItemModel item) async {
     final updated = item.copyWith(updatedAt: DateTime.now());
-    final row = updated.toMap()
-      ..[DatabaseHelper.colEventType] = _eventType
-      ..[DatabaseHelper.colType] = null
-      ..[DatabaseHelper.colCategory] = null;
+    final row = {...updated.toMap(), DatabaseHelper.colEventType: _eventType};
     await _db.update(_table, row, item.id!);
     return updated;
   }
@@ -44,10 +38,7 @@ class ShoppingRepository {
       isChecked: !item.isChecked,
       updatedAt: DateTime.now(),
     );
-    final row = toggled.toMap()
-      ..[DatabaseHelper.colEventType] = _eventType
-      ..[DatabaseHelper.colType] = null
-      ..[DatabaseHelper.colCategory] = null;
+    final row = {...toggled.toMap(), DatabaseHelper.colEventType: _eventType};
     await _db.update(_table, row, item.id!);
     return toggled;
   }
@@ -57,7 +48,7 @@ class ShoppingRepository {
     await db.delete(
       _table,
       where: '${DatabaseHelper.colEventType} = ? AND ${DatabaseHelper.colIsChecked} = ?',
-      whereArgs: [_eventType, 1],
+      whereArgs: [_eventType, DatabaseHelper.boolTrue],
     );
   }
 }

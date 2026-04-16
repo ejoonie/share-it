@@ -22,6 +22,8 @@ class DatabaseHelper {
   // Shopping-specific columns
   static const String colIsChecked = 'is_checked';
   static const String colQuantity = 'quantity';
+  static const int boolFalse = 0;
+  static const int boolTrue = 1;
 
   DatabaseHelper._privateConstructor();
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
@@ -45,8 +47,17 @@ class DatabaseHelper {
   }
 
   Future<void> _onCreate(Database db, int version) async {
+    await _createEventsTable(db);
+  }
+
+  Future<void> _createEventsTable(
+    Database db, {
+    bool ifNotExists = false,
+  }) async {
+    final ifNotExistsClause = ifNotExists ? 'IF NOT EXISTS ' : '';
+    // amount is nullable because shopping events can omit price.
     await db.execute('''
-      CREATE TABLE $eventsTable (
+      CREATE TABLE ${ifNotExistsClause}$eventsTable (
         $colId INTEGER PRIMARY KEY AUTOINCREMENT,
         $colEventType TEXT NOT NULL,
         $colTitle TEXT NOT NULL,
@@ -55,16 +66,27 @@ class DatabaseHelper {
         $colCategory TEXT,
         $colType TEXT,
         $colQuantity TEXT,
-        $colIsChecked INTEGER NOT NULL DEFAULT 0,
+        $colIsChecked INTEGER NOT NULL DEFAULT $boolFalse,
         $colCreatedAt TEXT NOT NULL,
-        $colUpdatedAt TEXT NOT NULL
+        $colUpdatedAt TEXT NOT NULL,
+        CHECK (
+          ($colEventType = 'expense' AND $colAmount IS NOT NULL)
+          OR $colEventType = 'shopping'
+        ),
+        CHECK (
+          ($colEventType = 'expense' AND $colType IN ('income', 'expense'))
+          OR ($colEventType = 'shopping' AND $colType IS NULL)
+        )
       )
     ''');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_events_event_type ON $eventsTable($colEventType)',
+    );
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      await _onCreate(db, newVersion);
+      await _createEventsTable(db, ifNotExists: true);
 
       if (await _tableExists(db, 'expenses')) {
         await db.execute('''
