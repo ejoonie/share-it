@@ -123,8 +123,7 @@ module.exports.updateTopic = async (event) => {
       return createResponse(403, { message: 'Forbidden' });
     }
 
-    const now = new Date().toISOString();
-    const updatedTopic = await updateTopicTitle(topicId, title.trim(), now);
+    const updatedTopic = await updateTopicTitle(topicId, title.trim());
 
     return createResponse(200, { topic: updatedTopic });
   } catch (error) {
@@ -156,8 +155,7 @@ module.exports.deleteTopic = async (event) => {
       return createResponse(403, { message: 'Forbidden' });
     }
 
-    const now = new Date().toISOString();
-    const deletedTopic = await setTopicDeleted(topicId, now);
+    const deletedTopic = await setTopicDeleted(topicId);
 
     return createResponse(200, { topic: deletedTopic });
   } catch (error) {
@@ -189,17 +187,7 @@ module.exports.setDefaultTopic = async (event) => {
       return createResponse(403, { message: 'Forbidden' });
     }
 
-    const now = new Date().toISOString();
-    const ownerTopics = await queryTopicsByOwner(userId);
-    const activeTopics = ownerTopics.filter((ownerTopic) => !ownerTopic.deleted_at);
-
-    await Promise.all(
-      activeTopics
-        .filter((ownerTopic) => ownerTopic.topic_id !== topicId && ownerTopic.is_default)
-        .map((ownerTopic) => setTopicDefault(ownerTopic.topic_id, false, now)),
-    );
-
-    const defaultTopic = await setTopicDefault(topicId, true, now);
+    const defaultTopic = await setTopicDefault(userId, topicId);
 
     return createResponse(200, { topic: defaultTopic });
   } catch (error) {
@@ -227,17 +215,7 @@ module.exports.subscribeTopic = async (event) => {
       return createResponse(404, { message: 'Topic not found' });
     }
 
-    const now = new Date().toISOString();
-    const subscriptionItem = {
-      pk: `TOPIC#${topicId}`,
-      sk: `USER#${userId}`,
-      topic_id: topicId,
-      user_id: userId,
-      created_at: now,
-      updated_at: now,
-    };
-
-    await putSubscription(subscriptionItem);
+    const subscriptionItem = await putSubscription(topicId, userId);
 
     return createResponse(201, { subscription: subscriptionItem });
   } catch (error) {

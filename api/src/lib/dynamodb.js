@@ -16,6 +16,7 @@ const docClient = DynamoDBDocumentClient.from(client);
 
 const TOPICS_TABLE = process.env.TOPICS_TABLE || 't_topics-dev';
 const SUBSCRIPTIONS_TABLE = process.env.SUBSCRIPTIONS_TABLE || 't_subscriptions-dev';
+const EVENTS_TABLE = process.env.EVENTS_TABLE || 't_events-dev';
 
 async function putTopic(item) {
   await docClient.send(
@@ -54,7 +55,8 @@ async function getTopicById(topicId) {
   return result.Item;
 }
 
-async function updateTopicTitle(topicId, title, updatedAt) {
+async function updateTopicTitle(topicId, title) {
+  const updatedAt = new Date().toISOString();
   const result = await docClient.send(
     new UpdateCommand({
       TableName: TOPICS_TABLE,
@@ -72,7 +74,8 @@ async function updateTopicTitle(topicId, title, updatedAt) {
   return result.Attributes;
 }
 
-async function setTopicDeleted(topicId, deletedAt) {
+async function setTopicDeleted(topicId) {
+  const deletedAt = new Date().toISOString();
   const result = await docClient.send(
     new UpdateCommand({
       TableName: TOPICS_TABLE,
@@ -91,7 +94,7 @@ async function setTopicDeleted(topicId, deletedAt) {
   return result.Attributes;
 }
 
-async function setTopicDefault(topicId, isDefault, updatedAt) {
+async function updateTopicDefaultFlag(topicId, isDefault, updatedAt) {
   const result = await docClient.send(
     new UpdateCommand({
       TableName: TOPICS_TABLE,
@@ -109,7 +112,30 @@ async function setTopicDefault(topicId, isDefault, updatedAt) {
   return result.Attributes;
 }
 
-async function putSubscription(item) {
+async function setTopicDefault(ownerId, topicId) {
+  const updatedAt = new Date().toISOString();
+  const ownerTopics = await queryTopicsByOwner(ownerId);
+
+  await Promise.all(
+    ownerTopics
+      .filter((ownerTopic) => ownerTopic.topic_id !== topicId)
+      .map((ownerTopic) => updateTopicDefaultFlag(ownerTopic.topic_id, false, updatedAt)),
+  );
+
+  return updateTopicDefaultFlag(topicId, true, updatedAt);
+}
+
+async function putSubscription(topicId, userId) {
+  const now = new Date().toISOString();
+  const item = {
+    pk: `TOPIC#${topicId}`,
+    sk: `USER#${userId}`,
+    topic_id: topicId,
+    user_id: userId,
+    created_at: now,
+    updated_at: now,
+  };
+
   await docClient.send(
     new PutCommand({
       TableName: SUBSCRIPTIONS_TABLE,
@@ -117,6 +143,85 @@ async function putSubscription(item) {
       ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
     }),
   );
+  return item;
+}
+
+async function putEvent(item) {
+  await docClient.send(
+    new PutCommand({
+      TableName: EVENTS_TABLE,
+      Item: item,
+    }),
+  );
+}
+
+async function queryEventsByTopic(topicId) {
+  const result = await docClient.send(
+    new QueryCommand({
+      TableName: EVENTS_TABLE,
+      IndexName: 'topic-index',
+      KeyConditionExpression: 'topic_id = :topic_id',
+      FilterExpression: 'attribute_not_exists(deleted_at)',
+      ExpressionAttributeValues: {
+        ':topic_id': topicId,
+      },
+      ScanIndexForward: false,
+    }),
+  );
+  return result.Items || [];
+}
+
+async function getEventById(eventId) {
+  const result = await docClient.send(
+    new GetCommand({
+      TableName: EVENTS_TABLE,
+      Key: {
+        event_id: eventId,
+      },
+    }),
+  );
+  return result.Item;
+}
+
+async function updateEventData(eventId, data) {
+  const updatedAt = new Date().toISOString();
+  const result = await docClient.send(
+    new UpdateCommand({
+      TableName: EVENTS_TABLE,
+      Key: {
+        event_id: eventId,
+      },
+      UpdateExpression: 'SET #data = :data, updated_at = :updated_at',
+      ExpressionAttributeNames: {
+        '#data': 'data',
+      },
+      ExpressionAttributeValues: {
+        ':data': data,
+        ':updated_at': updatedAt,
+      },
+      ReturnValues: 'ALL_NEW',
+    }),
+  );
+  return result.Attributes;
+}
+
+async function setEventDeleted(eventId) {
+  const deletedAt = new Date().toISOString();
+  const result = await docClient.send(
+    new UpdateCommand({
+      TableName: EVENTS_TABLE,
+      Key: {
+        event_id: eventId,
+      },
+      UpdateExpression: 'SET deleted_at = :deleted_at, updated_at = :updated_at',
+      ExpressionAttributeValues: {
+        ':deleted_at': deletedAt,
+        ':updated_at': deletedAt,
+      },
+      ReturnValues: 'ALL_NEW',
+    }),
+  );
+  return result.Attributes;
 }
 
 module.exports = {
@@ -127,4 +232,9 @@ module.exports = {
   setTopicDeleted,
   setTopicDefault,
   putSubscription,
+  putEvent,
+  queryEventsByTopic,
+  getEventById,
+  updateEventData,
+  setEventDeleted,
 };

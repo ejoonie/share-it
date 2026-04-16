@@ -86,71 +86,11 @@ class DatabaseHelper {
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      await _createEventsTable(db, ifNotExists: true);
-
-      if (await _tableExists(db, 'expenses')) {
-        await db.execute('''
-          INSERT INTO $eventsTable (
-            $colEventType,
-            $colTitle,
-            $colAmount,
-            $colNote,
-            $colCategory,
-            $colType,
-            $colCreatedAt,
-            $colUpdatedAt
-          )
-          SELECT
-            'expense',
-            $colTitle,
-            $colAmount,
-            $colNote,
-            $colCategory,
-            $colType,
-            $colCreatedAt,
-            $colUpdatedAt
-          FROM expenses
-        ''');
-        await db.execute('DROP TABLE expenses');
-      }
-
-      if (await _tableExists(db, 'shopping_items')) {
-        await db.execute('''
-          INSERT INTO $eventsTable (
-            $colEventType,
-            $colTitle,
-            $colAmount,
-            $colQuantity,
-            $colNote,
-            $colIsChecked,
-            $colCreatedAt,
-            $colUpdatedAt
-          )
-          SELECT
-            'shopping',
-            $colTitle,
-            $colAmount,
-            $colQuantity,
-            $colNote,
-            $colIsChecked,
-            $colCreatedAt,
-            $colUpdatedAt
-          FROM shopping_items
-        ''');
-        await db.execute('DROP TABLE shopping_items');
-      }
+      await db.execute('DROP TABLE IF EXISTS $eventsTable');
+      await db.execute('DROP TABLE IF EXISTS expenses');
+      await db.execute('DROP TABLE IF EXISTS shopping_items');
+      await _createEventsTable(db, ifNotExists: false);
     }
-  }
-
-  Future<bool> _tableExists(Database db, String tableName) async {
-    final result = await db.query(
-      'sqlite_master',
-      columns: ['name'],
-      where: 'type = ? AND name = ?',
-      whereArgs: ['table', tableName],
-      limit: 1,
-    );
-    return result.isNotEmpty;
   }
 
   // Generic CRUD helpers

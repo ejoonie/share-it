@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * 로컬 DynamoDB에 topics/subscriptions 테이블을 생성하는 셋업 스크립트.
+ * 로컬 DynamoDB에 topics/subscriptions/events 테이블을 생성하는 셋업 스크립트.
  * 실행: node scripts/create-local-table.js
  * 사전 조건: docker compose up -d 로 DynamoDB Local이 실행 중이어야 합니다.
  */
@@ -12,6 +12,7 @@ const ENDPOINT = process.env.DYNAMODB_ENDPOINT || 'http://localhost:8000';
 const REGION = process.env.AWS_REGION || 'us-west-2';
 const TOPICS_TABLE_NAME = process.env.TOPICS_TABLE || 't_topics-dev';
 const SUBSCRIPTIONS_TABLE_NAME = process.env.SUBSCRIPTIONS_TABLE || 't_subscriptions-dev';
+const EVENTS_TABLE_NAME = process.env.EVENTS_TABLE || 't_events-dev';
 
 const client = new DynamoDBClient({
   region: REGION,
@@ -68,6 +69,34 @@ async function run() {
     console.log(`✓ Table "${SUBSCRIPTIONS_TABLE_NAME}" created successfully.`);
   } else {
     console.log(`✓ Table "${SUBSCRIPTIONS_TABLE_NAME}" already exists — skipping.`);
+  }
+
+  if (!TableNames.includes(EVENTS_TABLE_NAME)) {
+    await client.send(
+      new CreateTableCommand({
+        TableName: EVENTS_TABLE_NAME,
+        BillingMode: 'PAY_PER_REQUEST',
+        AttributeDefinitions: [
+          { AttributeName: 'event_id', AttributeType: 'S' },
+          { AttributeName: 'topic_id', AttributeType: 'S' },
+          { AttributeName: 'created_at', AttributeType: 'S' },
+        ],
+        KeySchema: [{ AttributeName: 'event_id', KeyType: 'HASH' }],
+        GlobalSecondaryIndexes: [
+          {
+            IndexName: 'topic-index',
+            KeySchema: [
+              { AttributeName: 'topic_id', KeyType: 'HASH' },
+              { AttributeName: 'created_at', KeyType: 'RANGE' },
+            ],
+            Projection: { ProjectionType: 'ALL' },
+          },
+        ],
+      }),
+    );
+    console.log(`✓ Table "${EVENTS_TABLE_NAME}" created successfully.`);
+  } else {
+    console.log(`✓ Table "${EVENTS_TABLE_NAME}" already exists — skipping.`);
   }
 }
 

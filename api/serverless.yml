@@ -19,6 +19,7 @@ provider:
     STAGE: ${self:provider.stage}                      # Lambda 환경변수: 현재 스테이지
     TOPICS_TABLE: t_topics-${self:provider.stage}      # Lambda 환경변수: DynamoDB 테이블명 (스테이지별 분리)
     SUBSCRIPTIONS_TABLE: t_subscriptions-${self:provider.stage} # 구독 테이블명 (스테이지별 분리)
+    EVENTS_TABLE: t_events-${self:provider.stage}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'           # HTTP Keep-Alive 활성화 (성능 최적화)
     DYNAMODB_ENDPOINT: ${env:DYNAMODB_ENDPOINT, ''}    # 로컬 DynamoDB 엔드포인트 (로컬 실행 시 http://localhost:8000)
   iam:
@@ -31,9 +32,11 @@ provider:
             - dynamodb:Query     # 인덱스 기반 조회 (GET /topics/owned)
             - dynamodb:UpdateItem
           Resource:
-            - !GetAtt TopicsTable.Arn          # 기본 테이블 ARN
-            - !Sub '${TopicsTable.Arn}/index/*' # GSI 포함 모든 인덱스 ARN
-            - !GetAtt SubscriptionsTable.Arn
+              - !GetAtt TopicsTable.Arn          # 기본 테이블 ARN
+              - !Sub '${TopicsTable.Arn}/index/*' # GSI 포함 모든 인덱스 ARN
+              - !GetAtt SubscriptionsTable.Arn
+              - !GetAtt EventsTable.Arn
+              - !Sub '${EventsTable.Arn}/index/*'
 
 functions:
   createTopic:                                   # 토픽 생성 Lambda 함수
@@ -78,6 +81,34 @@ functions:
           path: /api/v1/topics/{topic_id}/subscribe
           method: post
 
+  createEvent:
+    handler: src/handlers/events.createEvent
+    events:
+      - httpApi:
+          path: /api/v1/topics/{topic_id}/events
+          method: post
+
+  getTopicEvents:
+    handler: src/handlers/events.getTopicEvents
+    events:
+      - httpApi:
+          path: /api/v1/topics/{topic_id}/events
+          method: get
+
+  updateEvent:
+    handler: src/handlers/events.updateEvent
+    events:
+      - httpApi:
+          path: /api/v1/topics/{topic_id}/events/{event_id}
+          method: patch
+
+  deleteEvent:
+    handler: src/handlers/events.deleteEvent
+    events:
+      - httpApi:
+          path: /api/v1/topics/{topic_id}/events/{event_id}
+          method: delete
+
 resources:
   Resources:
     TopicsTable:                          # DynamoDB 테이블 리소스 정의
@@ -119,3 +150,27 @@ resources:
             KeyType: HASH
           - AttributeName: sk
             KeyType: RANGE
+    EventsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: t_events-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: event_id
+            AttributeType: S
+          - AttributeName: topic_id
+            AttributeType: S
+          - AttributeName: created_at
+            AttributeType: S
+        KeySchema:
+          - AttributeName: event_id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: topic-index
+            KeySchema:
+              - AttributeName: topic_id
+                KeyType: HASH
+              - AttributeName: created_at
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL

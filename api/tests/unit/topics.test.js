@@ -30,7 +30,6 @@ const {
 } = require('../../src/lib/dynamodb');
 
 const TOPIC_ID_1 = 'tp_2f58e8fe-9a85-44aa-9f7c-4cc0f11a4f7e';
-const TOPIC_ID_2 = 'tp_0d4ef16f-4a7f-4f24-a4ea-266e905e6fbe';
 
 describe('POST /api/v1/topics - createTopic', () => {
   beforeEach(() => {
@@ -190,7 +189,7 @@ describe('PATCH /api/v1/topics/{topic_id} - updateTopic', () => {
     });
 
     expect(result.statusCode).toBe(200);
-    expect(updateTopicTitle).toHaveBeenCalledWith(TOPIC_ID_1, 'new title', expect.any(String));
+    expect(updateTopicTitle).toHaveBeenCalledWith(TOPIC_ID_1, 'new title');
   });
 
   it('should return 404 when topic is deleted', async () => {
@@ -222,7 +221,7 @@ describe('DELETE /api/v1/topics/{topic_id} - deleteTopic', () => {
     });
 
     expect(result.statusCode).toBe(200);
-    expect(setTopicDeleted).toHaveBeenCalledWith(TOPIC_ID_1, expect.any(String));
+    expect(setTopicDeleted).toHaveBeenCalledWith(TOPIC_ID_1);
   });
 });
 
@@ -233,10 +232,6 @@ describe('POST /api/v1/topics/{topic_id}/default - setDefaultTopic', () => {
 
   it('should unset other defaults and set target topic default', async () => {
     getTopicById.mockResolvedValue({ topic_id: TOPIC_ID_1, owner_id: 'u_1', is_default: false });
-    queryTopicsByOwner.mockResolvedValue([
-      { topic_id: TOPIC_ID_1, owner_id: 'u_1', is_default: false },
-      { topic_id: TOPIC_ID_2, owner_id: 'u_1', is_default: true },
-    ]);
     setTopicDefault.mockResolvedValue({ topic_id: TOPIC_ID_1, owner_id: 'u_1', is_default: true });
 
     const result = await setDefaultTopic({
@@ -245,8 +240,7 @@ describe('POST /api/v1/topics/{topic_id}/default - setDefaultTopic', () => {
     });
 
     expect(result.statusCode).toBe(200);
-    expect(setTopicDefault).toHaveBeenCalledWith(TOPIC_ID_2, false, expect.any(String));
-    expect(setTopicDefault).toHaveBeenCalledWith(TOPIC_ID_1, true, expect.any(String));
+    expect(setTopicDefault).toHaveBeenCalledWith('u_1', TOPIC_ID_1);
   });
 });
 
@@ -257,7 +251,14 @@ describe('POST /api/v1/topics/{topic_id}/subscribe - subscribeTopic', () => {
 
   it('should subscribe with TOPIC# partition key', async () => {
     getTopicById.mockResolvedValue({ topic_id: TOPIC_ID_1, owner_id: 'u_owner' });
-    putSubscription.mockResolvedValue({});
+    putSubscription.mockResolvedValue({
+      pk: `TOPIC#${TOPIC_ID_1}`,
+      sk: 'USER#u_subscriber',
+      topic_id: TOPIC_ID_1,
+      user_id: 'u_subscriber',
+      created_at: '2026-01-01T00:00:00.000Z',
+      updated_at: '2026-01-01T00:00:00.000Z',
+    });
 
     const result = await subscribeTopic({
       headers: { 'x-user-id': 'u_subscriber' },
@@ -265,14 +266,7 @@ describe('POST /api/v1/topics/{topic_id}/subscribe - subscribeTopic', () => {
     });
 
     expect(result.statusCode).toBe(201);
-    expect(putSubscription).toHaveBeenCalledWith(
-      expect.objectContaining({
-        pk: `TOPIC#${TOPIC_ID_1}`,
-        sk: 'USER#u_subscriber',
-        topic_id: TOPIC_ID_1,
-        user_id: 'u_subscriber',
-      }),
-    );
+    expect(putSubscription).toHaveBeenCalledWith(TOPIC_ID_1, 'u_subscriber');
   });
 
   it('should return 409 when already subscribed', async () => {
