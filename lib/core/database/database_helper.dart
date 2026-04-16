@@ -86,7 +86,8 @@ class DatabaseHelper {
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      await db.execute('DROP TABLE IF EXISTS $eventsTable'); // 마지막에 다시 생성
+      // Product decision for this phase: reset local data during v2 upgrade.
+      await db.execute('DROP TABLE IF EXISTS $eventsTable');
       await db.execute('DROP TABLE IF EXISTS expenses');
       await db.execute('DROP TABLE IF EXISTS shopping_items');
       await _createEventsTable(db, ifNotExists: false);
