@@ -121,6 +121,10 @@ resources:
             AttributeType: S
           - AttributeName: SK    # GSI PK 속성
             AttributeType: S
+          - AttributeName: GSI1PK  # GSI PK 속성
+            AttributeType: S
+          - AttributeName: GSI1SK  # GSI 정렬 키 속성
+            AttributeType: S
         KeySchema:
           - AttributeName: PK    # 기본 키 (PK)
             KeyType: HASH
@@ -191,7 +195,7 @@ resources:
             KeySchema:
               - AttributeName: GSI1PK
                 KeyType: HASH
-              - AttributeName: update_at
+              - AttributeName: GSI1SK
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL # "이 인덱스에서 테이블의 모든 컬럼을 조회할 수 있게 해줘"라는 뜻입니다. 보통 인덱스만으로 모든 데이터를 빠르게 읽고 싶을 때 사용합니다.
