@@ -86,7 +86,7 @@ class DatabaseHelper {
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      await db.execute('DROP TABLE IF EXISTS $eventsTable');
+      await db.execute('DROP TABLE IF EXISTS $eventsTable'); // 마지막에 다시 생성
       await db.execute('DROP TABLE IF EXISTS expenses');
       await db.execute('DROP TABLE IF EXISTS shopping_items');
       await _createEventsTable(db, ifNotExists: false);
@@ -99,12 +99,12 @@ class DatabaseHelper {
     return db.insert(table, row, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  Future<List<Map<String, dynamic>>> queryAll(String table) async {
+  Future<List<Map<String, dynamic>>> queryAll(String table) async { // TODO sort by param?
     final db = await database;
     return db.query(table, orderBy: '$colCreatedAt ASC');
   }
 
-  Future<List<Map<String, dynamic>>> queryWhere(
+  Future<List<Map<String, dynamic>>> queryWhere( // TODO sort by param?
     String table,
     String where,
     List<dynamic> whereArgs, {
