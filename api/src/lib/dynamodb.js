@@ -15,7 +15,7 @@ const client = new DynamoDBClient(clientConfig);
 const docClient = DynamoDBDocumentClient.from(client);
 
 const TOPICS_TABLE = process.env.TOPICS_TABLE || 't_topics-dev';
-const SUBSCRIPTIONS_TABLE = process.env.SUBSCRIPTIONS_TABLE || 't_subscriptions';
+const SUBSCRIPTIONS_TABLE = process.env.SUBSCRIPTIONS_TABLE || 't_subscriptions-dev';
 
 async function putTopic(item) {
   await docClient.send(
@@ -32,6 +32,7 @@ async function queryTopicsByOwner(ownerId) {
       TableName: TOPICS_TABLE,
       IndexName: 'owner-index',
       KeyConditionExpression: 'owner_id = :owner_id',
+      FilterExpression: 'attribute_not_exists(deleted_at)',
       ExpressionAttributeValues: {
         ':owner_id': ownerId,
       },

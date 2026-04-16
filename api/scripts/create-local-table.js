@@ -11,7 +11,7 @@ const { DynamoDBClient, CreateTableCommand, ListTablesCommand } = require('@aws-
 const ENDPOINT = process.env.DYNAMODB_ENDPOINT || 'http://localhost:8000';
 const REGION = process.env.AWS_REGION || 'us-west-2';
 const TOPICS_TABLE_NAME = process.env.TOPICS_TABLE || 't_topics-dev';
-const SUBSCRIPTIONS_TABLE_NAME = process.env.SUBSCRIPTIONS_TABLE || 't_subscriptions';
+const SUBSCRIPTIONS_TABLE_NAME = process.env.SUBSCRIPTIONS_TABLE || 't_subscriptions-dev';
 
 const client = new DynamoDBClient({
   region: REGION,

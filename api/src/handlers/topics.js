@@ -79,7 +79,7 @@ module.exports.getOwnedTopics = async (event) => {
       return createResponse(401, { message: 'x-user-id header is required' });
     }
 
-    const topics = (await queryTopicsByOwner(userId)).filter((topic) => !topic.deleted_at);
+    const topics = await queryTopicsByOwner(userId);
 
     return createResponse(200, { topics });
   } catch (error) {

@@ -18,7 +18,7 @@ provider:
   environment:
     STAGE: ${self:provider.stage}                      # Lambda 환경변수: 현재 스테이지
     TOPICS_TABLE: t_topics-${self:provider.stage}      # Lambda 환경변수: DynamoDB 테이블명 (스테이지별 분리)
-    SUBSCRIPTIONS_TABLE: t_subscriptions               # 구독 테이블명
+    SUBSCRIPTIONS_TABLE: t_subscriptions-${self:provider.stage} # 구독 테이블명 (스테이지별 분리)
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'           # HTTP Keep-Alive 활성화 (성능 최적화)
     DYNAMODB_ENDPOINT: ${env:DYNAMODB_ENDPOINT, ''}    # 로컬 DynamoDB 엔드포인트 (로컬 실행 시 http://localhost:8000)
   iam:
@@ -107,7 +107,7 @@ resources:
     SubscriptionsTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: t_subscriptions
+        TableName: t_subscriptions-${self:provider.stage}
         BillingMode: PAY_PER_REQUEST
         AttributeDefinitions:
           - AttributeName: pk

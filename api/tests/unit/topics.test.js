@@ -29,6 +29,9 @@ const {
   putSubscription,
 } = require('../../src/lib/dynamodb');
 
+const TOPIC_ID_1 = 'tp_2f58e8fe-9a85-44aa-9f7c-4cc0f11a4f7e';
+const TOPIC_ID_2 = 'tp_0d4ef16f-4a7f-4f24-a4ea-266e905e6fbe';
+
 describe('POST /api/v1/topics - createTopic', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -140,15 +143,9 @@ describe('GET /api/v1/topics/owned - getOwnedTopics', () => {
   it('should return owned topics with 200', async () => {
     const mockTopics = [
       {
-        topic_id: 'tp_1',
+        topic_id: TOPIC_ID_1,
         owner_id: 'u_1',
         title: '생활비 가계부',
-      },
-      {
-        topic_id: 'tp_2',
-        owner_id: 'u_1',
-        title: '삭제된 토픽',
-        deleted_at: '2026-04-13T20:30:00.000Z',
       },
     ];
     queryTopicsByOwner.mockResolvedValue(mockTopics);
@@ -161,7 +158,7 @@ describe('GET /api/v1/topics/owned - getOwnedTopics', () => {
 
     expect(result.statusCode).toBe(200);
     const body = JSON.parse(result.body);
-    expect(body.topics).toEqual([mockTopics[0]]);
+    expect(body.topics).toEqual(mockTopics);
     expect(queryTopicsByOwner).toHaveBeenCalledWith('u_1');
   });
 
@@ -183,25 +180,25 @@ describe('PATCH /api/v1/topics/{topic_id} - updateTopic', () => {
   });
 
   it('should update title when owner updates topic', async () => {
-    getTopicById.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_1' });
-    updateTopicTitle.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_1', title: 'new title' });
+    getTopicById.mockResolvedValue({ topic_id: TOPIC_ID_1, owner_id: 'u_1' });
+    updateTopicTitle.mockResolvedValue({ topic_id: TOPIC_ID_1, owner_id: 'u_1', title: 'new title' });
 
     const result = await updateTopic({
       headers: { 'x-user-id': 'u_1' },
-      pathParameters: { topic_id: 'tp_1' },
+      pathParameters: { topic_id: TOPIC_ID_1 },
       body: JSON.stringify({ title: ' new title ' }),
     });
 
     expect(result.statusCode).toBe(200);
-    expect(updateTopicTitle).toHaveBeenCalledWith('tp_1', 'new title', expect.any(String));
+    expect(updateTopicTitle).toHaveBeenCalledWith(TOPIC_ID_1, 'new title', expect.any(String));
   });
 
   it('should return 404 when topic is deleted', async () => {
-    getTopicById.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_1', deleted_at: '2026-01-01T00:00:00.000Z' });
+    getTopicById.mockResolvedValue({ topic_id: TOPIC_ID_1, owner_id: 'u_1', deleted_at: '2026-01-01T00:00:00.000Z' });
 
     const result = await updateTopic({
       headers: { 'x-user-id': 'u_1' },
-      pathParameters: { topic_id: 'tp_1' },
+      pathParameters: { topic_id: TOPIC_ID_1 },
       body: JSON.stringify({ title: 'new title' }),
     });
 
@@ -216,16 +213,16 @@ describe('DELETE /api/v1/topics/{topic_id} - deleteTopic', () => {
   });
 
   it('should soft delete a topic', async () => {
-    getTopicById.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_1' });
-    setTopicDeleted.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_1', deleted_at: '2026-01-01T00:00:00.000Z' });
+    getTopicById.mockResolvedValue({ topic_id: TOPIC_ID_1, owner_id: 'u_1' });
+    setTopicDeleted.mockResolvedValue({ topic_id: TOPIC_ID_1, owner_id: 'u_1', deleted_at: '2026-01-01T00:00:00.000Z' });
 
     const result = await deleteTopic({
       headers: { 'x-user-id': 'u_1' },
-      pathParameters: { topic_id: 'tp_1' },
+      pathParameters: { topic_id: TOPIC_ID_1 },
     });
 
     expect(result.statusCode).toBe(200);
-    expect(setTopicDeleted).toHaveBeenCalledWith('tp_1', expect.any(String));
+    expect(setTopicDeleted).toHaveBeenCalledWith(TOPIC_ID_1, expect.any(String));
   });
 });
 
@@ -235,21 +232,21 @@ describe('POST /api/v1/topics/{topic_id}/default - setDefaultTopic', () => {
   });
 
   it('should unset other defaults and set target topic default', async () => {
-    getTopicById.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_1', is_default: false });
+    getTopicById.mockResolvedValue({ topic_id: TOPIC_ID_1, owner_id: 'u_1', is_default: false });
     queryTopicsByOwner.mockResolvedValue([
-      { topic_id: 'tp_1', owner_id: 'u_1', is_default: false },
-      { topic_id: 'tp_2', owner_id: 'u_1', is_default: true },
+      { topic_id: TOPIC_ID_1, owner_id: 'u_1', is_default: false },
+      { topic_id: TOPIC_ID_2, owner_id: 'u_1', is_default: true },
     ]);
-    setTopicDefault.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_1', is_default: true });
+    setTopicDefault.mockResolvedValue({ topic_id: TOPIC_ID_1, owner_id: 'u_1', is_default: true });
 
     const result = await setDefaultTopic({
       headers: { 'x-user-id': 'u_1' },
-      pathParameters: { topic_id: 'tp_1' },
+      pathParameters: { topic_id: TOPIC_ID_1 },
     });
 
     expect(result.statusCode).toBe(200);
-    expect(setTopicDefault).toHaveBeenCalledWith('tp_2', false, expect.any(String));
-    expect(setTopicDefault).toHaveBeenCalledWith('tp_1', true, expect.any(String));
+    expect(setTopicDefault).toHaveBeenCalledWith(TOPIC_ID_2, false, expect.any(String));
+    expect(setTopicDefault).toHaveBeenCalledWith(TOPIC_ID_1, true, expect.any(String));
   });
 });
 
@@ -259,34 +256,34 @@ describe('POST /api/v1/topics/{topic_id}/subscribe - subscribeTopic', () => {
   });
 
   it('should subscribe with TOPIC# partition key', async () => {
-    getTopicById.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_owner' });
+    getTopicById.mockResolvedValue({ topic_id: TOPIC_ID_1, owner_id: 'u_owner' });
     putSubscription.mockResolvedValue({});
 
     const result = await subscribeTopic({
       headers: { 'x-user-id': 'u_subscriber' },
-      pathParameters: { topic_id: 'tp_1' },
+      pathParameters: { topic_id: TOPIC_ID_1 },
     });
 
     expect(result.statusCode).toBe(201);
     expect(putSubscription).toHaveBeenCalledWith(
       expect.objectContaining({
-        pk: 'TOPIC#tp_1',
+        pk: `TOPIC#${TOPIC_ID_1}`,
         sk: 'USER#u_subscriber',
-        topic_id: 'tp_1',
+        topic_id: TOPIC_ID_1,
         user_id: 'u_subscriber',
       }),
     );
   });
 
   it('should return 409 when already subscribed', async () => {
-    getTopicById.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_owner' });
+    getTopicById.mockResolvedValue({ topic_id: TOPIC_ID_1, owner_id: 'u_owner' });
     const error = new Error('duplicate');
     error.name = 'ConditionalCheckFailedException';
     putSubscription.mockRejectedValue(error);
 
     const result = await subscribeTopic({
       headers: { 'x-user-id': 'u_subscriber' },
-      pathParameters: { topic_id: 'tp_1' },
+      pathParameters: { topic_id: TOPIC_ID_1 },
     });
 
     expect(result.statusCode).toBe(409);
