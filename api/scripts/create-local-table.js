@@ -97,8 +97,6 @@ async function run() {
           { AttributeName: 'SK', AttributeType: 'S' },
           { AttributeName: 'GSI1PK', AttributeType: 'S' },
           { AttributeName: 'GSI1SK', AttributeType: 'S' },
-          { AttributeName: 'occurred_at', AttributeType: 'S' },
-          { AttributeName: 'update_at', AttributeType: 'S' },
         ],
         KeySchema: [
           { AttributeName: 'PK', KeyType: 'HASH' },

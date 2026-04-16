@@ -177,10 +177,6 @@ resources:
             AttributeType: S
           - AttributeName: SK
             AttributeType: S
-          - AttributeName: occurred_at
-            AttributeType: S
-          - AttributeName: update_at
-            AttributeType: S
           - AttributeName: GSI1PK
             AttributeType: S
           - AttributeName: GSI1SK
