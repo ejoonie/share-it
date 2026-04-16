@@ -29,17 +29,21 @@ async function run() {
         TableName: TOPICS_TABLE_NAME,
         BillingMode: 'PAY_PER_REQUEST',
         AttributeDefinitions: [
-          { AttributeName: 'topic_id', AttributeType: 'S' },
-          { AttributeName: 'owner_id', AttributeType: 'S' },
-          { AttributeName: 'created_at', AttributeType: 'S' },
+          { AttributeName: 'PK', AttributeType: 'S' },
+          { AttributeName: 'SK', AttributeType: 'S' },
+          { AttributeName: 'GSI1PK', AttributeType: 'S' },
+          { AttributeName: 'GSI1SK', AttributeType: 'S' },
         ],
-        KeySchema: [{ AttributeName: 'topic_id', KeyType: 'HASH' }],
+        KeySchema: [
+          { AttributeName: 'PK', KeyType: 'HASH' },
+          { AttributeName: 'SK', KeyType: 'RANGE' },
+        ],
         GlobalSecondaryIndexes: [
           {
             IndexName: 'owner-index',
             KeySchema: [
-              { AttributeName: 'owner_id', KeyType: 'HASH' },
-              { AttributeName: 'created_at', KeyType: 'RANGE' },
+              { AttributeName: 'GSI1PK', KeyType: 'HASH' },
+              { AttributeName: 'GSI1SK', KeyType: 'RANGE' },
             ],
             Projection: { ProjectionType: 'ALL' },
           },
@@ -57,12 +61,24 @@ async function run() {
         TableName: SUBSCRIPTIONS_TABLE_NAME,
         BillingMode: 'PAY_PER_REQUEST',
         AttributeDefinitions: [
-          { AttributeName: 'pk', AttributeType: 'S' },
-          { AttributeName: 'sk', AttributeType: 'S' },
+          { AttributeName: 'PK', AttributeType: 'S' },
+          { AttributeName: 'SK', AttributeType: 'S' },
+          { AttributeName: 'GSI1PK', AttributeType: 'S' },
+          { AttributeName: 'GSI1SK', AttributeType: 'S' },
         ],
         KeySchema: [
-          { AttributeName: 'pk', KeyType: 'HASH' },
-          { AttributeName: 'sk', KeyType: 'RANGE' },
+          { AttributeName: 'PK', KeyType: 'HASH' },
+          { AttributeName: 'SK', KeyType: 'RANGE' },
+        ],
+        GlobalSecondaryIndexes: [
+          {
+            IndexName: 'user-index',
+            KeySchema: [
+              { AttributeName: 'GSI1PK', KeyType: 'HASH' },
+              { AttributeName: 'GSI1SK', KeyType: 'RANGE' },
+            ],
+            Projection: { ProjectionType: 'ALL' },
+          },
         ],
       }),
     );
@@ -77,17 +93,23 @@ async function run() {
         TableName: EVENTS_TABLE_NAME,
         BillingMode: 'PAY_PER_REQUEST',
         AttributeDefinitions: [
-          { AttributeName: 'event_id', AttributeType: 'S' },
-          { AttributeName: 'topic_id', AttributeType: 'S' },
+          { AttributeName: 'PK', AttributeType: 'S' },
+          { AttributeName: 'SK', AttributeType: 'S' },
+          { AttributeName: 'GSI1PK', AttributeType: 'S' },
+          { AttributeName: 'GSI1SK', AttributeType: 'S' },
           { AttributeName: 'occurred_at', AttributeType: 'S' },
+          { AttributeName: 'update_at', AttributeType: 'S' },
         ],
-        KeySchema: [{ AttributeName: 'event_id', KeyType: 'HASH' }],
+        KeySchema: [
+          { AttributeName: 'PK', KeyType: 'HASH' },
+          { AttributeName: 'SK', KeyType: 'RANGE' },
+        ],
         GlobalSecondaryIndexes: [
           {
             IndexName: 'topic-index',
             KeySchema: [
-              { AttributeName: 'topic_id', KeyType: 'HASH' },
-              { AttributeName: 'occurred_at', KeyType: 'RANGE' },
+              { AttributeName: 'GSI1PK', KeyType: 'HASH' },
+              { AttributeName: 'GSI1SK', KeyType: 'RANGE' },
             ],
             Projection: { ProjectionType: 'ALL' },
           },

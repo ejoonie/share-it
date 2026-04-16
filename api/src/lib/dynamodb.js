@@ -18,11 +18,29 @@ const TOPICS_TABLE = process.env.TOPICS_TABLE || 't_topics-dev';
 const SUBSCRIPTIONS_TABLE = process.env.SUBSCRIPTIONS_TABLE || 't_subscriptions-dev';
 const EVENTS_TABLE = process.env.EVENTS_TABLE || 't_events-dev';
 
+const topicPk = (topicId) => `TOPIC#${topicId}`;
+const topicSk = 'TOPIC';
+const topicOwnerGsiPk = (ownerId) => `USER#${ownerId}`;
+const topicOwnerGsiSk = (createdAt, topicId) => `TOPIC#${createdAt}#${topicId}`;
+
+const eventPk = (eventId) => `EVENT#${eventId}`;
+const eventSk = 'EVENT';
+const eventTopicGsiPk = (topicId) => `TOPIC#${topicId}`;
+const eventTopicGsiSk = (occurredAt, eventId) => `OCCURRED_AT#${occurredAt}#EVENT#${eventId}`;
+
 async function putTopic(item) {
+  const mappedItem = {
+    ...item,
+    PK: topicPk(item.topic_id),
+    SK: topicSk,
+    GSI1PK: topicOwnerGsiPk(item.owner_id),
+    GSI1SK: topicOwnerGsiSk(item.created_at, item.topic_id),
+  };
+
   await docClient.send(
     new PutCommand({
       TableName: TOPICS_TABLE,
-      Item: item,
+      Item: mappedItem,
     }),
   );
 }
@@ -32,10 +50,10 @@ async function queryTopicsByOwner(ownerId) {
     new QueryCommand({
       TableName: TOPICS_TABLE,
       IndexName: 'owner-index',
-      KeyConditionExpression: 'owner_id = :owner_id',
+      KeyConditionExpression: 'GSI1PK = :owner_pk',
       FilterExpression: 'attribute_not_exists(deleted_at)',
       ExpressionAttributeValues: {
-        ':owner_id': ownerId,
+        ':owner_pk': topicOwnerGsiPk(ownerId),
       },
       ScanIndexForward: false,
     }),
@@ -48,7 +66,8 @@ async function getTopicById(topicId) {
     new GetCommand({
       TableName: TOPICS_TABLE,
       Key: {
-        topic_id: topicId,
+        PK: topicPk(topicId),
+        SK: topicSk,
       },
     }),
   );
@@ -61,7 +80,8 @@ async function updateTopicTitle(topicId, title) {
     new UpdateCommand({
       TableName: TOPICS_TABLE,
       Key: {
-        topic_id: topicId,
+        PK: topicPk(topicId),
+        SK: topicSk,
       },
       UpdateExpression: 'SET title = :title, updated_at = :updated_at',
       ExpressionAttributeValues: {
@@ -80,7 +100,8 @@ async function setTopicDeleted(topicId) {
     new UpdateCommand({
       TableName: TOPICS_TABLE,
       Key: {
-        topic_id: topicId,
+        PK: topicPk(topicId),
+        SK: topicSk,
       },
       UpdateExpression: 'SET deleted_at = :deleted_at, updated_at = :updated_at, is_default = :is_default',
       ExpressionAttributeValues: {
@@ -100,7 +121,8 @@ async function _setTopicDefaultFlag(topicId, isDefault) {
     new UpdateCommand({
       TableName: TOPICS_TABLE,
       Key: {
-        topic_id: topicId,
+        PK: topicPk(topicId),
+        SK: topicSk,
       },
       UpdateExpression: 'SET is_default = :is_default, updated_at = :updated_at',
       ExpressionAttributeValues: {
@@ -128,8 +150,10 @@ async function setTopicDefault(ownerId, topicId) {
 async function putSubscription(topicId, userId) {
   const now = new Date().toISOString();
   const item = {
-    pk: `TOPIC#${topicId}`,
-    sk: `USER#${userId}`,
+    PK: `TOPIC#${topicId}`,
+    SK: `SUBSCRIBER#${userId}`,
+    GSI1PK: `USER#${userId}`,
+    GSI1SK: `TOPIC#${topicId}`,
     topic_id: topicId,
     user_id: userId,
     created_at: now,
@@ -140,7 +164,7 @@ async function putSubscription(topicId, userId) {
     new PutCommand({
       TableName: SUBSCRIPTIONS_TABLE,
       Item: item,
-      ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
+      ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
     }),
   );
   return item;
@@ -160,6 +184,10 @@ async function putEvent({
   occurredAt,
 }) {
   const item = {
+    PK: eventPk(eventId),
+    SK: eventSk,
+    GSI1PK: eventTopicGsiPk(topicId),
+    GSI1SK: eventTopicGsiSk(occurredAt, eventId),
     event_id: eventId,
     topic_id: topicId,
     owner_id: ownerId,
@@ -187,10 +215,10 @@ async function queryEventsByTopic(topicId) {
     new QueryCommand({
       TableName: EVENTS_TABLE,
       IndexName: 'topic-index',
-      KeyConditionExpression: 'topic_id = :topic_id',
+      KeyConditionExpression: 'GSI1PK = :topic_pk',
       FilterExpression: 'attribute_not_exists(deleted_at)',
       ExpressionAttributeValues: {
-        ':topic_id': topicId,
+        ':topic_pk': eventTopicGsiPk(topicId),
       },
       ScanIndexForward: false,
     }),
@@ -203,7 +231,8 @@ async function getEventById(eventId) {
     new GetCommand({
       TableName: EVENTS_TABLE,
       Key: {
-        event_id: eventId,
+        PK: eventPk(eventId),
+        SK: eventSk,
       },
     }),
   );
@@ -224,12 +253,18 @@ async function updateEventData(eventId, updatedBy, data) {
       updateExpressions.push(`${field} = ${valueKey}`);
     }
   });
+  if (Object.prototype.hasOwnProperty.call(data, 'occurred_at')) {
+    const nextOccurredAt = data.occurred_at;
+    expressionValues[':gsi1sk'] = eventTopicGsiSk(nextOccurredAt, eventId);
+    updateExpressions.push('GSI1SK = :gsi1sk');
+  }
 
   const result = await docClient.send(
     new UpdateCommand({
       TableName: EVENTS_TABLE,
       Key: {
-        event_id: eventId,
+        PK: eventPk(eventId),
+        SK: eventSk,
       },
       UpdateExpression: `SET ${updateExpressions.join(', ')}`,
       ExpressionAttributeValues: expressionValues,
@@ -245,7 +280,8 @@ async function setEventDeleted(eventId) {
     new UpdateCommand({
       TableName: EVENTS_TABLE,
       Key: {
-        event_id: eventId,
+        PK: eventPk(eventId),
+        SK: eventSk,
       },
       UpdateExpression: 'SET deleted_at = :deleted_at, updated_at = :updated_at',
       ExpressionAttributeValues: {

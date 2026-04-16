@@ -252,8 +252,10 @@ describe('POST /api/v1/topics/{topic_id}/subscribe - subscribeTopic', () => {
   it('should subscribe with TOPIC# partition key', async () => {
     getTopicById.mockResolvedValue({ topic_id: TOPIC_ID_1, owner_id: 'u_owner' });
     putSubscription.mockResolvedValue({
-      pk: `TOPIC#${TOPIC_ID_1}`,
-      sk: 'USER#u_subscriber',
+      PK: `TOPIC#${TOPIC_ID_1}`,
+      SK: 'SUBSCRIBER#u_subscriber',
+      GSI1PK: 'USER#u_subscriber',
+      GSI1SK: `TOPIC#${TOPIC_ID_1}`,
       topic_id: TOPIC_ID_1,
       user_id: 'u_subscriber',
       created_at: '2026-01-01T00:00:00.000Z',

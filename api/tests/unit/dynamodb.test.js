@@ -58,10 +58,10 @@ describe('lib/dynamodb - queryTopicsByOwner', () => {
         input: expect.objectContaining({
           TableName: expect.any(String),
           IndexName: 'owner-index',
-          KeyConditionExpression: 'owner_id = :owner_id',
+          KeyConditionExpression: 'GSI1PK = :owner_pk',
           FilterExpression: 'attribute_not_exists(deleted_at)',
           ExpressionAttributeValues: {
-            ':owner_id': 'u_1',
+            ':owner_pk': 'USER#u_1',
           },
         }),
       }),
@@ -82,7 +82,7 @@ describe('lib/dynamodb - topic mutators', () => {
     expect(mockSend).toHaveBeenCalledWith(
       expect.objectContaining({
         input: expect.objectContaining({
-          Key: { topic_id: 'tp_1' },
+          Key: { PK: 'TOPIC#tp_1', SK: 'TOPIC' },
           ExpressionAttributeValues: expect.objectContaining({
             ':title': 'new',
             ':updated_at': expect.any(String),
@@ -100,7 +100,7 @@ describe('lib/dynamodb - topic mutators', () => {
     expect(mockSend).toHaveBeenCalledWith(
       expect.objectContaining({
         input: expect.objectContaining({
-          Key: { topic_id: 'tp_1' },
+          Key: { PK: 'TOPIC#tp_1', SK: 'TOPIC' },
           ExpressionAttributeValues: expect.objectContaining({
             ':deleted_at': expect.any(String),
             ':updated_at': expect.any(String),
@@ -126,8 +126,8 @@ describe('lib/dynamodb - topic mutators', () => {
     const updateCalls = mockSend.mock.calls.slice(1);
     expect(updateCalls).toHaveLength(3);
 
-    const updatedTopicIds = updateCalls.map(([command]) => command.input.Key.topic_id);
-    expect(updatedTopicIds).toEqual(expect.arrayContaining(['tp_other_1', 'tp_other_2', 'tp_target']));
+    const updatedTopicIds = updateCalls.map(([command]) => command.input.Key.PK);
+    expect(updatedTopicIds).toEqual(expect.arrayContaining(['TOPIC#tp_other_1', 'TOPIC#tp_other_2', 'TOPIC#tp_target']));
   });
 });
 
@@ -145,8 +145,10 @@ describe('lib/dynamodb - putSubscription', () => {
       expect.objectContaining({
         input: expect.objectContaining({
           Item: expect.objectContaining({
-            pk: 'TOPIC#tp_1',
-            sk: 'USER#u_1',
+            PK: 'TOPIC#tp_1',
+            SK: 'SUBSCRIBER#u_1',
+            GSI1PK: 'USER#u_1',
+            GSI1SK: 'TOPIC#tp_1',
             topic_id: 'tp_1',
             user_id: 'u_1',
             created_at: expect.any(String),
@@ -155,8 +157,8 @@ describe('lib/dynamodb - putSubscription', () => {
         }),
       }),
     );
-    expect(result.pk).toBe('TOPIC#tp_1');
-    expect(result.sk).toBe('USER#u_1');
+    expect(result.PK).toBe('TOPIC#tp_1');
+    expect(result.SK).toBe('SUBSCRIBER#u_1');
   });
 });
 
@@ -186,6 +188,10 @@ describe('lib/dynamodb - events', () => {
       expect.objectContaining({
         input: expect.objectContaining({
           Item: expect.objectContaining({
+            PK: 'EVENT#ev_1',
+            SK: 'EVENT',
+            GSI1PK: 'TOPIC#tp_1',
+            GSI1SK: 'OCCURRED_AT#2026-01-01T00:00:00.000Z#EVENT#ev_1',
             event_id: 'ev_1',
             topic_id: 'tp_1',
             owner_id: 'u_owner',
@@ -211,7 +217,7 @@ describe('lib/dynamodb - events', () => {
     expect(mockSend).toHaveBeenCalledWith(
       expect.objectContaining({
         input: expect.objectContaining({
-          Key: { event_id: 'ev_1' },
+          Key: { PK: 'EVENT#ev_1', SK: 'EVENT' },
           ExpressionAttributeValues: expect.objectContaining({
             ':updated_by': 'u_updater',
             ':amount': null,
