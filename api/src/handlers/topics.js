@@ -10,30 +10,21 @@ const {
   setTopicDefault,
   putSubscription,
 } = require('../lib/dynamodb');
-
-const createResponse = (statusCode, body) => ({
-  statusCode,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify(body),
-});
+const { createResponse, getUserId, parseJsonBody } = require('./common');
 
 module.exports.createTopic = async (event) => {
   try {
-    const headers = event.headers || {};
-    const userId = headers['x-user-id'] || headers['X-User-Id'];
+    const userId = getUserId(event.headers || {});
 
     if (!userId) {
       return createResponse(401, { message: 'x-user-id header is required' });
     }
 
-    let body;
-    try {
-      body = JSON.parse(event.body || '{}');
-    } catch {
+    const parsedBody = parseJsonBody(event.body);
+    if (!parsedBody.ok) {
       return createResponse(400, { message: 'Invalid JSON body' });
     }
+    const body = parsedBody.body;
 
     const { title } = body;
     if (!title || typeof title !== 'string' || title.trim() === '') {
@@ -72,8 +63,7 @@ module.exports.createTopic = async (event) => {
 
 module.exports.getOwnedTopics = async (event) => {
   try {
-    const headers = event.headers || {};
-    const userId = headers['x-user-id'] || headers['X-User-Id'];
+    const userId = getUserId(event.headers || {});
 
     if (!userId) {
       return createResponse(401, { message: 'x-user-id header is required' });
@@ -90,8 +80,7 @@ module.exports.getOwnedTopics = async (event) => {
 
 module.exports.updateTopic = async (event) => {
   try {
-    const headers = event.headers || {};
-    const userId = headers['x-user-id'] || headers['X-User-Id'];
+    const userId = getUserId(event.headers || {});
 
     if (!userId) {
       return createResponse(401, { message: 'x-user-id header is required' });
@@ -102,12 +91,11 @@ module.exports.updateTopic = async (event) => {
       return createResponse(400, { message: 'topic_id is required' });
     }
 
-    let body;
-    try {
-      body = JSON.parse(event.body || '{}');
-    } catch {
+    const parsedBody = parseJsonBody(event.body);
+    if (!parsedBody.ok) {
       return createResponse(400, { message: 'Invalid JSON body' });
     }
+    const body = parsedBody.body;
 
     const { title } = body;
     if (!title || typeof title !== 'string' || title.trim() === '') {
@@ -134,8 +122,7 @@ module.exports.updateTopic = async (event) => {
 
 module.exports.deleteTopic = async (event) => {
   try {
-    const headers = event.headers || {};
-    const userId = headers['x-user-id'] || headers['X-User-Id'];
+    const userId = getUserId(event.headers || {});
 
     if (!userId) {
       return createResponse(401, { message: 'x-user-id header is required' });
@@ -166,8 +153,7 @@ module.exports.deleteTopic = async (event) => {
 
 module.exports.setDefaultTopic = async (event) => {
   try {
-    const headers = event.headers || {};
-    const userId = headers['x-user-id'] || headers['X-User-Id'];
+    const userId = getUserId(event.headers || {});
 
     if (!userId) {
       return createResponse(401, { message: 'x-user-id header is required' });
@@ -198,8 +184,7 @@ module.exports.setDefaultTopic = async (event) => {
 
 module.exports.subscribeTopic = async (event) => {
   try {
-    const headers = event.headers || {};
-    const userId = headers['x-user-id'] || headers['X-User-Id'];
+    const userId = getUserId(event.headers || {});
 
     if (!userId) {
       return createResponse(401, { message: 'x-user-id header is required' });

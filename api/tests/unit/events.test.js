@@ -31,8 +31,8 @@ describe('events handlers', () => {
   });
 
   it('createEvent should create event and return 201', async () => {
-    getTopicById.mockResolvedValue({ topic_id: 'tp_1' });
-    putEvent.mockResolvedValue({});
+    getTopicById.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_owner' });
+    putEvent.mockResolvedValue({ event_id: 'ev_1', topic_id: 'tp_1', owner_id: 'u_owner' });
 
     const result = await createEvent({
       headers: { 'x-user-id': 'u_1' },
@@ -43,12 +43,15 @@ describe('events handlers', () => {
     expect(result.statusCode).toBe(201);
     expect(putEvent).toHaveBeenCalledWith(
       expect.objectContaining({
-        event_id: expect.stringMatching(/^ev_/),
-        topic_id: 'tp_1',
-        user_id: 'u_1',
-        data: { title: 'groceries', amount: 1200 },
-        created_at: expect.any(String),
-        updated_at: expect.any(String),
+        eventId: expect.stringMatching(/^ev_/),
+        topicId: 'tp_1',
+        ownerId: 'u_owner',
+        updatedBy: 'u_1',
+        amount: 1200,
+        content: null,
+        category: null,
+        checked: false,
+        occurredAt: expect.any(String),
       }),
     );
   });
@@ -78,7 +81,7 @@ describe('events handlers', () => {
     });
 
     expect(result.statusCode).toBe(200);
-    expect(updateEventData).toHaveBeenCalledWith('ev_1', { title: 'updated' });
+    expect(updateEventData).toHaveBeenCalledWith('ev_1', 'u_1', { title: 'updated' });
   });
 
   it('deleteEvent should soft-delete existing event', async () => {
