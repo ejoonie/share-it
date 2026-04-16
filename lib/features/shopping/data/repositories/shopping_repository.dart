@@ -3,22 +3,35 @@ import '../models/shopping_item_model.dart';
 
 class ShoppingRepository {
   final DatabaseHelper _db = DatabaseHelper.instance;
-  static const String _table = DatabaseHelper.shoppingTable;
+  static const String _table = DatabaseHelper.eventsTable;
+  static const String _eventType = 'shopping';
 
   Future<List<ShoppingItemModel>> getAllItems() async {
-    final rows = await _db.queryAll(_table);
+    final rows = await _db.queryWhere(
+      _table,
+      '${DatabaseHelper.colEventType} = ?',
+      [_eventType],
+    );
     return rows.map(ShoppingItemModel.fromMap).toList();
   }
 
   Future<ShoppingItemModel> addItem(ShoppingItemModel item) async {
     final model = item.copyWith(updatedAt: DateTime.now());
-    final id = await _db.insert(_table, model.toMap());
+    final row = model.toMap()
+      ..[DatabaseHelper.colEventType] = _eventType
+      ..[DatabaseHelper.colType] = null
+      ..[DatabaseHelper.colCategory] = null;
+    final id = await _db.insert(_table, row);
     return model.copyWith(id: id);
   }
 
   Future<ShoppingItemModel> updateItem(ShoppingItemModel item) async {
     final updated = item.copyWith(updatedAt: DateTime.now());
-    await _db.update(_table, updated.toMap(), item.id!);
+    final row = updated.toMap()
+      ..[DatabaseHelper.colEventType] = _eventType
+      ..[DatabaseHelper.colType] = null
+      ..[DatabaseHelper.colCategory] = null;
+    await _db.update(_table, row, item.id!);
     return updated;
   }
 
@@ -31,7 +44,11 @@ class ShoppingRepository {
       isChecked: !item.isChecked,
       updatedAt: DateTime.now(),
     );
-    await _db.update(_table, toggled.toMap(), item.id!);
+    final row = toggled.toMap()
+      ..[DatabaseHelper.colEventType] = _eventType
+      ..[DatabaseHelper.colType] = null
+      ..[DatabaseHelper.colCategory] = null;
+    await _db.update(_table, row, item.id!);
     return toggled;
   }
 
@@ -39,8 +56,8 @@ class ShoppingRepository {
     final db = await _db.database;
     await db.delete(
       _table,
-      where: '${DatabaseHelper.colIsChecked} = ?',
-      whereArgs: [1],
+      where: '${DatabaseHelper.colEventType} = ? AND ${DatabaseHelper.colIsChecked} = ?',
+      whereArgs: [_eventType, 1],
     );
   }
 }

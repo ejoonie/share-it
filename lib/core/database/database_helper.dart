@@ -3,23 +3,23 @@ import 'package:path/path.dart';
 
 class DatabaseHelper {
   static const String _databaseName = 'share_it.db';
-  static const int _databaseVersion = 1;
+  static const int _databaseVersion = 2;
 
   // Tables
-  static const String expenseTable = 'expenses';
-  static const String shoppingTable = 'shopping_items';
+  static const String eventsTable = 'events';
 
-  // Expense columns
+  // Shared event columns
   static const String colId = 'id';
+  static const String colEventType = 'event_type'; // 'expense' or 'shopping'
   static const String colTitle = 'title';
   static const String colAmount = 'amount';
   static const String colNote = 'note';
   static const String colCategory = 'category';
-  static const String colType = 'type'; // 'income' or 'expense'
+  static const String colType = 'type'; // only for expense rows: 'income' or 'expense'
   static const String colCreatedAt = 'created_at';
   static const String colUpdatedAt = 'updated_at';
 
-  // Shopping columns
+  // Shopping-specific columns
   static const String colIsChecked = 'is_checked';
   static const String colQuantity = 'quantity';
 
@@ -46,25 +46,15 @@ class DatabaseHelper {
 
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
-      CREATE TABLE $expenseTable (
+      CREATE TABLE $eventsTable (
         $colId INTEGER PRIMARY KEY AUTOINCREMENT,
-        $colTitle TEXT NOT NULL,
-        $colAmount INTEGER NOT NULL,
-        $colNote TEXT,
-        $colCategory TEXT,
-        $colType TEXT NOT NULL DEFAULT 'expense',
-        $colCreatedAt TEXT NOT NULL,
-        $colUpdatedAt TEXT NOT NULL
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE $shoppingTable (
-        $colId INTEGER PRIMARY KEY AUTOINCREMENT,
+        $colEventType TEXT NOT NULL,
         $colTitle TEXT NOT NULL,
         $colAmount INTEGER,
-        $colQuantity TEXT,
         $colNote TEXT,
+        $colCategory TEXT,
+        $colType TEXT,
+        $colQuantity TEXT,
         $colIsChecked INTEGER NOT NULL DEFAULT 0,
         $colCreatedAt TEXT NOT NULL,
         $colUpdatedAt TEXT NOT NULL
@@ -73,7 +63,72 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // Handle future migrations here
+    if (oldVersion < 2) {
+      await _onCreate(db, newVersion);
+
+      if (await _tableExists(db, 'expenses')) {
+        await db.execute('''
+          INSERT INTO $eventsTable (
+            $colEventType,
+            $colTitle,
+            $colAmount,
+            $colNote,
+            $colCategory,
+            $colType,
+            $colCreatedAt,
+            $colUpdatedAt
+          )
+          SELECT
+            'expense',
+            $colTitle,
+            $colAmount,
+            $colNote,
+            $colCategory,
+            $colType,
+            $colCreatedAt,
+            $colUpdatedAt
+          FROM expenses
+        ''');
+        await db.execute('DROP TABLE expenses');
+      }
+
+      if (await _tableExists(db, 'shopping_items')) {
+        await db.execute('''
+          INSERT INTO $eventsTable (
+            $colEventType,
+            $colTitle,
+            $colAmount,
+            $colQuantity,
+            $colNote,
+            $colIsChecked,
+            $colCreatedAt,
+            $colUpdatedAt
+          )
+          SELECT
+            'shopping',
+            $colTitle,
+            $colAmount,
+            $colQuantity,
+            $colNote,
+            $colIsChecked,
+            $colCreatedAt,
+            $colUpdatedAt
+          FROM shopping_items
+        ''');
+        await db.execute('DROP TABLE shopping_items');
+      }
+    }
+  }
+
+  Future<bool> _tableExists(Database db, String tableName) async {
+    final result = await db.query(
+      'sqlite_master',
+      columns: ['name'],
+      where: 'type = ? AND name = ?',
+      whereArgs: ['table', tableName],
+      limit: 1,
+    );
+    return result.isNotEmpty;
   }
 
   // Generic CRUD helpers

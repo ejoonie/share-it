@@ -3,10 +3,15 @@ import '../models/expense_model.dart';
 
 class ExpenseRepository {
   final DatabaseHelper _db = DatabaseHelper.instance;
-  static const String _table = DatabaseHelper.expenseTable;
+  static const String _table = DatabaseHelper.eventsTable;
+  static const String _eventType = 'expense';
 
   Future<List<ExpenseModel>> getAllExpenses() async {
-    final rows = await _db.queryAll(_table);
+    final rows = await _db.queryWhere(
+      _table,
+      '${DatabaseHelper.colEventType} = ?',
+      [_eventType],
+    );
     return rows.map(ExpenseModel.fromMap).toList();
   }
 
@@ -15,8 +20,8 @@ class ExpenseRepository {
     final endDate = DateTime(year, month + 1, 1);
     final rows = await _db.queryWhere(
       _table,
-      'created_at >= ? AND created_at < ?',
-      [startDate.toIso8601String(), endDate.toIso8601String()],
+      '${DatabaseHelper.colEventType} = ? AND created_at >= ? AND created_at < ?',
+      [_eventType, startDate.toIso8601String(), endDate.toIso8601String()],
     );
     return rows.map(ExpenseModel.fromMap).toList();
   }
@@ -26,21 +31,29 @@ class ExpenseRepository {
     final end = start.add(const Duration(days: 1));
     final rows = await _db.queryWhere(
       _table,
-      'created_at >= ? AND created_at < ?',
-      [start.toIso8601String(), end.toIso8601String()],
+      '${DatabaseHelper.colEventType} = ? AND created_at >= ? AND created_at < ?',
+      [_eventType, start.toIso8601String(), end.toIso8601String()],
     );
     return rows.map(ExpenseModel.fromMap).toList();
   }
 
   Future<ExpenseModel> addExpense(ExpenseModel expense) async {
     final model = expense.copyWith(updatedAt: DateTime.now());
-    final id = await _db.insert(_table, model.toMap());
+    final row = model.toMap()
+      ..[DatabaseHelper.colEventType] = _eventType
+      ..[DatabaseHelper.colIsChecked] = 0
+      ..[DatabaseHelper.colQuantity] = null;
+    final id = await _db.insert(_table, row);
     return model.copyWith(id: id);
   }
 
   Future<ExpenseModel> updateExpense(ExpenseModel expense) async {
     final updated = expense.copyWith(updatedAt: DateTime.now());
-    await _db.update(_table, updated.toMap(), expense.id!);
+    final row = updated.toMap()
+      ..[DatabaseHelper.colEventType] = _eventType
+      ..[DatabaseHelper.colIsChecked] = 0
+      ..[DatabaseHelper.colQuantity] = null;
+    await _db.update(_table, row, expense.id!);
     return updated;
   }
 
