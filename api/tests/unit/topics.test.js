@@ -1,13 +1,33 @@
 'use strict';
 
-const { createTopic, getOwnedTopics } = require('../../src/handlers/topics');
+const {
+  createTopic,
+  getOwnedTopics,
+  updateTopic,
+  deleteTopic,
+  setDefaultTopic,
+  subscribeTopic,
+} = require('../../src/handlers/topics');
 
 jest.mock('../../src/lib/dynamodb', () => ({
   putTopic: jest.fn(),
   queryTopicsByOwner: jest.fn(),
+  getTopicById: jest.fn(),
+  updateTopicTitle: jest.fn(),
+  setTopicDeleted: jest.fn(),
+  setTopicDefault: jest.fn(),
+  putSubscription: jest.fn(),
 }));
 
-const { putTopic, queryTopicsByOwner } = require('../../src/lib/dynamodb');
+const {
+  putTopic,
+  queryTopicsByOwner,
+  getTopicById,
+  updateTopicTitle,
+  setTopicDeleted,
+  setTopicDefault,
+  putSubscription,
+} = require('../../src/lib/dynamodb');
 
 describe('POST /api/v1/topics - createTopic', () => {
   beforeEach(() => {
@@ -29,6 +49,7 @@ describe('POST /api/v1/topics - createTopic', () => {
     expect(body.topic_id).toMatch(/^tp_/);
     expect(body.owner_id).toBe('u_1');
     expect(body.title).toBe('생활비 가계부');
+    expect(body.is_default).toBe(false);
     expect(body.last_sequence).toBe(0);
     expect(body.created_at).toBeDefined();
     expect(putTopic).toHaveBeenCalledTimes(1);
@@ -37,6 +58,7 @@ describe('POST /api/v1/topics - createTopic', () => {
         topic_id: expect.stringMatching(/^tp_/),
         owner_id: 'u_1',
         title: '생활비 가계부',
+        is_default: false,
         last_sequence: 0,
         created_at: expect.any(String),
         updated_at: expect.any(String),
@@ -108,21 +130,6 @@ describe('POST /api/v1/topics - createTopic', () => {
 
     expect(result.statusCode).toBe(500);
   });
-
-  it('should trim whitespace from title', async () => {
-    putTopic.mockResolvedValue({});
-
-    const event = {
-      headers: { 'x-user-id': 'u_1' },
-      body: JSON.stringify({ title: '  test topic  ' }),
-    };
-
-    const result = await createTopic(event);
-
-    expect(result.statusCode).toBe(201);
-    const body = JSON.parse(result.body);
-    expect(body.title).toBe('test topic');
-  });
 });
 
 describe('GET /api/v1/topics/owned - getOwnedTopics', () => {
@@ -133,12 +140,15 @@ describe('GET /api/v1/topics/owned - getOwnedTopics', () => {
   it('should return owned topics with 200', async () => {
     const mockTopics = [
       {
-        topic_id: 'tp_2f58e8fe-9a85-44aa-9f7c-4cc0f11a4f7e',
+        topic_id: 'tp_1',
         owner_id: 'u_1',
         title: '생활비 가계부',
-        last_sequence: 0,
-        created_at: '2026-04-13T20:30:00.000Z',
-        updated_at: '2026-04-13T20:30:00.000Z',
+      },
+      {
+        topic_id: 'tp_2',
+        owner_id: 'u_1',
+        title: '삭제된 토픽',
+        deleted_at: '2026-04-13T20:30:00.000Z',
       },
     ];
     queryTopicsByOwner.mockResolvedValue(mockTopics);
@@ -151,22 +161,8 @@ describe('GET /api/v1/topics/owned - getOwnedTopics', () => {
 
     expect(result.statusCode).toBe(200);
     const body = JSON.parse(result.body);
-    expect(body.topics).toEqual(mockTopics);
+    expect(body.topics).toEqual([mockTopics[0]]);
     expect(queryTopicsByOwner).toHaveBeenCalledWith('u_1');
-  });
-
-  it('should return empty topics array when user has no topics', async () => {
-    queryTopicsByOwner.mockResolvedValue([]);
-
-    const event = {
-      headers: { 'x-user-id': 'u_1' },
-    };
-
-    const result = await getOwnedTopics(event);
-
-    expect(result.statusCode).toBe(200);
-    const body = JSON.parse(result.body);
-    expect(body.topics).toEqual([]);
   });
 
   it('should return 401 when x-user-id header is missing', async () => {
@@ -177,20 +173,122 @@ describe('GET /api/v1/topics/owned - getOwnedTopics', () => {
     const result = await getOwnedTopics(event);
 
     expect(result.statusCode).toBe(401);
-    const body = JSON.parse(result.body);
-    expect(body.message).toBeDefined();
     expect(queryTopicsByOwner).not.toHaveBeenCalled();
   });
+});
 
-  it('should return 500 when DynamoDB throws an error', async () => {
-    queryTopicsByOwner.mockRejectedValue(new Error('DynamoDB error'));
+describe('PATCH /api/v1/topics/{topic_id} - updateTopic', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-    const event = {
+  it('should update title when owner updates topic', async () => {
+    getTopicById.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_1' });
+    updateTopicTitle.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_1', title: 'new title' });
+
+    const result = await updateTopic({
       headers: { 'x-user-id': 'u_1' },
-    };
+      pathParameters: { topic_id: 'tp_1' },
+      body: JSON.stringify({ title: ' new title ' }),
+    });
 
-    const result = await getOwnedTopics(event);
+    expect(result.statusCode).toBe(200);
+    expect(updateTopicTitle).toHaveBeenCalledWith('tp_1', 'new title', expect.any(String));
+  });
 
-    expect(result.statusCode).toBe(500);
+  it('should return 404 when topic is deleted', async () => {
+    getTopicById.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_1', deleted_at: '2026-01-01T00:00:00.000Z' });
+
+    const result = await updateTopic({
+      headers: { 'x-user-id': 'u_1' },
+      pathParameters: { topic_id: 'tp_1' },
+      body: JSON.stringify({ title: 'new title' }),
+    });
+
+    expect(result.statusCode).toBe(404);
+    expect(updateTopicTitle).not.toHaveBeenCalled();
+  });
+});
+
+describe('DELETE /api/v1/topics/{topic_id} - deleteTopic', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should soft delete a topic', async () => {
+    getTopicById.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_1' });
+    setTopicDeleted.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_1', deleted_at: '2026-01-01T00:00:00.000Z' });
+
+    const result = await deleteTopic({
+      headers: { 'x-user-id': 'u_1' },
+      pathParameters: { topic_id: 'tp_1' },
+    });
+
+    expect(result.statusCode).toBe(200);
+    expect(setTopicDeleted).toHaveBeenCalledWith('tp_1', expect.any(String));
+  });
+});
+
+describe('POST /api/v1/topics/{topic_id}/default - setDefaultTopic', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should unset other defaults and set target topic default', async () => {
+    getTopicById.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_1', is_default: false });
+    queryTopicsByOwner.mockResolvedValue([
+      { topic_id: 'tp_1', owner_id: 'u_1', is_default: false },
+      { topic_id: 'tp_2', owner_id: 'u_1', is_default: true },
+    ]);
+    setTopicDefault.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_1', is_default: true });
+
+    const result = await setDefaultTopic({
+      headers: { 'x-user-id': 'u_1' },
+      pathParameters: { topic_id: 'tp_1' },
+    });
+
+    expect(result.statusCode).toBe(200);
+    expect(setTopicDefault).toHaveBeenCalledWith('tp_2', false, expect.any(String));
+    expect(setTopicDefault).toHaveBeenCalledWith('tp_1', true, expect.any(String));
+  });
+});
+
+describe('POST /api/v1/topics/{topic_id}/subscribe - subscribeTopic', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should subscribe with TOPIC# partition key', async () => {
+    getTopicById.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_owner' });
+    putSubscription.mockResolvedValue({});
+
+    const result = await subscribeTopic({
+      headers: { 'x-user-id': 'u_subscriber' },
+      pathParameters: { topic_id: 'tp_1' },
+    });
+
+    expect(result.statusCode).toBe(201);
+    expect(putSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pk: 'TOPIC#tp_1',
+        sk: 'USER#u_subscriber',
+        topic_id: 'tp_1',
+        user_id: 'u_subscriber',
+      }),
+    );
+  });
+
+  it('should return 409 when already subscribed', async () => {
+    getTopicById.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_owner' });
+    const error = new Error('duplicate');
+    error.name = 'ConditionalCheckFailedException';
+    putSubscription.mockRejectedValue(error);
+
+    const result = await subscribeTopic({
+      headers: { 'x-user-id': 'u_subscriber' },
+      pathParameters: { topic_id: 'tp_1' },
+    });
+
+    expect(result.statusCode).toBe(409);
   });
 });

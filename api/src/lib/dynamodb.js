@@ -1,7 +1,7 @@
 'use strict';
 
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, PutCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, PutCommand, QueryCommand, GetCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 
 const clientConfig = {
   region: process.env.AWS_REGION || 'us-west-2',
@@ -15,6 +15,7 @@ const client = new DynamoDBClient(clientConfig);
 const docClient = DynamoDBDocumentClient.from(client);
 
 const TOPICS_TABLE = process.env.TOPICS_TABLE || 't_topics-dev';
+const SUBSCRIPTIONS_TABLE = process.env.SUBSCRIPTIONS_TABLE || 't_subscriptions';
 
 async function putTopic(item) {
   await docClient.send(
@@ -40,4 +41,89 @@ async function queryTopicsByOwner(ownerId) {
   return result.Items || [];
 }
 
-module.exports = { putTopic, queryTopicsByOwner };
+async function getTopicById(topicId) {
+  const result = await docClient.send(
+    new GetCommand({
+      TableName: TOPICS_TABLE,
+      Key: {
+        topic_id: topicId,
+      },
+    }),
+  );
+  return result.Item;
+}
+
+async function updateTopicTitle(topicId, title, updatedAt) {
+  const result = await docClient.send(
+    new UpdateCommand({
+      TableName: TOPICS_TABLE,
+      Key: {
+        topic_id: topicId,
+      },
+      UpdateExpression: 'SET title = :title, updated_at = :updated_at',
+      ExpressionAttributeValues: {
+        ':title': title,
+        ':updated_at': updatedAt,
+      },
+      ReturnValues: 'ALL_NEW',
+    }),
+  );
+  return result.Attributes;
+}
+
+async function setTopicDeleted(topicId, deletedAt) {
+  const result = await docClient.send(
+    new UpdateCommand({
+      TableName: TOPICS_TABLE,
+      Key: {
+        topic_id: topicId,
+      },
+      UpdateExpression: 'SET deleted_at = :deleted_at, updated_at = :updated_at, is_default = :is_default',
+      ExpressionAttributeValues: {
+        ':deleted_at': deletedAt,
+        ':updated_at': deletedAt,
+        ':is_default': false,
+      },
+      ReturnValues: 'ALL_NEW',
+    }),
+  );
+  return result.Attributes;
+}
+
+async function setTopicDefault(topicId, isDefault, updatedAt) {
+  const result = await docClient.send(
+    new UpdateCommand({
+      TableName: TOPICS_TABLE,
+      Key: {
+        topic_id: topicId,
+      },
+      UpdateExpression: 'SET is_default = :is_default, updated_at = :updated_at',
+      ExpressionAttributeValues: {
+        ':is_default': isDefault,
+        ':updated_at': updatedAt,
+      },
+      ReturnValues: 'ALL_NEW',
+    }),
+  );
+  return result.Attributes;
+}
+
+async function putSubscription(item) {
+  await docClient.send(
+    new PutCommand({
+      TableName: SUBSCRIPTIONS_TABLE,
+      Item: item,
+      ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
+    }),
+  );
+}
+
+module.exports = {
+  putTopic,
+  queryTopicsByOwner,
+  getTopicById,
+  updateTopicTitle,
+  setTopicDeleted,
+  setTopicDefault,
+  putSubscription,
+};

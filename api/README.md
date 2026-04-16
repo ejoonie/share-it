@@ -81,6 +81,7 @@ curl -X POST http://localhost:3001/api/v1/topics \
   "topic_id": "tp_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
   "owner_id": "u_1",
   "title": "My Expenses",
+  "is_default": false,
   "last_sequence": 0,
   "created_at": "2026-01-01T00:00:00.000Z"
 }
@@ -118,6 +119,15 @@ curl http://localhost:3001/api/v1/topics/owned \
 yarn test          # 전체 테스트 + 커버리지
 yarn run test:unit # 유닛 테스트만
 ```
+
+---
+
+## 추가 엔드포인트
+
+- `PATCH /api/v1/topics/{topic_id}`: 토픽 제목 수정
+- `DELETE /api/v1/topics/{topic_id}`: 토픽 soft delete (`deleted_at` 설정)
+- `POST /api/v1/topics/{topic_id}/default`: 기본 토픽 지정 (한 번에 하나만 `is_default=true`)
+- `POST /api/v1/topics/{topic_id}/subscribe`: 토픽 구독 (`t_subscriptions`, `pk=TOPIC#{topic_id}`)
 
 ---
 
