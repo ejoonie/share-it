@@ -2,6 +2,7 @@
 
 const mockSend = jest.fn();
 const mockFrom = jest.fn(() => ({ send: mockSend }));
+const mockUuid = jest.fn();
 
 jest.mock('@aws-sdk/client-dynamodb', () => ({
   DynamoDBClient: jest.fn(),
@@ -33,6 +34,10 @@ jest.mock('@aws-sdk/lib-dynamodb', () => ({
   },
 }));
 
+jest.mock('uuid', () => ({
+  v4: () => mockUuid(),
+}));
+
 const {
   queryTopicsByOwner,
   updateTopicTitle,
@@ -41,6 +46,7 @@ const {
   putSubscription,
   putEvent,
   updateEventData,
+  setEventDeleted,
 } = require('../../src/lib/dynamodb');
 
 describe('lib/dynamodb - queryTopicsByOwner', () => {
@@ -61,7 +67,7 @@ describe('lib/dynamodb - queryTopicsByOwner', () => {
           KeyConditionExpression: 'GSI1PK = :owner_pk',
           FilterExpression: 'attribute_not_exists(deleted_at)',
           ExpressionAttributeValues: {
-            ':owner_pk': 'USER#u_1',
+            ':owner_pk': 'OWNER#u_1',
           },
         }),
       }),
@@ -147,7 +153,7 @@ describe('lib/dynamodb - putSubscription', () => {
           Item: expect.objectContaining({
             PK: 'TOPIC#tp_1',
             SK: 'SUBSCRIBER#u_1',
-            GSI1PK: 'USER#u_1',
+            GSI1PK: 'SUBSCRIBER#u_1',
             GSI1SK: 'TOPIC#tp_1',
             topic_id: 'tp_1',
             user_id: 'u_1',
@@ -165,17 +171,19 @@ describe('lib/dynamodb - putSubscription', () => {
 describe('lib/dynamodb - events', () => {
   beforeEach(() => {
     mockSend.mockReset();
+    mockUuid.mockReset();
   });
 
-  it('putEvent should construct event item without data field', async () => {
-    mockSend.mockResolvedValue({});
+  it('putEvent should allocate next sequence and insert event item', async () => {
+    mockUuid.mockReturnValueOnce('event-uuid').mockReturnValueOnce('entity-uuid');
+    mockSend
+      .mockResolvedValueOnce({ Attributes: { last_sequence: 1 } })
+      .mockResolvedValueOnce({});
 
     await putEvent({
-      eventId: 'ev_1',
       topicId: 'tp_1',
       ownerId: 'u_owner',
       updatedBy: 'u_updater',
-      sequence: 1,
       kind: 'expense',
       amount: 1200,
       category: 'food',
@@ -184,18 +192,32 @@ describe('lib/dynamodb - events', () => {
       occurredAt: '2026-01-01T00:00:00.000Z',
     });
 
-    expect(mockSend).toHaveBeenCalledWith(
+    expect(mockSend).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        input: expect.objectContaining({
+          Key: { pk: 'TOPIC#tp_1', sk: 'META' },
+        }),
+      }),
+    );
+    expect(mockSend).toHaveBeenNthCalledWith(
+      2,
       expect.objectContaining({
         input: expect.objectContaining({
           Item: expect.objectContaining({
-            PK: 'EVENT#ev_1',
-            SK: 'EVENT',
-            GSI1PK: 'TOPIC#tp_1',
-            GSI1SK: 'OCCURRED_AT#2026-01-01T00:00:00.000Z#EVENT#ev_1',
-            event_id: 'ev_1',
+            PK: 'TOPIC#tp_1',
+            SK: 'SEQ#000000000001',
+            GSI1PK: 'EVENT#ev_event-uuid',
+            GSI1SK: 'EVENT',
+            GSI2PK: 'ENTITY#ent_entity-uuid',
+            GSI2SK: 'ENTITY',
+            GSI3PK: 'TOPIC#tp_1',
+            GSI3SK: 'OCCURRED_AT#2026-01-01T00:00:00.000Z#EVENT#ev_event-uuid',
+            entity_id: 'ent_entity-uuid',
+            event_id: 'ev_event-uuid',
             topic_id: 'tp_1',
             owner_id: 'u_owner',
-            update_by: 'u_updater',
+            updated_by: 'u_updater',
             sequence: 1,
             kind: 'expense',
             amount: 1200,
@@ -203,25 +225,119 @@ describe('lib/dynamodb - events', () => {
             content: 'lunch',
             checked: false,
             occurred_at: '2026-01-01T00:00:00.000Z',
+            deleted_at: null,
           }),
         }),
       }),
     );
   });
 
-  it('updateEventData should set update_by and provided fields', async () => {
-    mockSend.mockResolvedValue({ Attributes: { event_id: 'ev_1' } });
+  it('updateEventData should append a new event version instead of in-place update', async () => {
+    mockUuid.mockReturnValueOnce('updated-event-uuid');
+    mockSend
+      .mockResolvedValueOnce({
+        Items: [{
+          PK: 'TOPIC#tp_1',
+          SK: 'SEQ#000000000001',
+          event_id: 'ev_1',
+          entity_id: 'ent_1',
+          topic_id: 'tp_1',
+          owner_id: 'u_owner',
+          kind: 'expense',
+          amount: 1000,
+          category: 'food',
+          content: 'before',
+          checked: false,
+          occurred_at: '2026-01-01T00:00:00.000Z',
+          updated_by: 'u_old',
+        }],
+      })
+      .mockResolvedValueOnce({ Attributes: { last_sequence: 2 } })
+      .mockResolvedValueOnce({});
 
-    await updateEventData('ev_1', 'u_updater', { amount: null, checked: true });
+    await updateEventData('ev_1', 'u_updater', {
+      PK: 'TOPIC#tp_1',
+      topic_id: 'tp_1',
+      owner_id: 'u_owner',
+      kind: 'expense',
+      amount: null,
+      category: 'food',
+      content: 'after',
+      checked: true,
+      occurred_at: '2026-01-02T00:00:00.000Z',
+    });
 
-    expect(mockSend).toHaveBeenCalledWith(
+    expect(mockSend).toHaveBeenNthCalledWith(
+      1,
       expect.objectContaining({
         input: expect.objectContaining({
-          Key: { PK: 'EVENT#ev_1', SK: 'EVENT' },
-          ExpressionAttributeValues: expect.objectContaining({
-            ':updated_by': 'u_updater',
-            ':amount': null,
-            ':checked': true,
+          IndexName: 'event-id-index',
+          KeyConditionExpression: 'GSI1PK = :event_pk AND GSI1SK = :event_sk',
+          ExpressionAttributeValues: {
+            ':event_pk': 'EVENT#ev_1',
+            ':event_sk': 'EVENT',
+          },
+        }),
+      }),
+    );
+    expect(mockSend).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        input: expect.objectContaining({
+          Item: expect.objectContaining({
+            PK: 'TOPIC#tp_1',
+            SK: 'SEQ#000000000002',
+            event_id: 'ev_updated-event-uuid',
+            sequence: 2,
+            updated_by: 'u_updater',
+            amount: null,
+            content: 'after',
+            checked: true,
+            GSI1PK: 'EVENT#ev_updated-event-uuid',
+            GSI2PK: 'ENTITY#ent_1',
+            GSI3PK: 'TOPIC#tp_1',
+            GSI3SK: 'OCCURRED_AT#2026-01-02T00:00:00.000Z#EVENT#ev_updated-event-uuid',
+            deleted_at: null,
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('setEventDeleted should append a tombstone event', async () => {
+    mockUuid.mockReturnValueOnce('deleted-event-uuid');
+    mockSend
+      .mockResolvedValueOnce({
+        Items: [{
+          PK: 'TOPIC#tp_1',
+          SK: 'SEQ#000000000001',
+          event_id: 'ev_1',
+          entity_id: 'ent_1',
+          topic_id: 'tp_1',
+          owner_id: 'u_owner',
+          occurred_at: '2026-01-01T00:00:00.000Z',
+          updated_by: 'u_updater',
+          deleted_at: null,
+        }],
+      })
+      .mockResolvedValueOnce({ Attributes: { last_sequence: 3 } })
+      .mockResolvedValueOnce({});
+
+    await setEventDeleted('ev_1');
+
+    expect(mockSend).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        input: expect.objectContaining({
+          Item: expect.objectContaining({
+            PK: 'TOPIC#tp_1',
+            SK: 'SEQ#000000000003',
+            event_id: 'ev_deleted-event-uuid',
+            GSI1PK: 'EVENT#ev_deleted-event-uuid',
+            GSI2PK: 'ENTITY#ent_1',
+            GSI3PK: 'TOPIC#tp_1',
+            updated_by: 'u_updater',
+            deleted_at: expect.any(String),
           }),
         }),
       }),
