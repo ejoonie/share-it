@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://json.schemastore.org/serverless.json
 # 서비스 이름 (Serverless Framework 프로젝트 단위)
 service: share-it-api
 
