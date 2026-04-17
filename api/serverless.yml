@@ -32,11 +32,12 @@ provider:
             - dynamodb:Query     # 인덱스 기반 조회 (GET /topics/owned)
             - dynamodb:UpdateItem
           Resource:
-              - !GetAtt TopicsTable.Arn          # 기본 테이블 ARN
-              - !Sub '${TopicsTable.Arn}/index/*' # GSI 포함 모든 인덱스 ARN
-              - !GetAtt SubscriptionsTable.Arn
-              - !GetAtt EventsTable.Arn
-              - !Sub '${EventsTable.Arn}/index/*'
+              - Fn::GetAtt: [TopicsTable, Arn]          # 기본 테이블 ARN
+              - Fn::Sub: '${TopicsTable.Arn}/index/*'   # GSI 포함 모든 인덱스 ARN
+              - Fn::GetAtt: [SubscriptionsTable, Arn]
+              - Fn::Sub: '${SubscriptionsTable.Arn}/index/*'
+              - Fn::GetAtt: [EventsTable, Arn]
+              - Fn::Sub: '${EventsTable.Arn}/index/*'
 
 functions:
   createTopic:                                   # 토픽 생성 Lambda 함수
