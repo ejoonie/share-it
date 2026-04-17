@@ -7,6 +7,7 @@
  */
 
 const { DynamoDBClient, CreateTableCommand, ListTablesCommand } = require('@aws-sdk/client-dynamodb');
+const tables = require('./dynamodb-tables.schema');
 
 const ENDPOINT = process.env.DYNAMODB_ENDPOINT || 'http://localhost:8000';
 const REGION = process.env.AWS_REGION || 'us-west-2';
@@ -23,100 +24,26 @@ const client = new DynamoDBClient({
 async function run() {
   // 이미 테이블이 있으면 건너뜀
   const { TableNames } = await client.send(new ListTablesCommand({}));
-  if (!TableNames.includes(TOPICS_TABLE_NAME)) {
-    await client.send(
-      new CreateTableCommand({
-        TableName: TOPICS_TABLE_NAME,
-        BillingMode: 'PAY_PER_REQUEST',
-        AttributeDefinitions: [
-          { AttributeName: 'PK', AttributeType: 'S' },
-          { AttributeName: 'SK', AttributeType: 'S' },
-          { AttributeName: 'GSI1PK', AttributeType: 'S' },
-          { AttributeName: 'GSI1SK', AttributeType: 'S' },
-        ],
-        KeySchema: [
-          { AttributeName: 'PK', KeyType: 'HASH' },
-          { AttributeName: 'SK', KeyType: 'RANGE' },
-        ],
-        GlobalSecondaryIndexes: [
-          {
-            IndexName: 'owner-index',
-            KeySchema: [
-              { AttributeName: 'GSI1PK', KeyType: 'HASH' },
-              { AttributeName: 'GSI1SK', KeyType: 'RANGE' },
-            ],
-            Projection: { ProjectionType: 'ALL' },
-          },
-        ],
-      }),
-    );
-    console.log(`✓ Table "${TOPICS_TABLE_NAME}" created successfully.`);
+  // TopicsTable
+  if (!TableNames.includes(tables.TopicsTable.TableName)) {
+    await client.send(new CreateTableCommand(tables.TopicsTable));
+    console.log(`✓ Table "${tables.TopicsTable.TableName}" created successfully.`);
   } else {
-    console.log(`✓ Table "${TOPICS_TABLE_NAME}" already exists — skipping.`);
+    console.log(`✓ Table "${tables.TopicsTable.TableName}" already exists — skipping.`);
   }
-
-  if (!TableNames.includes(SUBSCRIPTIONS_TABLE_NAME)) {
-    await client.send(
-      new CreateTableCommand({
-        TableName: SUBSCRIPTIONS_TABLE_NAME,
-        BillingMode: 'PAY_PER_REQUEST',
-        AttributeDefinitions: [
-          { AttributeName: 'PK', AttributeType: 'S' },
-          { AttributeName: 'SK', AttributeType: 'S' },
-          { AttributeName: 'GSI1PK', AttributeType: 'S' },
-          { AttributeName: 'GSI1SK', AttributeType: 'S' },
-        ],
-        KeySchema: [
-          { AttributeName: 'PK', KeyType: 'HASH' },
-          { AttributeName: 'SK', KeyType: 'RANGE' },
-        ],
-        GlobalSecondaryIndexes: [
-          {
-            IndexName: 'user-index',
-            KeySchema: [
-              { AttributeName: 'GSI1PK', KeyType: 'HASH' },
-              { AttributeName: 'GSI1SK', KeyType: 'RANGE' },
-            ],
-            Projection: { ProjectionType: 'ALL' },
-          },
-        ],
-      }),
-    );
-    console.log(`✓ Table "${SUBSCRIPTIONS_TABLE_NAME}" created successfully.`);
+  // SubscriptionsTable
+  if (!TableNames.includes(tables.SubscriptionsTable.TableName)) {
+    await client.send(new CreateTableCommand(tables.SubscriptionsTable));
+    console.log(`✓ Table "${tables.SubscriptionsTable.TableName}" created successfully.`);
   } else {
-    console.log(`✓ Table "${SUBSCRIPTIONS_TABLE_NAME}" already exists — skipping.`);
+    console.log(`✓ Table "${tables.SubscriptionsTable.TableName}" already exists — skipping.`);
   }
-
-  if (!TableNames.includes(EVENTS_TABLE_NAME)) {
-    await client.send(
-      new CreateTableCommand({
-        TableName: EVENTS_TABLE_NAME,
-        BillingMode: 'PAY_PER_REQUEST',
-        AttributeDefinitions: [
-          { AttributeName: 'PK', AttributeType: 'S' },
-          { AttributeName: 'SK', AttributeType: 'S' },
-          { AttributeName: 'GSI1PK', AttributeType: 'S' },
-          { AttributeName: 'GSI1SK', AttributeType: 'S' },
-        ],
-        KeySchema: [
-          { AttributeName: 'PK', KeyType: 'HASH' },
-          { AttributeName: 'SK', KeyType: 'RANGE' },
-        ],
-        GlobalSecondaryIndexes: [
-          {
-            IndexName: 'topic-index',
-            KeySchema: [
-              { AttributeName: 'GSI1PK', KeyType: 'HASH' },
-              { AttributeName: 'GSI1SK', KeyType: 'RANGE' },
-            ],
-            Projection: { ProjectionType: 'ALL' },
-          },
-        ],
-      }),
-    );
-    console.log(`✓ Table "${EVENTS_TABLE_NAME}" created successfully.`);
+  // EventsTable
+  if (!TableNames.includes(tables.EventsTable.TableName)) {
+    await client.send(new CreateTableCommand(tables.EventsTable));
+    console.log(`✓ Table "${tables.EventsTable.TableName}" created successfully.`);
   } else {
-    console.log(`✓ Table "${EVENTS_TABLE_NAME}" already exists — skipping.`);
+    console.log(`✓ Table "${tables.EventsTable.TableName}" already exists — skipping.`);
   }
 }
 

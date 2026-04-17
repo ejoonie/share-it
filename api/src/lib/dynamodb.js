@@ -2,6 +2,7 @@
 
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, PutCommand, QueryCommand, GetCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { v4: uuidv4 } = require('uuid');
 
 const clientConfig = {
   region: process.env.AWS_REGION || 'us-west-2',
@@ -18,15 +19,29 @@ const TOPICS_TABLE = process.env.TOPICS_TABLE || 't_topics-dev';
 const SUBSCRIPTIONS_TABLE = process.env.SUBSCRIPTIONS_TABLE || 't_subscriptions-dev';
 const EVENTS_TABLE = process.env.EVENTS_TABLE || 't_events-dev';
 
+
 const topicPk = (topicId) => `TOPIC#${topicId}`;
 const topicSk = 'TOPIC';
-const topicOwnerGsiPk = (ownerId) => `USER#${ownerId}`;
+const topicOwnerGsiPk = (ownerId) => `OWNER#${ownerId}`;
 const topicOwnerGsiSk = (createdAt, topicId) => `TOPIC#${createdAt}#${topicId}`;
 
-const eventPk = (eventId) => `EVENT#${eventId}`;
-const eventSk = 'EVENT';
-const eventTopicGsiPk = (topicId) => `TOPIC#${topicId}`;
-const eventTopicGsiSk = (occurredAt, eventId) => `OCCURRED_AT#${occurredAt}#EVENT#${eventId}`;
+const subscriptionPk = (topicId) => `TOPIC#${topicId}`;
+const subscriptionSk = (userId) => `SUBSCRIBER#${userId}`;
+const subscriptionGsiPk = (userId) => `SUBSCRIBER#${userId}`;
+const subscriptionGsiSk = (topicId) => `TOPIC#${topicId}`;
+
+// event table 에서는 topic_id 와 sequence 로 찾는 것으로 함
+// “가장 많이 쓰는 조회를 PK로 만든다” ?
+const eventPk = (topicId) => `TOPIC#${topicId}`; // topic 에서 sequence 로 이벤트를 찾음
+const eventSk = (seq) => `SEQ#${String(seq).padStart(12, '0')}`; // sequence 로 이벤트를 찾음
+const eventGsi1Pk = (eventId) => `EVENT#${eventId}`;
+const eventGsi1Sk = () => 'EVENT';
+const eventGsi2Pk = (entityId) => `ENTITY#${entityId}`;
+const eventGsi2Sk = () => 'ENTITY';
+const eventGsi3Pk = (topicId) => `TOPIC#${topicId}`;
+const eventGsi3Sk = (occurredAt, eventId) => `OCCURRED_AT#${occurredAt}#EVENT#${eventId}`;
+
+const metaSk = 'META';
 
 async function putTopic(item) {
   const mappedItem = {
@@ -150,10 +165,10 @@ async function setTopicDefault(ownerId, topicId) {
 async function putSubscription(topicId, userId) {
   const now = new Date().toISOString();
   const item = {
-    PK: `TOPIC#${topicId}`,
-    SK: `SUBSCRIBER#${userId}`,
-    GSI1PK: `USER#${userId}`,
-    GSI1SK: `TOPIC#${topicId}`,
+    PK: subscriptionPk(topicId),
+    SK: subscriptionSk(userId),
+    GSI1PK: subscriptionGsiPk(userId),
+    GSI1SK: subscriptionGsiSk(topicId),
     topic_id: topicId,
     user_id: userId,
     created_at: now,
@@ -170,12 +185,34 @@ async function putSubscription(topicId, userId) {
   return item;
 }
 
+
+async function _nextSequence(topicId) {
+  const res = await docClient.send(
+    new UpdateCommand({
+      TableName: EVENTS_TABLE,
+      Key: {
+        pk: eventPk(topicId),
+        sk: metaSk,
+      },
+      UpdateExpression:
+        'SET last_sequence = if_not_exists(last_sequence, :zero) + :inc, updated_at = :now',
+      ExpressionAttributeValues: {
+        ':zero': 0,
+        ':inc': 1,
+        ':now': new Date().toISOString(),
+      },
+      ReturnValues: 'UPDATED_NEW',
+    }),
+  );
+
+  return res.Attributes.last_sequence;
+}
+
+
 async function putEvent({
-  eventId,
   topicId,
   ownerId,
   updatedBy,
-  sequence,
   kind,
   amount,
   category,
@@ -183,15 +220,27 @@ async function putEvent({
   checked,
   occurredAt,
 }) {
+  const sequence = await _nextSequence(topicId);
+  const now = new Date().toISOString();
+  const eventId = `ev_${uuidv4()}`;
+  const entityId = `ent_${uuidv4()}`;
+
   const item = {
-    PK: eventPk(eventId),
-    SK: eventSk,
-    GSI1PK: eventTopicGsiPk(topicId),
-    GSI1SK: eventTopicGsiSk(occurredAt, eventId),
+    PK: eventPk(topicId), // topic_id 와 sequence 로 이벤트를 찾음 예: 3 이후 이벤트
+    SK: eventSk(sequence),
+
+    GSI1PK: eventGsi1Pk(eventId), // 개별 event id 로 조회
+    GSI1SK: eventGsi1Sk(),
+    GSI2PK: eventGsi2Pk(entityId),
+    GSI2SK: eventGsi2Sk(), // entity id 로 조회 (예: 8월 14일 $10 지출)
+    GSI3PK: eventGsi3Pk(topicId),
+    GSI3SK: eventGsi3Sk(occurredAt, eventId), // occurred at 으로 조회 (예: 8월 지출)
+
+    entity_id: entityId,
     event_id: eventId,
     topic_id: topicId,
     owner_id: ownerId,
-    update_by: updatedBy,
+    updated_by: updatedBy,
     sequence,
     kind,
     amount: amount ?? null,
@@ -199,100 +248,134 @@ async function putEvent({
     content: content ?? null,
     checked: checked ?? false,
     occurred_at: occurredAt,
+    created_at: now,
+    updated_at: now,
+    deleted_at: null,
   };
 
   await docClient.send(
     new PutCommand({
       TableName: EVENTS_TABLE,
       Item: item,
+      ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
     }),
   );
   return item;
 }
 
-async function queryEventsByTopic(topicId) {
-  const result = await docClient.send(
-    new QueryCommand({
-      TableName: EVENTS_TABLE,
-      IndexName: 'topic-index',
-      KeyConditionExpression: 'GSI1PK = :topic_pk',
-      FilterExpression: 'attribute_not_exists(deleted_at)',
-      ExpressionAttributeValues: {
-        ':topic_pk': eventTopicGsiPk(topicId),
-      },
-      ScanIndexForward: false,
-    }),
-  );
+async function queryEventsByTopic(topicId, sequence_after = null, limit = 20) {
+  // Query events for a topic, optionally after a given sequence number
+  const params = {
+    TableName: EVENTS_TABLE,
+    KeyConditionExpression: '#pk = :pk',
+    ExpressionAttributeNames: {
+      '#pk': 'PK',
+      '#sk': 'SK',
+    },
+    ExpressionAttributeValues: {
+      ':pk': eventPk(topicId),
+    },
+    ScanIndexForward: true, // ascending order by sequence
+    Limit: limit,
+  };
+  if (sequence_after !== null) {
+    params.KeyConditionExpression += ' AND #sk > :sk';
+    params.ExpressionAttributeValues[':sk'] = eventSk(sequence_after);
+  }
+  const result = await docClient.send(new QueryCommand(params));
   return result.Items || [];
 }
 
+// TODO
 async function getEventById(eventId) {
+  // Query by GSI1PK (event id) and GSI1SK ('EVENT')
   const result = await docClient.send(
-    new GetCommand({
+    new QueryCommand({
       TableName: EVENTS_TABLE,
-      Key: {
-        PK: eventPk(eventId),
-        SK: eventSk,
-      },
-    }),
-  );
-  return result.Item;
-}
-
-async function updateEventData(eventId, updatedBy, data) {
-  const expressionValues = {
-    ':updated_by': updatedBy,
-  };
-  const updateExpressions = ['update_by = :updated_by'];
-
-  const updatableFields = ['sequence', 'kind', 'amount', 'category', 'content', 'checked', 'occurred_at'];
-  updatableFields.forEach((field) => {
-    if (Object.prototype.hasOwnProperty.call(data, field)) {
-      const valueKey = `:${field}`;
-      expressionValues[valueKey] = data[field];
-      updateExpressions.push(`${field} = ${valueKey}`);
-    }
-  });
-  if (Object.prototype.hasOwnProperty.call(data, 'occurred_at')) {
-    const nextOccurredAt = data.occurred_at;
-    expressionValues[':gsi1sk'] = eventTopicGsiSk(nextOccurredAt, eventId);
-    updateExpressions.push('GSI1SK = :gsi1sk');
-  }
-
-  const result = await docClient.send(
-    new UpdateCommand({
-      TableName: EVENTS_TABLE,
-      Key: {
-        PK: eventPk(eventId),
-        SK: eventSk,
-      },
-      UpdateExpression: `SET ${updateExpressions.join(', ')}`,
-      ExpressionAttributeValues: expressionValues,
-      ReturnValues: 'ALL_NEW',
-    }),
-  );
-  return result.Attributes;
-}
-
-async function setEventDeleted(eventId) {
-  const deletedAt = new Date().toISOString();
-  const result = await docClient.send(
-    new UpdateCommand({
-      TableName: EVENTS_TABLE,
-      Key: {
-        PK: eventPk(eventId),
-        SK: eventSk,
-      },
-      UpdateExpression: 'SET deleted_at = :deleted_at, updated_at = :updated_at',
+      IndexName: 'event-id-index', // GSI1
+      KeyConditionExpression: 'GSI1PK = :event_pk AND GSI1SK = :event_sk',
       ExpressionAttributeValues: {
-        ':deleted_at': deletedAt,
-        ':updated_at': deletedAt,
+        ':event_pk': eventGsi1Pk(eventId),
+        ':event_sk': eventGsi1Sk(),
       },
-      ReturnValues: 'ALL_NEW',
-    }),
+      Limit: 1,
+    })
   );
-  return result.Attributes;
+  return (result.Items && result.Items[0]) || null;
 }
+
+async function getEventsByEntityId(entityId) {
+    // Query by GSI2PK (entity id) and GSI2SK ('ENTITY')
+    const result = await docClient.send(
+      new QueryCommand({
+        TableName: EVENTS_TABLE,
+        IndexName: 'entity-id-index', // GSI2
+        KeyConditionExpression: 'GSI2PK = :entity_pk AND GSI2SK = :entity_sk',
+        ExpressionAttributeValues: {
+          ':entity_pk': eventGsi2Pk(entityId),
+          ':entity_sk': eventGsi2Sk(),
+        },
+      })
+    );
+
+    return result.Items || [];
+}
+
+// event 는 append only 로 관리된다.
+//async function updateEventData(eventId, updatedBy, data) {
+//  const expressionValues = {
+//    ':updated_by': updatedBy,
+//  };
+//  const updateExpressions = ['updated_by = :updated_by'];
+//
+//  const updatableFields = ['sequence', 'kind', 'amount', 'category', 'content', 'checked', 'occurred_at'];
+//  updatableFields.forEach((field) => {
+//    if (Object.prototype.hasOwnProperty.call(data, field)) {
+//      const valueKey = `:${field}`;
+//      expressionValues[valueKey] = data[field];
+//      updateExpressions.push(`${field} = ${valueKey}`);
+//    }
+//  });
+//  if (Object.prototype.hasOwnProperty.call(data, 'occurred_at')) {
+//    const nextOccurredAt = data.occurred_at;
+//    expressionValues[':gsi1sk'] = eventGsi2Sk(nextOccurredAt, eventId);
+//    updateExpressions.push('GSI1SK = :gsi1sk');
+//  }
+//
+//  const result = await docClient.send(
+//    new UpdateCommand({
+//      TableName: EVENTS_TABLE,
+//      Key: {
+//        PK: eventPk(eventId),
+//        SK: eventSk,
+//      },
+//      UpdateExpression: `SET ${updateExpressions.join(', ')}`,
+//      ExpressionAttributeValues: expressionValues,
+//      ReturnValues: 'ALL_NEW',
+//    }),
+//  );
+//  return result.Attributes;
+//}
+
+//async function setEventDeleted(eventId) {
+//  const deletedAt = new Date().toISOString();
+//  const result = await docClient.send(
+//    new UpdateCommand({
+//      TableName: EVENTS_TABLE,
+//      Key: {
+//        PK: eventPk(eventId),
+//        SK: eventSk,
+//      },
+//      UpdateExpression: 'SET deleted_at = :deleted_at, updated_at = :updated_at',
+//      ExpressionAttributeValues: {
+//        ':deleted_at': deletedAt,
+//        ':updated_at': deletedAt,
+//      },
+//      ReturnValues: 'ALL_NEW',
+//    }),
+//  );
+//  return result.Attributes;
+//}
 
 module.exports = {
   putTopic,
@@ -305,6 +388,7 @@ module.exports = {
   putEvent,
   queryEventsByTopic,
   getEventById,
-  updateEventData,
-  setEventDeleted,
+  getEventsByEntityId,
+//  updateEventData,
+//  setEventDeleted,
 };
