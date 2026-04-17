@@ -2,56 +2,59 @@
 service: share-it-api
 
 plugins:
-  - serverless-offline  # 로컬 실행용 플러그인 (API Gateway + Lambda 에뮬레이션)
+  - serverless-offline # 로컬 실행용 플러그인 (API Gateway + Lambda 에뮬레이션)
+# Note: Step Functions plugin is not included, so no $ref error should occur.
 
 custom:
   serverless-offline:
-    httpPort: 3001        # 로컬 HTTP 포트 (기본값 3000)
-    lambdaPort: 3002      # 로컬 Lambda 포트
-    noPrependStageInUrl: true  # URL 에 스테이지 접두사 제거 (/api/v1/topics 형태 유지)
+    httpPort: 3001 # 로컬 HTTP 포트 (기본값 3000)
+    lambdaPort: 3002 # 로컬 Lambda 포트
+    noPrependStageInUrl: true # URL 에 스테이지 접두사 제거 (/api/v1/topics 형태 유지)
 
 provider:
-  name: aws           # 클라우드 공급자: AWS
+  name: aws # 클라우드 공급자: AWS
   runtime: nodejs20.x # Lambda 런타임
-  region: us-west-2   # 배포 리전: 미국 서부 (오리건)
+  region: us-west-2 # 배포 리전: 미국 서부 (오리건)
   stage: ${opt:stage, 'dev'} # 배포 스테이지: --stage 옵션으로 지정, 기본값 dev (dev / prod / test)
   environment:
-    STAGE: ${self:provider.stage}                      # Lambda 환경변수: 현재 스테이지
-    TOPICS_TABLE: t_topics-${self:provider.stage}      # Lambda 환경변수: DynamoDB 테이블명 (스테이지별 분리)
+    STAGE: ${self:provider.stage} # Lambda 환경변수: 현재 스테이지
+    TOPICS_TABLE: t_topics-${self:provider.stage} # Lambda 환경변수: DynamoDB 테이블명 (스테이지별 분리)
     SUBSCRIPTIONS_TABLE: t_subscriptions-${self:provider.stage} # 구독 테이블명 (스테이지별 분리)
     EVENTS_TABLE: t_events-${self:provider.stage}
-    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'           # HTTP Keep-Alive 활성화 (성능 최적화)
-    DYNAMODB_ENDPOINT: ${env:DYNAMODB_ENDPOINT, ''}    # 로컬 DynamoDB 엔드포인트 (로컬 실행 시 http://localhost:8000)
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1' # HTTP Keep-Alive 활성화 (성능 최적화)
+    DYNAMODB_ENDPOINT: ${env:DYNAMODB_ENDPOINT, ''} # 로컬 DynamoDB 엔드포인트 (로컬 실행 시 http://localhost:8000)
   iam:
     role:
       statements:
-        - Effect: Allow          # DynamoDB 접근 허용
+        - Effect: Allow # DynamoDB 접근 허용
           Action:
-            - dynamodb:PutItem   # 아이템 생성 (POST /topics)
-            - dynamodb:GetItem   # 아이템 단건 조회
-            - dynamodb:Query     # 인덱스 기반 조회 (GET /topics/owned)
+            - dynamodb:PutItem # 아이템 생성 (POST /topics)
+            - dynamodb:GetItem # 아이템 단건 조회
+            - dynamodb:Query # 인덱스 기반 조회 (GET /topics/owned)
             - dynamodb:UpdateItem
           Resource:
-              - Fn::GetAtt: [TopicsTable, Arn]          # 기본 테이블 ARN
-              - Fn::Sub: '${TopicsTable.Arn}/index/*'   # GSI 포함 모든 인덱스 ARN
-              - Fn::GetAtt: [SubscriptionsTable, Arn]
-              - Fn::Sub: '${SubscriptionsTable.Arn}/index/*'
-              - Fn::GetAtt: [EventsTable, Arn]
-              - Fn::Sub: '${EventsTable.Arn}/index/*'
+            - Fn::GetAtt: [TopicsTable, Arn]
+            - Fn::Sub: "${TopicsTable.Arn}/index/*"
+            - Fn::GetAtt: [SubscriptionsTable, Arn]
+            - Fn::Sub: "${SubscriptionsTable.Arn}/index/*"
+            - Fn::GetAtt: [EventsTable, Arn]
+            - Fn::Sub ${EventsTable.Arn}/index/*
 
 functions:
-  createTopic:                                   # 토픽 생성 Lambda 함수
-    handler: src/handlers/topics.createTopic     # 핸들러 파일 경로
+  createTopic:
+    # 토픽 생성 Lambda 함수
+    handler: src/handlers/topics.createTopic # 핸들러 파일 경로
     events:
       - httpApi:
-          path: /api/v1/topics   # POST /api/v1/topics
+          path: /api/v1/topics # POST /api/v1/topics
           method: post
 
-  getOwnedTopics:                                    # 내 토픽 목록 조회 Lambda 함수
-    handler: src/handlers/topics.getOwnedTopics      # 핸들러 파일 경로
+  getOwnedTopics:
+    # 내 토픽 목록 조회 Lambda 함수
+    handler: src/handlers/topics.getOwnedTopics # 핸들러 파일 경로
     events:
       - httpApi:
-          path: /api/v1/topics/owned   # GET /api/v1/topics/owned
+          path: /api/v1/topics/owned # GET /api/v1/topics/owned
           method: get
 
   updateTopic:
@@ -112,34 +115,35 @@ functions:
 
 resources:
   Resources:
-    TopicsTable:                          # DynamoDB 테이블 리소스 정의
+    TopicsTable:
+      # DynamoDB 테이블 리소스 정의
       Type: AWS::DynamoDB::Table
       Properties:
         TableName: t_topics-${self:provider.stage} # 스테이지별 테이블 이름 (예: t_topics-dev)
-        BillingMode: PAY_PER_REQUEST               # 온디맨드 과금 방식
+        BillingMode: PAY_PER_REQUEST # 온디맨드 과금 방식
         AttributeDefinitions:
-          - AttributeName: PK    # PK 속성
+          - AttributeName: PK # PK 속성
             AttributeType: S
-          - AttributeName: SK    # GSI PK 속성
+          - AttributeName: SK # GSI PK 속성
             AttributeType: S
-          - AttributeName: GSI1PK  # GSI PK 속성
+          - AttributeName: GSI1PK # GSI PK 속성
             AttributeType: S
-          - AttributeName: GSI1SK  # GSI 정렬 키 속성
+          - AttributeName: GSI1SK # GSI 정렬 키 속성
             AttributeType: S
         KeySchema:
-          - AttributeName: PK    # 기본 키 (PK)
+          - AttributeName: PK # 기본 키 (PK)
             KeyType: HASH
-          - AttributeName: SK    # 정렬 키 (SK)
+          - AttributeName: SK # 정렬 키 (SK)
             KeyType: RANGE
         GlobalSecondaryIndexes:
-          - IndexName: owner-index     # 소유자별 조회용 GSI
+          - IndexName: owner-index # 소유자별 조회용 GSI
             KeySchema:
-              - AttributeName: GSI1PK    # GSI PK: 소유자 ID
+              - AttributeName: GSI1PK # GSI PK: 소유자 ID
                 KeyType: HASH
-              - AttributeName: GSI1SK  # GSI 정렬 키: 생성일시
+              - AttributeName: GSI1SK # GSI 정렬 키: 생성일시
                 KeyType: RANGE
             Projection:
-              ProjectionType: ALL          # 모든 속성 포함
+              ProjectionType: ALL # 모든 속성 포함
     SubscriptionsTable:
       Type: AWS::DynamoDB::Table
       Properties:
