@@ -162,7 +162,22 @@ async function setTopicDefault(ownerId, topicId) {
   return _setTopicDefaultFlag(topicId, true);
 }
 
-async function putSubscription(topicId, userId) {
+async function createOrFindSubscription(topicId, userId) {
+  // 1. 먼저 기존 구독이 있는지 조회
+  const { Item: existing } = await docClient.send(
+    new GetCommand({
+      TableName: SUBSCRIPTIONS_TABLE,
+      Key: {
+        PK: subscriptionPk(topicId),
+        SK: subscriptionSk(userId),
+      },
+    })
+  );
+  if (existing) {
+    return existing;
+  }
+
+  // 2. 없으면 새로 생성
   const now = new Date().toISOString();
   const item = {
     PK: subscriptionPk(topicId),
@@ -174,13 +189,12 @@ async function putSubscription(topicId, userId) {
     created_at: now,
     updated_at: now,
   };
-
   await docClient.send(
     new PutCommand({
       TableName: SUBSCRIPTIONS_TABLE,
       Item: item,
       ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
-    }),
+    })
   );
   return item;
 }
@@ -414,7 +428,7 @@ module.exports = {
   updateTopicTitle,
   setTopicDeleted,
   setTopicDefault,
-  putSubscription,
+  createOrFindSubscription,
   putEvent,
   queryEventsByTopic,
   getEventById,

@@ -8,7 +8,7 @@ const {
   updateTopicTitle,
   setTopicDeleted,
   setTopicDefault,
-  putSubscription,
+  createOrFindSubscription,
 } = require('../lib/dynamodb');
 const { createResponse, getUserId, parseJsonBody } = require('./common');
 
@@ -200,7 +200,7 @@ module.exports.subscribeTopic = async (event) => {
       return createResponse(404, { message: 'Topic not found' });
     }
 
-    const subscriptionItem = await putSubscription(topicId, userId);
+    const subscriptionItem = await createOrFindSubscription(topicId, userId);
 
     return createResponse(201, { subscription: subscriptionItem });
   } catch (error) {

@@ -16,7 +16,7 @@ jest.mock('../../src/lib/dynamodb', () => ({
   updateTopicTitle: jest.fn(),
   setTopicDeleted: jest.fn(),
   setTopicDefault: jest.fn(),
-  putSubscription: jest.fn(),
+  createOrFindSubscription: jest.fn(),
 }));
 
 const {
@@ -26,7 +26,7 @@ const {
   updateTopicTitle,
   setTopicDeleted,
   setTopicDefault,
-  putSubscription,
+  createOrFindSubscription,
 } = require('../../src/lib/dynamodb');
 
 const TOPIC_ID_1 = 'tp_2f58e8fe-9a85-44aa-9f7c-4cc0f11a4f7e';
@@ -52,7 +52,7 @@ describe('POST /api/v1/topics - createTopic', () => {
     expect(body.owner_id).toBe('u_1');
     expect(body.title).toBe('생활비 가계부');
     expect(body.is_default).toBe(false);
-    expect(body.last_sequence).toBe(0);
+    expect(body.last_sequence).toBe(0); // check last_sequence 가 뭐였지 
     expect(body.created_at).toBeDefined();
     expect(putTopic).toHaveBeenCalledTimes(1);
     expect(putTopic).toHaveBeenCalledWith(
@@ -251,7 +251,7 @@ describe('POST /api/v1/topics/{topic_id}/subscribe - subscribeTopic', () => {
 
   it('should subscribe with TOPIC# partition key', async () => {
     getTopicById.mockResolvedValue({ topic_id: TOPIC_ID_1, owner_id: 'u_owner' });
-    putSubscription.mockResolvedValue({
+    createOrFindSubscription.mockResolvedValue({
       PK: `TOPIC#${TOPIC_ID_1}`,
       SK: 'SUBSCRIBER#u_subscriber',
       GSI1PK: 'USER#u_subscriber',
@@ -268,20 +268,18 @@ describe('POST /api/v1/topics/{topic_id}/subscribe - subscribeTopic', () => {
     });
 
     expect(result.statusCode).toBe(201);
-    expect(putSubscription).toHaveBeenCalledWith(TOPIC_ID_1, 'u_subscriber');
+    expect(createOrFindSubscription).toHaveBeenCalledWith(TOPIC_ID_1, 'u_subscriber');
   });
 
-  it('should return 409 when already subscribed', async () => {
+  it('should return 201 when already subscribed', async () => {
     getTopicById.mockResolvedValue({ topic_id: TOPIC_ID_1, owner_id: 'u_owner' });
-    const error = new Error('duplicate');
-    error.name = 'ConditionalCheckFailedException';
-    putSubscription.mockRejectedValue(error);
+    createOrFindSubscription.mockResolvedValue({});
 
     const result = await subscribeTopic({
       headers: { 'x-user-id': 'u_subscriber' },
       pathParameters: { topic_id: TOPIC_ID_1 },
     });
 
-    expect(result.statusCode).toBe(409);
+    expect(result.statusCode).toBe(201);
   });
 });

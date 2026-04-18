@@ -43,7 +43,7 @@ const {
   updateTopicTitle,
   setTopicDeleted,
   setTopicDefault,
-  putSubscription,
+  createOrFindSubscription,
   putEvent,
   updateEventData,
   setEventDeleted,
@@ -137,7 +137,7 @@ describe('lib/dynamodb - topic mutators', () => {
   });
 });
 
-describe('lib/dynamodb - putSubscription', () => {
+describe('lib/dynamodb - createOrFindSubscription', () => {
   beforeEach(() => {
     mockSend.mockReset();
   });
@@ -145,7 +145,7 @@ describe('lib/dynamodb - putSubscription', () => {
   it('should build key/timestamps from topic_id and user_id', async () => {
     mockSend.mockResolvedValue({});
 
-    const result = await putSubscription('tp_1', 'u_1');
+    const result = await createOrFindSubscription('tp_1', 'u_1');
 
     expect(mockSend).toHaveBeenCalledWith(
       expect.objectContaining({
