@@ -26,11 +26,20 @@ const {
 } = require('../../src/lib/dynamodb');
 
 describe('events handlers', () => {
+  const { v4: uuidv4 } = require('uuid');
+  const {
+    putEvent,
+    updateEventData,
+    getEventByEntityId,
+    queryEventsByTopic,
+    setEventDeleted,
+  } = require('../../src/lib/dynamodb');
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('createEvent should create event and return 201', async () => {
+  it('POST /api/v1/topics/{topic_id}/events - 이벤트 생성: createEvent should create event and return 201', async () => {
     getTopicById.mockResolvedValue({ topic_id: 'tp_1', owner_id: 'u_owner' });
     putEvent.mockResolvedValue({ event_id: 'ev_1', topic_id: 'tp_1', owner_id: 'u_owner' });
 
@@ -56,7 +65,7 @@ describe('events handlers', () => {
     );
   });
 
-  it('getTopicEvents should return topic events', async () => {
+  it('GET /api/v1/topics/{topic_id}/events - 토픽별 이벤트 목록 조회: getTopicEvents should return topic events', async () => {
     getTopicById.mockResolvedValue({ topic_id: 'tp_1' });
     queryEventsByTopic.mockResolvedValue([{ event_id: 'ev_1', topic_id: 'tp_1' }]);
 
@@ -69,7 +78,7 @@ describe('events handlers', () => {
     expect(queryEventsByTopic).toHaveBeenCalledWith('tp_1');
   });
 
-  it('updateEvent should update existing event', async () => {
+  it('PATCH /api/v1/topics/{topic_id}/events/{event_id} - 이벤트 수정: updateEvent should update existing event', async () => {
     getTopicById.mockResolvedValue({ topic_id: 'tp_1' });
     getEventById.mockResolvedValue({ event_id: 'ev_1', topic_id: 'tp_1' });
     updateEventData.mockResolvedValue({ event_id: 'ev_1', topic_id: 'tp_1' });
@@ -84,7 +93,7 @@ describe('events handlers', () => {
     expect(updateEventData).toHaveBeenCalledWith('ev_1', 'u_1', { title: 'updated' });
   });
 
-  it('deleteEvent should soft-delete existing event', async () => {
+  it('DELETE /api/v1/topics/{topic_id}/events/{event_id} - 이벤트 삭제(soft delete): deleteEvent should soft-delete existing event', async () => {
     getTopicById.mockResolvedValue({ topic_id: 'tp_1' });
     getEventById.mockResolvedValue({ event_id: 'ev_1', topic_id: 'tp_1' });
     setEventDeleted.mockResolvedValue({ event_id: 'ev_1', deleted_at: '2026-01-01T00:00:00.000Z' });
