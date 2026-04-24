@@ -205,8 +205,8 @@ async function _nextSequence(topicId) {
     new UpdateCommand({
       TableName: EVENTS_TABLE,
       Key: {
-        pk: eventPk(topicId),
-        sk: metaSk,
+        PK: eventPk(topicId),
+        SK: metaSk,
       },
       UpdateExpression:
         'SET last_sequence = if_not_exists(last_sequence, :zero) + :inc, updated_at = :now',
@@ -284,7 +284,6 @@ async function queryEventsByTopic(topicId, sequence_after = null, limit = 20) {
     KeyConditionExpression: '#pk = :pk',
     ExpressionAttributeNames: {
       '#pk': 'PK',
-      '#sk': 'SK',
     },
     ExpressionAttributeValues: {
       ':pk': eventPk(topicId),
@@ -294,6 +293,7 @@ async function queryEventsByTopic(topicId, sequence_after = null, limit = 20) {
   };
   if (sequence_after !== null) {
     params.KeyConditionExpression += ' AND #sk > :sk';
+    params.ExpressionAttributeNames['#sk'] = 'SK';
     params.ExpressionAttributeValues[':sk'] = eventSk(sequence_after);
   }
   const result = await docClient.send(new QueryCommand(params));

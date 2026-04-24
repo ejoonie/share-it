@@ -196,7 +196,7 @@ describe('lib/dynamodb - events', () => {
       1,
       expect.objectContaining({
         input: expect.objectContaining({
-          Key: { pk: 'TOPIC#tp_1', sk: 'META' },
+          Key: { PK: 'TOPIC#tp_1', SK: 'META' },
         }),
       }),
     );
