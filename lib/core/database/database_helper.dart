@@ -3,25 +3,26 @@ import 'package:path/path.dart';
 
 class DatabaseHelper {
   static const String _databaseName = 'share_it.db';
-  static const int _databaseVersion = 1;
+  static const int _databaseVersion = 2;
 
   // Tables
-  static const String expenseTable = 'expenses';
-  static const String shoppingTable = 'shopping_items';
+  static const String eventsTable = 'events';
 
-  // Expense columns
+  // Shared event columns
   static const String colId = 'id';
   static const String colTitle = 'title';
   static const String colAmount = 'amount';
   static const String colNote = 'note';
   static const String colCategory = 'category';
-  static const String colType = 'type'; // 'income' or 'expense'
+  static const String colType = 'type'; // income/expense/shopping
   static const String colCreatedAt = 'created_at';
   static const String colUpdatedAt = 'updated_at';
 
-  // Shopping columns
+  // Shopping-specific columns
   static const String colIsChecked = 'is_checked';
   static const String colQuantity = 'quantity';
+  static const int boolFalse = 0;
+  static const int boolTrue = 1;
 
   DatabaseHelper._privateConstructor();
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
@@ -45,35 +46,41 @@ class DatabaseHelper {
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    await db.execute('''
-      CREATE TABLE $expenseTable (
-        $colId INTEGER PRIMARY KEY AUTOINCREMENT,
-        $colTitle TEXT NOT NULL,
-        $colAmount INTEGER NOT NULL,
-        $colNote TEXT,
-        $colCategory TEXT,
-        $colType TEXT NOT NULL DEFAULT 'expense',
-        $colCreatedAt TEXT NOT NULL,
-        $colUpdatedAt TEXT NOT NULL
-      )
-    ''');
+    await _createEventsTable(db);
+  }
 
+  Future<void> _createEventsTable(
+    Database db, {
+    bool ifNotExists = false,
+  }) async {
+    final ifNotExistsClause = ifNotExists ? 'IF NOT EXISTS ' : '';
     await db.execute('''
-      CREATE TABLE $shoppingTable (
+      CREATE TABLE ${ifNotExistsClause}$eventsTable (
         $colId INTEGER PRIMARY KEY AUTOINCREMENT,
         $colTitle TEXT NOT NULL,
         $colAmount INTEGER,
-        $colQuantity TEXT,
         $colNote TEXT,
-        $colIsChecked INTEGER NOT NULL DEFAULT 0,
+        $colCategory TEXT,
+        $colType TEXT,
+        $colQuantity TEXT,
+        $colIsChecked INTEGER NOT NULL DEFAULT $boolFalse,
         $colCreatedAt TEXT NOT NULL,
         $colUpdatedAt TEXT NOT NULL
       )
     ''');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_events_type ON $eventsTable($colType)',
+    );
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // Handle future migrations here
+    if (oldVersion < 2) {
+      // Product decision for this phase: reset local data during v2 upgrade.
+      await db.execute('DROP TABLE IF EXISTS $eventsTable');
+      await db.execute('DROP TABLE IF EXISTS expenses');
+      await db.execute('DROP TABLE IF EXISTS shopping_items');
+      await _createEventsTable(db, ifNotExists: false);
+    }
   }
 
   // Generic CRUD helpers
@@ -82,12 +89,12 @@ class DatabaseHelper {
     return db.insert(table, row, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  Future<List<Map<String, dynamic>>> queryAll(String table) async {
+  Future<List<Map<String, dynamic>>> queryAll(String table) async { // TODO sort by param?
     final db = await database;
     return db.query(table, orderBy: '$colCreatedAt ASC');
   }
 
-  Future<List<Map<String, dynamic>>> queryWhere(
+  Future<List<Map<String, dynamic>>> queryWhere( // TODO sort by param?
     String table,
     String where,
     List<dynamic> whereArgs, {

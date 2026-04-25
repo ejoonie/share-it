@@ -8,12 +8,13 @@
     "db:setup": "node scripts/create-local-table.js",
     "deploy:dev": "serverless deploy --stage dev",
     "deploy:prod": "serverless deploy --stage prod",
-    "test": "jest --coverage",
+    "test": "NODE_OPTIONS=--experimental-vm-modules node node_modules/.bin/jest --coverage",
     "test:unit": "jest tests/unit"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.758.0",
     "@aws-sdk/lib-dynamodb": "^3.758.0",
+    "lodash": "^4.18.1",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
