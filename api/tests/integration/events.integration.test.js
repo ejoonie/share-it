@@ -45,7 +45,7 @@ describe('events handlers (integration)', () => {
   });
 
   it('PATCH /api/v1/topics/{topic_id}/events/{event_id} - 이벤트 수정: append-only로 새로운 이벤트가 생성되어야 한다', async () => {
-    const updated = await updateEventData(eventId1, ownerId, {
+    const updated = await updateEventData(entityId, ownerId, {
       amount: 2000,
       content: '저녁',
     });
@@ -59,10 +59,11 @@ describe('events handlers (integration)', () => {
   });
 
   it('DELETE /api/v1/topics/{topic_id}/events/{event_id} - 이벤트 삭제(soft delete): deleted_at이 설정되어야 한다', async () => {
-    const deleted = await setEventDeleted(eventId2);
+    const deleted = await setEventDeleted(entityId, ownerId);
     expect(deleted.deleted_at).toBeDefined();
     // entity_id로 조회하면 삭제된 이벤트도 포함
     const events = await getEventByEntityId(entityId);
-    expect(events.find(e => e.event_id === eventId2 && e.deleted_at)).toBeDefined();
+    console.log('Events for entity_id after deletion:', events);
+    expect(events.find(e => e.entity_id === entityId && e.deleted_at)).toBeDefined();
   });
 });

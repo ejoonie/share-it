@@ -3,6 +3,8 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, PutCommand, QueryCommand, GetCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { v4: uuidv4 } = require('uuid');
+const { keysToCamel, keysToSnake } = require('../utils/case');
+
 
 const clientConfig = {
   region: process.env.AWS_REGION || 'us-west-2',
@@ -233,11 +235,14 @@ async function putEvent({
   content,
   checked,
   occurredAt,
+  entityId, // update
+  createdAt, // update
+  deletedAt, // delete
 }) {
   const sequence = await _nextSequence(topicId);
   const now = new Date().toISOString();
   const eventId = `ev_${uuidv4()}`;
-  const entityId = `ent_${uuidv4()}`;
+  const entityIdValue = entityId || `ent_${uuidv4()}`; // update 시에는 기존 entity_id 사용, 새로 생성하는 경우에는 새로운 entity_id 생성
 
   const item = {
     PK: eventPk(topicId), // topic_id 와 sequence 로 이벤트를 찾음 예: 3 이후 이벤트
@@ -245,12 +250,12 @@ async function putEvent({
 
     GSI1PK: eventGsi1Pk(eventId), // 개별 event id 로 조회
     GSI1SK: eventGsi1Sk(),
-    GSI2PK: eventGsi2Pk(entityId),
+    GSI2PK: eventGsi2Pk(entityIdValue),
     GSI2SK: eventGsi2Sk(), // entity id 로 조회 (예: 8월 14일 $10 지출)
     GSI3PK: eventGsi3Pk(topicId),
     GSI3SK: eventGsi3Sk(occurredAt, eventId), // occurred at 으로 조회 (예: 8월 지출)
 
-    entity_id: entityId,
+    entity_id: entityIdValue,
     event_id: eventId,
     topic_id: topicId,
     owner_id: ownerId,
@@ -262,10 +267,13 @@ async function putEvent({
     content: content ?? null,
     checked: checked ?? false,
     occurred_at: occurredAt,
-    created_at: now,
+    created_at: createdAt || now, // update 시에는 기존 created_at 유지, 새로 생성하는 경우에는 현재 시간 사용
     updated_at: now,
-    deleted_at: null,
+    deleted_at: deletedAt,
   };
+
+  console.log('entityId:', entityIdValue);
+  console.log('deletedAt:', deletedAt);
 
   await docClient.send(
     new PutCommand({
@@ -338,87 +346,26 @@ async function getEventByEntityId(entityId) {
 
 // 실제 이벤트를 업데이트 하는게 아닌 같은 entity_id 를 가진 새로운 이벤트를 추가하는 방식으로 업데이트를 관리 (append-only)
 // TODO testcase 확인
-async function updateEventData(eventId, updatedBy, data) {
-  // 1. 기존 이벤트 조회
-  const oldEvent = await getEventById(eventId);
-  if (!oldEvent) {
-    throw new Error('Event not found');
-  }
-
-  // 2. 새로운 시퀀스 번호 생성
-  const sequence = await _nextSequence(oldEvent.topic_id);
-  const now = new Date().toISOString();
-  const newEventId = `ev_${uuidv4()}`;
-
-  // 3. 업데이트할 필드 병합 (append-only)
-  const updatableFields = [
-    'kind', 'amount', 'category', 'content', 'checked', 'occurred_at'
-  ];
-  const updated = { ...data };
-  updated.updated_by = updatedBy;
-  updated.updated_at = now;
-  updated.sequence = sequence;
-  updated.event_id = newEventId;
-  updated.SK = eventSk(sequence);
-  updated.GSI1PK = eventGsi1Pk(newEventId);
-  updated.GSI1SK = eventGsi1Sk();
-  updated.GSI2PK = eventGsi2Pk(oldEvent.entity_id);
-  updated.GSI2SK = eventGsi2Sk();
-  updated.GSI3PK = eventGsi3Pk(oldEvent.topic_id);
-  updated.GSI3SK = eventGsi3Sk(updated.occurred_at, newEventId);
-  updated.created_at = now;
-  updated.deleted_at = null;
-
-  // 4. 새 이벤트로 insert (append-only)
-  await docClient.send(
-    new PutCommand({
-      TableName: EVENTS_TABLE,
-      Item: updated,
-      ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
-    })
-  );
+async function updateEventData(entityId, updatedBy, data) {
+  const camelData = keysToCamel(data);
+  const updated = await putEvent({
+    ...camelData,
+    entityId, // 기존 entityId 사용
+    updatedBy,
+  });
   return updated;
 }
 
 // 실제 이벤트를 업데이트 하는 게 아닌 같은 entity_id 를 가진 새로운 이벤트를 추가하는 방식으로 삭제를 관리 (append-only)
 // TODO testcase 확인
-async function setEventDeleted(eventId) {
-  // 1. 기존 이벤트 조회
-  const oldEvent = await getEventById(eventId);
-  if (!oldEvent) {
-    throw new Error('Event not found');
-  }
-  
-  // 2. 새로운 시퀀스 번호 생성
-  const sequence = await _nextSequence(oldEvent.topic_id);
-  const now = new Date().toISOString();
-  const newEventId = `ev_${uuidv4()}`;
-
-  // 3. 삭제된 이벤트로 병합 (append-only)
-  const deletedEvent = {
-    ...oldEvent,
-    event_id: newEventId,
-    SK: eventSk(sequence),
-    GSI1PK: eventGsi1Pk(newEventId),
-    GSI1SK: eventGsi1Sk(),
-    GSI2PK: eventGsi2Pk(oldEvent.entity_id),
-    GSI2SK: eventGsi2Sk(),
-    GSI3PK: eventGsi3Pk(oldEvent.topic_id),
-    GSI3SK: eventGsi3Sk(now, newEventId),
-    updated_by: oldEvent.updated_by,
-    updated_at: now,
-    deleted_at: now, // 삭제된 시점 기록
-  };
-
-  // 4. 새 이벤트로 insert (append-only)
-  await docClient.send(
-    new PutCommand({
-      TableName: EVENTS_TABLE,
-      Item: deletedEvent,
-      ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
-    })
-  );
-  return deletedEvent;
+async function setEventDeleted(entityId, updatedBy) {
+  const lastEvent = (await getEventByEntityId(entityId)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]; // 가장 최신 이벤트를 가져옴
+  const deleted = await putEvent({
+    ...keysToCamel(lastEvent),
+    deletedAt: new Date().toISOString(), // deleted_at 설정
+    updatedBy: updatedBy, // 업데이트한 사람 기록
+  });
+  return deleted;
 }
 
 module.exports = {
