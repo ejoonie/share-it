@@ -47,7 +47,7 @@ describe('events handlers (integration)', () => {
   });
 
   it('PATCH /api/v1/topics/{topic_id}/events/{event_id} - 이벤트 수정: append-only로 새로운 이벤트가 생성되어야 한다', async () => {
-    const updated = await updateEventData(entityId, ownerId, {
+    const updated = await updateEventData(eventId1, ownerId, {
       amount: 2000,
       content: '저녁',
     });

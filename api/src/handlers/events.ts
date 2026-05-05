@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from 'uuid';
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import {
   getTopicById,
@@ -38,7 +37,6 @@ export const createEvent = async (event: APIGatewayProxyEvent): Promise<APIGatew
     }
 
     const eventItem = await putEvent({
-      eventId: `ev_${uuidv4()}`,
       topicId,
       ownerId: topic.owner_id,
       updatedBy: userId,
@@ -151,7 +149,7 @@ export const deleteEvent = async (event: APIGatewayProxyEvent): Promise<APIGatew
       return createResponse(404, { message: 'Event not found' });
     }
 
-    const deletedEvent = await setEventDeleted(eventId);
+    const deletedEvent = await setEventDeleted(existingEvent.entity_id);
     return createResponse(200, { event: deletedEvent });
   } catch (error) {
     console.error('Error deleting event:', error);

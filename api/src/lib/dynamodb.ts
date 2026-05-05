@@ -452,13 +452,16 @@ export async function updateEventData(
 ): Promise<EventItem> {
   // 기존 이벤트를 조회해서 entity_id 등 필드를 가져옴
   const existingEvent = await getEventById(eventId);
+  if (!existingEvent) {
+    throw new Error(`Event not found: ${eventId}`);
+  }
   const camelData = keysToCamel(data) as Partial<PutEventInput>;
   const updated = await putEvent({
     ...camelData,
-    topicId: camelData.topicId ?? existingEvent?.topic_id ?? '',
-    ownerId: camelData.ownerId ?? existingEvent?.owner_id ?? '',
+    topicId: camelData.topicId ?? existingEvent.topic_id,
+    ownerId: camelData.ownerId ?? existingEvent.owner_id,
     updatedBy,
-    entityId: existingEvent?.entity_id, // 기존 entityId 사용
+    entityId: existingEvent.entity_id, // 기존 entityId 사용
   });
   return updated;
 }

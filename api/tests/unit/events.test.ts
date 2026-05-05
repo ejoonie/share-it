@@ -205,6 +205,6 @@ describe('events handlers', () => {
     );
 
     expect(result.statusCode).toBe(200);
-    expect(mockedSetEventDeleted).toHaveBeenCalledWith('ev_1');
+    expect(mockedSetEventDeleted).toHaveBeenCalledWith('ent_1'); // entity_id from the mock event
   });
 });
