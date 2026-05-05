@@ -1,24 +1,23 @@
-'use strict';
-
-const { v4: uuidv4 } = require('uuid');
-const {
+import { v4 as uuidv4 } from 'uuid';
+import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import {
   getTopicById,
   putEvent,
   queryEventsByTopic,
   getEventById,
   updateEventData,
   setEventDeleted,
-} = require('../lib/dynamodb');
-const { createResponse, getUserId, parseJsonBody } = require('./common');
+} from '../lib/dynamodb';
+import { createResponse, getUserId, parseJsonBody } from './common';
 
-module.exports.createEvent = async (event) => {
+export const createEvent = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const userId = getUserId(event.headers);
     if (!userId) {
       return createResponse(401, { message: 'x-user-id header is required' });
     }
 
-    const topicId = event.pathParameters && event.pathParameters.topic_id;
+    const topicId = event.pathParameters?.topic_id;
     if (!topicId) {
       return createResponse(400, { message: 'topic_id is required' });
     }
@@ -43,13 +42,16 @@ module.exports.createEvent = async (event) => {
       topicId,
       ownerId: topic.owner_id,
       updatedBy: userId,
-      sequence: body.sequence ?? 0,
-      kind: body.kind ?? null,
-      amount: body.amount ?? null,
-      category: body.category ?? null,
-      content: body.content ?? null,
-      checked: body.checked ?? false,
-      occurredAt: body.occurred_at ?? new Date().toISOString(),
+      sequence: typeof body.sequence === 'number' ? body.sequence : 0,
+      kind: body.kind !== undefined ? (body.kind as string | null) : null,
+      amount: body.amount !== undefined ? (body.amount as number | null) : null,
+      category: body.category !== undefined ? (body.category as string | null) : null,
+      content: body.content !== undefined ? (body.content as string | null) : null,
+      checked: body.checked !== undefined ? (body.checked as boolean) : false,
+      occurredAt:
+        body.occurred_at !== undefined
+          ? (body.occurred_at as string)
+          : new Date().toISOString(),
     });
     return createResponse(201, { event: eventItem });
   } catch (error) {
@@ -58,14 +60,16 @@ module.exports.createEvent = async (event) => {
   }
 };
 
-module.exports.getTopicEvents = async (event) => {
+export const getTopicEvents = async (
+  event: APIGatewayProxyEvent,
+): Promise<APIGatewayProxyResult> => {
   try {
     const userId = getUserId(event.headers);
     if (!userId) {
       return createResponse(401, { message: 'x-user-id header is required' });
     }
 
-    const topicId = event.pathParameters && event.pathParameters.topic_id;
+    const topicId = event.pathParameters?.topic_id;
     if (!topicId) {
       return createResponse(400, { message: 'topic_id is required' });
     }
@@ -83,15 +87,15 @@ module.exports.getTopicEvents = async (event) => {
   }
 };
 
-module.exports.updateEvent = async (event) => {
+export const updateEvent = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const userId = getUserId(event.headers);
     if (!userId) {
       return createResponse(401, { message: 'x-user-id header is required' });
     }
 
-    const topicId = event.pathParameters && event.pathParameters.topic_id;
-    const eventId = event.pathParameters && event.pathParameters.event_id;
+    const topicId = event.pathParameters?.topic_id;
+    const eventId = event.pathParameters?.event_id;
     if (!topicId || !eventId) {
       return createResponse(400, { message: 'topic_id and event_id are required' });
     }
@@ -124,15 +128,15 @@ module.exports.updateEvent = async (event) => {
   }
 };
 
-module.exports.deleteEvent = async (event) => {
+export const deleteEvent = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const userId = getUserId(event.headers);
     if (!userId) {
       return createResponse(401, { message: 'x-user-id header is required' });
     }
 
-    const topicId = event.pathParameters && event.pathParameters.topic_id;
-    const eventId = event.pathParameters && event.pathParameters.event_id;
+    const topicId = event.pathParameters?.topic_id;
+    const eventId = event.pathParameters?.event_id;
     if (!topicId || !eventId) {
       return createResponse(400, { message: 'topic_id and event_id are required' });
     }

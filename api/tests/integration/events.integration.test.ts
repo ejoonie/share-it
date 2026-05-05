@@ -1,19 +1,21 @@
-// events.integration.test.js
+// events.integration.test.ts
 // 실제 DynamoDB를 사용하는 통합 테스트
 
-'use strict';
-
-const { v4: uuidv4 } = require('uuid');
-const {
+import { v4 as uuidv4 } from 'uuid';
+import {
   putEvent,
   updateEventData,
   getEventByEntityId,
   queryEventsByTopic,
   setEventDeleted,
-} = require('../../src/lib/dynamodb');
+} from '../../src/lib/dynamodb';
 
 describe('events handlers (integration)', () => {
-  let topicId, ownerId, entityId, eventId1, eventId2;
+  let topicId: string;
+  let ownerId: string;
+  let entityId: string;
+  let eventId1: string;
+  let eventId2: string;
 
   beforeAll(async () => {
     topicId = `tp_${uuidv4()}`;
@@ -36,12 +38,12 @@ describe('events handlers (integration)', () => {
 
   it('POST /api/v1/topics/{topic_id}/events - 이벤트 생성: 실제로 이벤트가 생성되어야 한다', async () => {
     const events = await getEventByEntityId(entityId);
-    expect(events.find(e => e.event_id === eventId1)).toBeDefined();
+    expect(events.find((e) => e.event_id === eventId1)).toBeDefined();
   });
 
   it('GET /api/v1/topics/{topic_id}/events - 토픽별 이벤트 목록 조회: 실제로 목록이 조회되어야 한다', async () => {
     const events = await queryEventsByTopic(topicId);
-    expect(events.find(e => e.event_id === eventId1)).toBeDefined();
+    expect(events.find((e) => e.event_id === eventId1)).toBeDefined();
   });
 
   it('PATCH /api/v1/topics/{topic_id}/events/{event_id} - 이벤트 수정: append-only로 새로운 이벤트가 생성되어야 한다', async () => {
@@ -54,7 +56,7 @@ describe('events handlers (integration)', () => {
     expect(updated.event_id).not.toBe(eventId1);
     // entity_id로 조회하면 두 이벤트 모두 나와야 함
     const events = await getEventByEntityId(entityId);
-    const eventIds = events.map(e => e.event_id);
+    const eventIds = events.map((e) => e.event_id);
     expect(eventIds).toEqual(expect.arrayContaining([eventId1, eventId2]));
   });
 
@@ -64,6 +66,6 @@ describe('events handlers (integration)', () => {
     // entity_id로 조회하면 삭제된 이벤트도 포함
     const events = await getEventByEntityId(entityId);
     console.log('Events for entity_id after deletion:', events);
-    expect(events.find(e => e.entity_id === entityId && e.deleted_at)).toBeDefined();
+    expect(events.find((e) => e.entity_id === entityId && e.deleted_at)).toBeDefined();
   });
 });

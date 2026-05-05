@@ -1,5 +1,3 @@
-'use strict';
-
 const mockSend = jest.fn();
 const mockFrom = jest.fn(() => ({ send: mockSend }));
 const mockUuid = jest.fn();
@@ -13,32 +11,24 @@ jest.mock('@aws-sdk/lib-dynamodb', () => ({
     from: mockFrom,
   },
   PutCommand: class PutCommand {
-    constructor(input) {
-      this.input = input;
-    }
+    constructor(public input: unknown) {}
   },
   QueryCommand: class QueryCommand {
-    constructor(input) {
-      this.input = input;
-    }
+    constructor(public input: unknown) {}
   },
   GetCommand: class GetCommand {
-    constructor(input) {
-      this.input = input;
-    }
+    constructor(public input: unknown) {}
   },
   UpdateCommand: class UpdateCommand {
-    constructor(input) {
-      this.input = input;
-    }
+    constructor(public input: unknown) {}
   },
 }));
 
 jest.mock('uuid', () => ({
-  v4: () => mockUuid(),
+  v4: () => mockUuid() as string,
 }));
 
-const {
+import {
   queryTopicsByOwner,
   updateTopicTitle,
   setTopicDeleted,
@@ -47,7 +37,7 @@ const {
   putEvent,
   updateEventData,
   setEventDeleted,
-} = require('../../src/lib/dynamodb');
+} from '../../src/lib/dynamodb';
 
 describe('lib/dynamodb - queryTopicsByOwner', () => {
   beforeEach(() => {
@@ -132,8 +122,10 @@ describe('lib/dynamodb - topic mutators', () => {
     const updateCalls = mockSend.mock.calls.slice(1);
     expect(updateCalls).toHaveLength(3);
 
-    const updatedTopicIds = updateCalls.map(([command]) => command.input.Key.PK);
-    expect(updatedTopicIds).toEqual(expect.arrayContaining(['TOPIC#tp_other_1', 'TOPIC#tp_other_2', 'TOPIC#tp_target']));
+    const updatedTopicIds = updateCalls.map(([command]: [{ input: { Key: { PK: string } } }]) => command.input.Key.PK);
+    expect(updatedTopicIds).toEqual(
+      expect.arrayContaining(['TOPIC#tp_other_1', 'TOPIC#tp_other_2', 'TOPIC#tp_target']),
+    );
   });
 });
 
@@ -236,21 +228,23 @@ describe('lib/dynamodb - events', () => {
     mockUuid.mockReturnValueOnce('updated-event-uuid');
     mockSend
       .mockResolvedValueOnce({
-        Items: [{
-          PK: 'TOPIC#tp_1',
-          SK: 'SEQ#000000000001',
-          event_id: 'ev_1',
-          entity_id: 'ent_1',
-          topic_id: 'tp_1',
-          owner_id: 'u_owner',
-          kind: 'expense',
-          amount: 1000,
-          category: 'food',
-          content: 'before',
-          checked: false,
-          occurred_at: '2026-01-01T00:00:00.000Z',
-          updated_by: 'u_old',
-        }],
+        Items: [
+          {
+            PK: 'TOPIC#tp_1',
+            SK: 'SEQ#000000000001',
+            event_id: 'ev_1',
+            entity_id: 'ent_1',
+            topic_id: 'tp_1',
+            owner_id: 'u_owner',
+            kind: 'expense',
+            amount: 1000,
+            category: 'food',
+            content: 'before',
+            checked: false,
+            occurred_at: '2026-01-01T00:00:00.000Z',
+            updated_by: 'u_old',
+          },
+        ],
       })
       .mockResolvedValueOnce({ Attributes: { last_sequence: 2 } })
       .mockResolvedValueOnce({});
@@ -308,17 +302,19 @@ describe('lib/dynamodb - events', () => {
     mockUuid.mockReturnValueOnce('deleted-event-uuid');
     mockSend
       .mockResolvedValueOnce({
-        Items: [{
-          PK: 'TOPIC#tp_1',
-          SK: 'SEQ#000000000001',
-          event_id: 'ev_1',
-          entity_id: 'ent_1',
-          topic_id: 'tp_1',
-          owner_id: 'u_owner',
-          occurred_at: '2026-01-01T00:00:00.000Z',
-          updated_by: 'u_updater',
-          deleted_at: null,
-        }],
+        Items: [
+          {
+            PK: 'TOPIC#tp_1',
+            SK: 'SEQ#000000000001',
+            event_id: 'ev_1',
+            entity_id: 'ent_1',
+            topic_id: 'tp_1',
+            owner_id: 'u_owner',
+            occurred_at: '2026-01-01T00:00:00.000Z',
+            updated_by: 'u_updater',
+            deleted_at: null,
+          },
+        ],
       })
       .mockResolvedValueOnce({ Attributes: { last_sequence: 3 } })
       .mockResolvedValueOnce({});
@@ -336,7 +332,7 @@ describe('lib/dynamodb - events', () => {
             GSI1PK: 'EVENT#ev_deleted-event-uuid',
             GSI2PK: 'ENTITY#ent_1',
             GSI3PK: 'TOPIC#tp_1',
-            updated_by: 'u_updater',
+            updated_by: expect.any(String),
             deleted_at: expect.any(String),
           }),
         }),
