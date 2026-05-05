@@ -1,0 +1,13 @@
+{
+  "jest.rootPath": "api",
+  "jest.runMode": {
+    "type": "on-demand"
+  },
+  "jest.nodeEnv": {
+    "DYNAMODB_ENDPOINT": "http://localhost:8000",
+    "AWS_ACCESS_KEY_ID": "fake",
+    "AWS_SECRET_ACCESS_KEY": "fake",
+    "AWS_REGION": "us-east-1"
+  },
+  "jest.jestCommandLine": "yarn test --runInBand --detectOpenHandles --forceExit"
+}

@@ -3,10 +3,14 @@ import '../models/expense_model.dart';
 
 class ExpenseRepository {
   final DatabaseHelper _db = DatabaseHelper.instance;
-  static const String _table = DatabaseHelper.expenseTable;
+  static const String _table = DatabaseHelper.eventsTable;
 
   Future<List<ExpenseModel>> getAllExpenses() async {
-    final rows = await _db.queryAll(_table);
+    final rows = await _db.queryWhere(
+      _table,
+      '${DatabaseHelper.colType} IN (?, ?)',
+      ['income', 'expense'],
+    );
     return rows.map(ExpenseModel.fromMap).toList();
   }
 
@@ -15,8 +19,8 @@ class ExpenseRepository {
     final endDate = DateTime(year, month + 1, 1);
     final rows = await _db.queryWhere(
       _table,
-      'created_at >= ? AND created_at < ?',
-      [startDate.toIso8601String(), endDate.toIso8601String()],
+      '${DatabaseHelper.colType} IN (?, ?) AND created_at >= ? AND created_at < ?',
+      ['income', 'expense', startDate.toIso8601String(), endDate.toIso8601String()],
     );
     return rows.map(ExpenseModel.fromMap).toList();
   }
@@ -26,8 +30,8 @@ class ExpenseRepository {
     final end = start.add(const Duration(days: 1));
     final rows = await _db.queryWhere(
       _table,
-      'created_at >= ? AND created_at < ?',
-      [start.toIso8601String(), end.toIso8601String()],
+      '${DatabaseHelper.colType} IN (?, ?) AND created_at >= ? AND created_at < ?',
+      ['income', 'expense', start.toIso8601String(), end.toIso8601String()],
     );
     return rows.map(ExpenseModel.fromMap).toList();
   }

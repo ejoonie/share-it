@@ -113,8 +113,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _clearAllData() async {
     final db = await DatabaseHelper.instance.database;
-    await db.delete(DatabaseHelper.expenseTable);
-    await db.delete(DatabaseHelper.shoppingTable);
+    await db.delete(DatabaseHelper.eventsTable);
   }
 
   void _confirmClearData(BuildContext context) {
