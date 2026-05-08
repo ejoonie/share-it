@@ -11,11 +11,10 @@ module V1
     resource :topics do
       desc '토픽 생성'
       params do
-        requires :title, type: String
+        requires :title, type: String, regexp: /\S/
       end
       post do
-        title = params[:title].to_s.strip
-        error!({ message: 'title is required' }, 400) if title.empty?
+        title = params[:title].strip
 
         topic = Topic.create!(
           owner_id: user_id,
