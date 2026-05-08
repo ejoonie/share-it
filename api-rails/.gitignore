@@ -1,0 +1,6 @@
+# Bundled gems
+/vendor/bundle/
+/.bundle/
+
+# Temporary files
+/tmp/
