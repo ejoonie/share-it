@@ -1,8 +1,12 @@
 module V1
   class TopicsAPI < Grape::API
     helpers do
-      def x_user_id
-        headers['x-user-id'] || headers['X-User-Id'] || error!({ message: 'x-user-id header is required' }, 401)
+      def current_user
+        token = headers['x-token'] || headers['X-Token']
+        error!({ message: 'x-token header is required' }, 401) unless token
+        @current_user ||= User.find_by(token: token)
+        error!({ message: 'Unauthorized' }, 401) unless @current_user
+        @current_user
       end
     end
 
@@ -16,7 +20,7 @@ module V1
         title = params[:title].strip
 
         topic = Topic.create!(
-          owner_id: x_user_id,
+          user: current_user,
           title: title,
           is_default: false
         )
@@ -28,7 +32,7 @@ module V1
       # GET /api/v1/topics/owned
       desc '내 토픽 목록'
       get :owned do
-        topics = Topic.where(owner_id: x_user_id).order(created_at: :desc)
+        topics = Topic.where(user: current_user).order(created_at: :desc)
         { topics: Entities::TopicEntity.represent(topics) }
       end
 
@@ -49,7 +53,7 @@ module V1
         patch do
           topic = Topic.find_by(id: params[:id])
           error!({ message: 'Topic not found' }, 404) if topic.nil?
-          error!({ message: 'Forbidden' }, 403) if topic.owner_id != x_user_id
+          error!({ message: 'Forbidden' }, 403) if topic.user_id != current_user.id
 
           topic.update!(title: params[:title].strip)
           present topic, with: Entities::TopicEntity
@@ -60,7 +64,7 @@ module V1
         delete do
           topic = Topic.find_by(id: params[:id])
           error!({ message: 'Topic not found' }, 404) if topic.nil?
-          error!({ message: 'Forbidden' }, 403) if topic.owner_id != x_user_id
+          error!({ message: 'Forbidden' }, 403) if topic.user_id != current_user.id
 
           topic.soft_delete!
           deleted_topic = Topic.unscoped.find(topic.id)

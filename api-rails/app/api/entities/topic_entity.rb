@@ -1,7 +1,7 @@
 module Entities
   class TopicEntity < Grape::Entity
     expose :id
-    expose :owner_id
+    expose :user_id
     expose :title
     expose :is_default
     expose :deleted_at

@@ -9,7 +9,7 @@ RSpec.describe "Topics API", type: :request do
 
       expect(response).to have_http_status(201)
       expect(json_response["title"]).to eq("New Topic")
-      expect(json_response["owner_id"]).to eq("user_1")
+      expect(json_response["user_id"]).to eq(users(:user_one).id)
       expect(json_response["deleted_at"]).to be_nil
     end
 
@@ -25,7 +25,7 @@ RSpec.describe "Topics API", type: :request do
       expect(response).to have_http_status(400)
     end
 
-    it "returns 401 when x-user-id header is missing on create" do
+    it "returns 401 when x-token header is missing on create" do
       post "/api/v1/topics",
         params: { title: "New Topic" }.to_json,
         headers: { "Content-Type" => "application/json" }
@@ -38,7 +38,7 @@ RSpec.describe "Topics API", type: :request do
   describe "GET /api/v1/topics/owned" do
     it "lists owned topics" do
       get "/api/v1/topics/owned",
-        headers: { "x-user-id" => "user_1" }
+        headers: { "x-token" => "token_user_one" }
 
       expect(response).to have_http_status(200)
       topic_titles = json_response["topics"].map { |t| t["title"] }
@@ -53,7 +53,7 @@ RSpec.describe "Topics API", type: :request do
     it "shows a topic" do
       topic = topics(:one)
       get "/api/v1/topics/#{topic.id}",
-        headers: { "x-user-id" => "user_1" }
+        headers: { "x-token" => "token_user_one" }
 
       expect(response).to have_http_status(200)
       expect(json_response["id"]).to eq(topic.id)
@@ -62,7 +62,7 @@ RSpec.describe "Topics API", type: :request do
 
     it "returns 404 for non-existent topic" do
       get "/api/v1/topics/999999",
-        headers: { "x-user-id" => "user_1" }
+        headers: { "x-token" => "token_user_one" }
 
       expect(response).to have_http_status(404)
     end
@@ -70,7 +70,7 @@ RSpec.describe "Topics API", type: :request do
     it "returns 404 for soft-deleted topic on show" do
       topic = topics(:deleted)
       get "/api/v1/topics/#{topic.id}",
-        headers: { "x-user-id" => "user_1" }
+        headers: { "x-token" => "token_user_one" }
 
       expect(response).to have_http_status(404)
     end
