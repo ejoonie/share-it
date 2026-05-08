@@ -6,6 +6,8 @@ import {
   deleteEvent,
 } from '../../src/handlers/events';
 
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+
 jest.mock('../../src/lib/dynamodb', () => ({
   getTopicById: jest.fn(),
   putEvent: jest.fn(),

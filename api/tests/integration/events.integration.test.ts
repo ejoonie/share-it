@@ -1,6 +1,7 @@
 // events.integration.test.ts
 // 실제 DynamoDB를 사용하는 통합 테스트
 
+import { describe, it, beforeAll, expect } from '@jest/globals';
 import { v4 as uuidv4 } from 'uuid';
 import {
   putEvent,
