@@ -12,7 +12,7 @@ services:
     image: ruby:3.3
     working_dir: /app
     volumes:
-      - ../sp-api:/app
+      - ./:/app
     environment:
       RAILS_ENV: production
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD environment variable must be set}@db:5432/sp_api_production
