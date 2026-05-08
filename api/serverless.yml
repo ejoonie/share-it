@@ -3,7 +3,6 @@
 service: share-it-api
 
 plugins:
-  - serverless-plugin-typescript # TypeScript 컴파일 플러그인
   - serverless-offline # 로컬 실행용 플러그인 (API Gateway + Lambda 에뮬레이션)
 # Note: Step Functions plugin is not included, so no $ref error should occur.
 
