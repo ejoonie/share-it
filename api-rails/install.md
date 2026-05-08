@@ -1,0 +1,274 @@
+# api-rails 초기 MVP 설치 가이드
+
+아래 순서대로 진행하면 `api-rails/sp-api` 경로에 **Rails API-only + Grape + PostgreSQL + Puma + Nginx(HTTPS 준비)** 구조를 만들 수 있습니다.  
+현재 `api` 디렉터리의 Topics API를 기준으로, MVP는 **토픽 생성 / 내 토픽 목록 조회**만 우선 구현합니다.
+
+---
+
+## 1) 사전 설치
+
+- Docker / Docker Compose
+- (로컬 개발용) Ruby 3.3+, Bundler, PostgreSQL 클라이언트
+
+---
+
+## 2) Rails API 프로젝트 생성
+
+```bash
+cd /home/runner/work/share-it/share-it
+mkdir -p api-rails
+cd api-rails
+
+# rails가 없다면
+# gem install rails -v 7.1.5
+
+rails new sp-api --api -d postgresql
+cd sp-api
+```
+
+---
+
+## 3) Gem 추가
+
+`/home/runner/work/share-it/share-it/api-rails/sp-api/Gemfile`에 아래 gem을 추가:
+
+```ruby
+gem "grape"
+gem "grape-entity"
+gem "rack-cors"
+gem "jwt"
+```
+
+설치:
+
+```bash
+bundle install
+```
+
+---
+
+## 4) Topics MVP 모델/마이그레이션
+
+```bash
+bin/rails g model Topic topic_id:string owner_id:string title:string is_default:boolean last_sequence:integer deleted_at:datetime
+```
+
+생성된 migration 수정 포인트:
+
+- `topic_id`, `owner_id`, `title`는 `null: false`
+- `is_default` 기본값 `false`
+- `last_sequence` 기본값 `0`
+- `topic_id` unique index
+- `owner_id, created_at` 복합 index
+
+예시:
+
+```ruby
+add_index :topics, :topic_id, unique: true
+add_index :topics, [:owner_id, :created_at]
+```
+
+---
+
+## 5) CORS 설정
+
+`/home/runner/work/share-it/share-it/api-rails/sp-api/config/initializers/cors.rb`
+
+```ruby
+Rails.application.config.middleware.insert_before 0, Rack::Cors do
+  allow do
+    origins "*"
+    resource "*", headers: :any, methods: %i[get post patch put delete options head]
+  end
+end
+```
+
+---
+
+## 6) Grape API 추가 (Topics: 생성/목록)
+
+`/home/runner/work/share-it/share-it/api-rails/sp-api/app/api/entities/topic_entity.rb`
+
+```ruby
+module Entities
+  class TopicEntity < Grape::Entity
+    expose :topic_id
+    expose :owner_id
+    expose :title
+    expose :is_default
+    expose :last_sequence
+    expose :created_at
+  end
+end
+```
+
+`/home/runner/work/share-it/share-it/api-rails/sp-api/app/api/v1/topics_api.rb`
+
+```ruby
+module V1
+  class TopicsAPI < Grape::API
+    format :json
+
+    helpers do
+      def user_id
+        headers["X-User-Id"] || error!({ message: "x-user-id header is required" }, 401)
+      end
+    end
+
+    resource :topics do
+      desc "토픽 생성"
+      params do
+        requires :title, type: String
+      end
+      post do
+        topic = Topic.create!(
+          topic_id: "tp_#{SecureRandom.uuid}",
+          owner_id: user_id,
+          title: params[:title].strip,
+          is_default: false,
+          last_sequence: 0
+        )
+        status 201
+        present topic, with: Entities::TopicEntity
+      end
+
+      desc "내 토픽 목록"
+      get :owned do
+        topics = Topic.where(owner_id: user_id, deleted_at: nil).order(created_at: :desc)
+        { topics: Entities::TopicEntity.represent(topics) }
+      end
+    end
+  end
+end
+```
+
+`/home/runner/work/share-it/share-it/api-rails/sp-api/app/api/base_api.rb`
+
+```ruby
+class BaseAPI < Grape::API
+  prefix :api
+  version :v1, using: :path
+
+  mount V1::TopicsAPI
+end
+```
+
+`/home/runner/work/share-it/share-it/api-rails/sp-api/config/routes.rb`
+
+```ruby
+Rails.application.routes.draw do
+  mount BaseAPI => "/"
+end
+```
+
+---
+
+## 7) Docker 구성 (rails + postgres + nginx)
+
+`/home/runner/work/share-it/share-it/api-rails/docker-compose.yml`
+
+```yaml
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sp_api_development
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  app:
+    image: ruby:3.3
+    working_dir: /app
+    volumes:
+      - ./sp-api:/app
+    environment:
+      RAILS_ENV: development
+      DATABASE_URL: postgres://postgres:postgres@db:5432/sp_api_development
+    command: bash -lc "bundle install && bin/rails db:prepare && bundle exec puma -C config/puma.rb"
+    depends_on:
+      - db
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    depends_on:
+      - app
+
+volumes:
+  pgdata:
+```
+
+`/home/runner/work/share-it/share-it/api-rails/nginx/default.conf`
+
+```nginx
+server {
+  listen 80;
+  server_name _;
+
+  location /.well-known/acme-challenge/ {
+    root /var/www/certbot;
+  }
+
+  location / {
+    proxy_pass http://app:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+```
+
+---
+
+## 8) 실행
+
+```bash
+cd /home/runner/work/share-it/share-it/api-rails
+docker compose up -d
+```
+
+테스트 요청:
+
+```bash
+curl -X POST http://localhost/api/v1/topics \
+  -H "x-user-id: u_1" \
+  -H "content-type: application/json" \
+  -d '{"title":"My Expenses"}'
+
+curl -X GET http://localhost/api/v1/topics/owned \
+  -H "x-user-id: u_1"
+```
+
+---
+
+## 9) Let's Encrypt 적용(EC2 배포 시)
+
+도메인 연결 후 certbot 1회 발급:
+
+```bash
+docker run --rm -it \
+  -v $(pwd)/certbot/conf:/etc/letsencrypt \
+  -v $(pwd)/certbot/www:/var/www/certbot \
+  certbot/certbot certonly --webroot -w /var/www/certbot \
+  -d your-domain.com -d www.your-domain.com
+```
+
+이후 nginx 443 서버 블록에 인증서 경로를 연결해 HTTPS를 활성화합니다.
+
+---
+
+## MVP 범위 요약
+
+- 포함: Topics 생성, 내 Topics 조회
+- 제외(차후): 제목 수정, 삭제, 기본 토픽 지정, 구독, 이벤트 API
