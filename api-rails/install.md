@@ -165,7 +165,7 @@ end
 
 ```yaml
 services:
-  app:
+  sp-api:
     image: ruby:3.3
     working_dir: /app
     volumes:
@@ -187,7 +187,7 @@ services:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
     depends_on:
-      - app
+      - sp-api
 ```
 
 `/home/runner/work/share-it/share-it/api-rails/docker-compose.prod.yml`  
@@ -204,7 +204,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  app:
+  sp-api:
     image: ruby:3.3
     working_dir: /app
     volumes:
@@ -226,7 +226,7 @@ services:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
     depends_on:
-      - app
+      - sp-api
 
 volumes:
   pgdata:
@@ -244,7 +244,7 @@ server {
   }
 
   location / {
-    proxy_pass http://app:3000;
+    proxy_pass http://sp-api:3000;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
