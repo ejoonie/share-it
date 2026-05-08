@@ -111,7 +111,7 @@ module V1
 
     helpers do
       def user_id
-        headers["X-User-Id"] || error!({ message: "x-user-id header is required" }, 401)
+        headers["x-user-id"] || headers["X-User-Id"] || error!({ message: "x-user-id header is required" }, 401)
       end
     end
 
@@ -121,10 +121,13 @@ module V1
         requires :title, type: String
       end
       post do
+        title = params[:title].to_s.strip
+        error!({ message: "title is required" }, 400) if title.empty?
+
         topic = Topic.create!(
           topic_id: "tp_#{SecureRandom.uuid}",
           owner_id: user_id,
-          title: params[:title].strip,
+          title: title,
           is_default: false,
           last_sequence: 0
         )
@@ -188,7 +191,7 @@ services:
     environment:
       RAILS_ENV: development
       DATABASE_URL: postgres://postgres:postgres@db:5432/sp_api_development
-    command: bash -lc "bundle install && bin/rails db:prepare && bundle exec puma -C config/puma.rb"
+    command: bash -lc "bundle check || bundle install && bin/rails db:prepare && bundle exec puma -C config/puma.rb"
     depends_on:
       - db
 
