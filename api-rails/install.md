@@ -277,9 +277,9 @@ docker run --rm -it \
 
 이 저장소에 아래 샘플 파일을 함께 추가해두었습니다.
 
-- `/home/runner/work/share-it/share-it/api-rails/sp-api-template/app/models/topic.rb`
-- `/home/runner/work/share-it/share-it/api-rails/sp-api-template/app/api/entities/topic_entity.rb`
-- `/home/runner/work/share-it/share-it/api-rails/sp-api-template/app/api/v1/topics_api.rb`
-- `/home/runner/work/share-it/share-it/api-rails/sp-api-template/app/api/base_api.rb`
-- `/home/runner/work/share-it/share-it/api-rails/sp-api-template/config/routes.rb`
-- `/home/runner/work/share-it/share-it/api-rails/sp-api-template/db/migrate/20260508150000_create_topics.rb`
+- `api-rails/sp-api-template/app/models/topic.rb`
+- `api-rails/sp-api-template/app/api/entities/topic_entity.rb`
+- `api-rails/sp-api-template/app/api/v1/topics_api.rb`
+- `api-rails/sp-api-template/app/api/base_api.rb`
+- `api-rails/sp-api-template/config/routes.rb`
+- `api-rails/sp-api-template/db/migrate/20260508150000_create_topics.rb`
