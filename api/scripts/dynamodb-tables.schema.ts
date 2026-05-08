@@ -1,9 +1,17 @@
-// dynamodb-tables.schema.js
-// 모든 테이블 구조를 이 파일에서 관리하면 serverless.yml, create-local-table.js 등에서 import해서 재사용할 수 있습니다.
+// dynamodb-tables.schema.ts
+// 모든 테이블 구조를 이 파일에서 관리하면 serverless.yml, create-local-table.ts 등에서 import해서 재사용할 수 있습니다.
 
-module.exports = {
+import type { CreateTableCommandInput } from '@aws-sdk/client-dynamodb';
+
+interface TablesSchema {
+  TopicsTable: CreateTableCommandInput;
+  SubscriptionsTable: CreateTableCommandInput;
+  EventsTable: CreateTableCommandInput;
+}
+
+const tablesSchema: TablesSchema = {
   TopicsTable: {
-    TableName: process.env.TOPICS_TABLE || 't_topics-dev',
+    TableName: process.env.TOPICS_TABLE ?? 't_topics-dev',
     BillingMode: 'PAY_PER_REQUEST',
     AttributeDefinitions: [
       { AttributeName: 'PK', AttributeType: 'S' },
@@ -27,7 +35,7 @@ module.exports = {
     ],
   },
   SubscriptionsTable: {
-    TableName: process.env.SUBSCRIPTIONS_TABLE || 't_subscriptions-dev',
+    TableName: process.env.SUBSCRIPTIONS_TABLE ?? 't_subscriptions-dev',
     BillingMode: 'PAY_PER_REQUEST',
     AttributeDefinitions: [
       { AttributeName: 'PK', AttributeType: 'S' },
@@ -51,7 +59,7 @@ module.exports = {
     ],
   },
   EventsTable: {
-    TableName: process.env.EVENTS_TABLE || 't_events-dev',
+    TableName: process.env.EVENTS_TABLE ?? 't_events-dev',
     BillingMode: 'PAY_PER_REQUEST',
     AttributeDefinitions: [
       { AttributeName: 'PK', AttributeType: 'S' },
@@ -95,3 +103,5 @@ module.exports = {
     ],
   },
 };
+
+export default tablesSchema;

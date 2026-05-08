@@ -1,7 +1,6 @@
-'use strict';
-
-const { v4: uuidv4 } = require('uuid');
-const {
+import { v4 as uuidv4 } from 'uuid';
+import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import {
   putTopic,
   queryTopicsByOwner,
   getTopicById,
@@ -9,12 +8,12 @@ const {
   setTopicDeleted,
   setTopicDefault,
   createOrFindSubscription,
-} = require('../lib/dynamodb');
-const { createResponse, getUserId, parseJsonBody } = require('./common');
+} from '../lib/dynamodb';
+import { createResponse, getUserId, parseJsonBody } from './common';
 
-module.exports.createTopic = async (event) => {
+export const createTopic = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
-    const userId = getUserId(event.headers || {});
+    const userId = getUserId(event.headers ?? {});
 
     if (!userId) {
       return createResponse(401, { message: 'x-user-id header is required' });
@@ -24,7 +23,7 @@ module.exports.createTopic = async (event) => {
     if (!parsedBody.ok) {
       return createResponse(400, { message: 'Invalid JSON body' });
     }
-    const body = parsedBody.body;
+    const body = parsedBody.body ?? {};
 
     const { title } = body;
     if (!title || typeof title !== 'string' || title.trim() === '') {
@@ -61,9 +60,11 @@ module.exports.createTopic = async (event) => {
   }
 };
 
-module.exports.getOwnedTopics = async (event) => {
+export const getOwnedTopics = async (
+  event: APIGatewayProxyEvent,
+): Promise<APIGatewayProxyResult> => {
   try {
-    const userId = getUserId(event.headers || {});
+    const userId = getUserId(event.headers ?? {});
 
     if (!userId) {
       return createResponse(401, { message: 'x-user-id header is required' });
@@ -78,15 +79,15 @@ module.exports.getOwnedTopics = async (event) => {
   }
 };
 
-module.exports.updateTopic = async (event) => {
+export const updateTopic = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
-    const userId = getUserId(event.headers || {});
+    const userId = getUserId(event.headers ?? {});
 
     if (!userId) {
       return createResponse(401, { message: 'x-user-id header is required' });
     }
 
-    const topicId = event.pathParameters && event.pathParameters.topic_id;
+    const topicId = event.pathParameters?.topic_id;
     if (!topicId) {
       return createResponse(400, { message: 'topic_id is required' });
     }
@@ -95,7 +96,7 @@ module.exports.updateTopic = async (event) => {
     if (!parsedBody.ok) {
       return createResponse(400, { message: 'Invalid JSON body' });
     }
-    const body = parsedBody.body;
+    const body = parsedBody.body ?? {};
 
     const { title } = body;
     if (!title || typeof title !== 'string' || title.trim() === '') {
@@ -120,15 +121,15 @@ module.exports.updateTopic = async (event) => {
   }
 };
 
-module.exports.deleteTopic = async (event) => {
+export const deleteTopic = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
-    const userId = getUserId(event.headers || {});
+    const userId = getUserId(event.headers ?? {});
 
     if (!userId) {
       return createResponse(401, { message: 'x-user-id header is required' });
     }
 
-    const topicId = event.pathParameters && event.pathParameters.topic_id;
+    const topicId = event.pathParameters?.topic_id;
     if (!topicId) {
       return createResponse(400, { message: 'topic_id is required' });
     }
@@ -151,15 +152,17 @@ module.exports.deleteTopic = async (event) => {
   }
 };
 
-module.exports.setDefaultTopic = async (event) => {
+export const setDefaultTopic = async (
+  event: APIGatewayProxyEvent,
+): Promise<APIGatewayProxyResult> => {
   try {
-    const userId = getUserId(event.headers || {});
+    const userId = getUserId(event.headers ?? {});
 
     if (!userId) {
       return createResponse(401, { message: 'x-user-id header is required' });
     }
 
-    const topicId = event.pathParameters && event.pathParameters.topic_id;
+    const topicId = event.pathParameters?.topic_id;
     if (!topicId) {
       return createResponse(400, { message: 'topic_id is required' });
     }
@@ -182,15 +185,17 @@ module.exports.setDefaultTopic = async (event) => {
   }
 };
 
-module.exports.subscribeTopic = async (event) => {
+export const subscribeTopic = async (
+  event: APIGatewayProxyEvent,
+): Promise<APIGatewayProxyResult> => {
   try {
-    const userId = getUserId(event.headers || {});
+    const userId = getUserId(event.headers ?? {});
 
     if (!userId) {
       return createResponse(401, { message: 'x-user-id header is required' });
     }
 
-    const topicId = event.pathParameters && event.pathParameters.topic_id;
+    const topicId = event.pathParameters?.topic_id;
     if (!topicId) {
       return createResponse(400, { message: 'topic_id is required' });
     }
@@ -204,7 +209,7 @@ module.exports.subscribeTopic = async (event) => {
 
     return createResponse(201, { subscription: subscriptionItem });
   } catch (error) {
-    if (error && error.name === 'ConditionalCheckFailedException') {
+    if (error && typeof error === 'object' && (error as { name?: string }).name === 'ConditionalCheckFailedException') {
       return createResponse(409, { message: 'Already subscribed' });
     }
     console.error('Error subscribing topic:', error);
