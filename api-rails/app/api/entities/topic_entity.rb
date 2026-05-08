@@ -4,6 +4,7 @@ module Entities
     expose :owner_id
     expose :title
     expose :is_default
+    expose :deleted_at
     expose :created_at
     expose :updated_at
   end
