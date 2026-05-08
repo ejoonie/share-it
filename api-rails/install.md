@@ -164,8 +164,6 @@ end
 (`dev`: DB는 호스트의 localhost PostgreSQL 사용)
 
 ```yaml
-version: "3.9"
-
 services:
   app:
     image: ruby:3.3
@@ -196,14 +194,12 @@ services:
 (`prod`: DB 포함)
 
 ```yaml
-version: "3.9"
-
 services:
   db:
     image: postgres:16
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: sp_api_production
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -215,7 +211,7 @@ services:
       - ../sp-api:/app
     environment:
       RAILS_ENV: production
-      DATABASE_URL: postgres://postgres:postgres@db:5432/sp_api_production
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/sp_api_production
     command: bash -lc "bundle check || bundle install && bin/rails db:prepare && bundle exec puma -C config/puma.rb"
     depends_on:
       - db
@@ -268,6 +264,7 @@ cd /home/runner/work/share-it/share-it/api-rails
 docker compose -f docker-compose.dev.yml up -d
 
 # prod (db 포함)
+export POSTGRES_PASSWORD='change-this'
 docker compose -f docker-compose.prod.yml up -d
 ```
 
