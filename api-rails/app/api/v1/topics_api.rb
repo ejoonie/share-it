@@ -25,7 +25,7 @@ module V1
         present topic, with: Entities::TopicEntity
       end
 
-      # POST /api/v1/topics/owned
+      # GET /api/v1/topics/owned
       desc '내 토픽 목록'
       get :owned do
         topics = Topic.where(owner_id: x_user_id).order(created_at: :desc)
