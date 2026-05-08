@@ -1,6 +1,6 @@
 # api-rails 초기 MVP 설치 가이드
 
-아래 순서대로 진행하면 `api-rails/sp-api` 경로에 **Rails API-only + Grape + PostgreSQL + Puma + Nginx(HTTPS 준비)** 구조를 만들 수 있습니다.  
+아래 순서대로 진행하면 `sp-api` 경로에 **Rails API-only + Grape + PostgreSQL + Puma + Nginx(HTTPS 준비)** 구조를 만들 수 있습니다.  
 현재 `api` 디렉터리의 Topics API를 기준으로, MVP는 **토픽 생성 / 내 토픽 목록 조회**만 우선 구현합니다.
 
 ---
@@ -16,8 +16,6 @@
 
 ```bash
 cd /home/runner/work/share-it/share-it
-mkdir -p api-rails
-cd api-rails
 
 # rails가 없다면
 # gem install rails -v 7.1.5
@@ -30,7 +28,7 @@ cd sp-api
 
 ## 3) Gem 추가
 
-`/home/runner/work/share-it/share-it/api-rails/sp-api/Gemfile`에 아래 gem을 추가:
+`/home/runner/work/share-it/share-it/sp-api/Gemfile`에 아래 gem을 추가:
 
 ```ruby
 gem "grape"
@@ -69,7 +67,7 @@ add_index :topics, [:owner_id, :created_at]
 
 ## 5) CORS 설정
 
-`/home/runner/work/share-it/share-it/api-rails/sp-api/config/initializers/cors.rb`
+`/home/runner/work/share-it/share-it/sp-api/config/initializers/cors.rb`
 
 ```ruby
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
@@ -84,7 +82,7 @@ end
 
 ## 6) Grape API 추가 (Topics: 생성/목록)
 
-`/home/runner/work/share-it/share-it/api-rails/sp-api/app/api/entities/topic_entity.rb`
+`/home/runner/work/share-it/share-it/sp-api/app/api/entities/topic_entity.rb`
 
 ```ruby
 module Entities
@@ -99,7 +97,7 @@ module Entities
 end
 ```
 
-`/home/runner/work/share-it/share-it/api-rails/sp-api/app/api/v1/topics_api.rb`
+`/home/runner/work/share-it/share-it/sp-api/app/api/v1/topics_api.rb`
 
 ```ruby
 module V1
@@ -139,7 +137,7 @@ module V1
 end
 ```
 
-`/home/runner/work/share-it/share-it/api-rails/sp-api/app/api/base_api.rb`
+`/home/runner/work/share-it/share-it/sp-api/app/api/base_api.rb`
 
 ```ruby
 class BaseAPI < Grape::API
@@ -150,7 +148,7 @@ class BaseAPI < Grape::API
 end
 ```
 
-`/home/runner/work/share-it/share-it/api-rails/sp-api/config/routes.rb`
+`/home/runner/work/share-it/share-it/sp-api/config/routes.rb`
 
 ```ruby
 Rails.application.routes.draw do
@@ -160,9 +158,42 @@ end
 
 ---
 
-## 7) Docker 구성 (rails + postgres + nginx)
+## 7) Docker 구성 (dev/prod 분리)
 
-`/home/runner/work/share-it/share-it/api-rails/docker-compose.yml`
+`/home/runner/work/share-it/share-it/api-rails/docker-compose.dev.yml`  
+(`dev`: DB는 호스트의 localhost PostgreSQL 사용)
+
+```yaml
+version: "3.9"
+
+services:
+  app:
+    image: ruby:3.3
+    working_dir: /app
+    volumes:
+      - ../sp-api:/app
+    environment:
+      RAILS_ENV: development
+      DATABASE_URL: postgres://postgres:postgres@host.docker.internal:5432/sp_api_development
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: bash -lc "bundle check || bundle install && bin/rails db:prepare && bundle exec puma -C config/puma.rb"
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    depends_on:
+      - app
+```
+
+`/home/runner/work/share-it/share-it/api-rails/docker-compose.prod.yml`  
+(`prod`: DB 포함)
 
 ```yaml
 version: "3.9"
@@ -173,7 +204,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: sp_api_development
+      POSTGRES_DB: sp_api_production
     volumes:
       - pgdata:/var/lib/postgresql/data
 
@@ -181,10 +212,10 @@ services:
     image: ruby:3.3
     working_dir: /app
     volumes:
-      - ./sp-api:/app
+      - ../sp-api:/app
     environment:
-      RAILS_ENV: development
-      DATABASE_URL: postgres://postgres:postgres@db:5432/sp_api_development
+      RAILS_ENV: production
+      DATABASE_URL: postgres://postgres:postgres@db:5432/sp_api_production
     command: bash -lc "bundle check || bundle install && bin/rails db:prepare && bundle exec puma -C config/puma.rb"
     depends_on:
       - db
@@ -232,7 +263,12 @@ server {
 
 ```bash
 cd /home/runner/work/share-it/share-it/api-rails
-docker compose up -d
+
+# dev (호스트 localhost PostgreSQL 사용)
+docker compose -f docker-compose.dev.yml up -d
+
+# prod (db 포함)
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 테스트 요청:
@@ -276,9 +312,9 @@ docker run --rm -it \
 
 이 저장소에 아래 샘플 파일을 함께 추가해두었습니다.
 
-- `api-rails/sp-api-template/app/models/topic.rb`
-- `api-rails/sp-api-template/app/api/entities/topic_entity.rb`
-- `api-rails/sp-api-template/app/api/v1/topics_api.rb`
-- `api-rails/sp-api-template/app/api/base_api.rb`
-- `api-rails/sp-api-template/config/routes.rb`
-- `api-rails/sp-api-template/db/migrate/20260508150000_create_topics.rb`
+- `sp-api-template/app/models/topic.rb`
+- `sp-api-template/app/api/entities/topic_entity.rb`
+- `sp-api-template/app/api/v1/topics_api.rb`
+- `sp-api-template/app/api/base_api.rb`
+- `sp-api-template/config/routes.rb`
+- `sp-api-template/db/migrate/20260508150000_create_topics.rb`
