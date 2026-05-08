@@ -47,24 +47,21 @@ bundle install
 
 ---
 
-## 4) Topics MVP 모델/마이그레이션
+## 4) Topics MVP 모델/마이그레이션 (Rails convention)
 
 ```bash
-bin/rails g model Topic topic_id:string owner_id:string title:string is_default:boolean last_sequence:integer deleted_at:datetime
+bin/rails g model Topic owner_id:string title:string is_default:boolean
 ```
 
 생성된 migration 수정 포인트:
 
-- `topic_id`, `owner_id`, `title`는 `null: false`
+- `owner_id`, `title`는 `null: false`
 - `is_default` 기본값 `false`
-- `last_sequence` 기본값 `0`
-- `topic_id` unique index
-- `owner_id, created_at` 복합 index
+- `owner_id, created_at` 복합 index (`내 토픽 목록` 조회용)
 
 예시:
 
 ```ruby
-add_index :topics, :topic_id, unique: true
 add_index :topics, [:owner_id, :created_at]
 ```
 
@@ -92,12 +89,12 @@ end
 ```ruby
 module Entities
   class TopicEntity < Grape::Entity
-    expose :topic_id
+    expose :id
     expose :owner_id
     expose :title
     expose :is_default
-    expose :last_sequence
     expose :created_at
+    expose :updated_at
   end
 end
 ```
@@ -125,11 +122,9 @@ module V1
         error!({ message: "title is required" }, 400) if title.empty?
 
         topic = Topic.create!(
-          topic_id: "tp_#{SecureRandom.uuid}",
           owner_id: user_id,
           title: title,
-          is_default: false,
-          last_sequence: 0
+          is_default: false
         )
         status 201
         present topic, with: Entities::TopicEntity
@@ -137,7 +132,7 @@ module V1
 
       desc "내 토픽 목록"
       get :owned do
-        topics = Topic.where(owner_id: user_id, deleted_at: nil).order(created_at: :desc)
+        topics = Topic.where(owner_id: user_id).order(created_at: :desc)
         { topics: Entities::TopicEntity.represent(topics) }
       end
     end
@@ -275,3 +270,16 @@ docker run --rm -it \
 
 - 포함: Topics 생성, 내 Topics 조회
 - 제외(차후): 제목 수정, 삭제, 기본 토픽 지정, 구독, 이벤트 API
+
+---
+
+## 10) 바로 복붙해서 쓸 수 있는 샘플 코드 포함
+
+이 저장소에 아래 샘플 파일을 함께 추가해두었습니다.
+
+- `/home/runner/work/share-it/share-it/api-rails/sp-api-template/app/models/topic.rb`
+- `/home/runner/work/share-it/share-it/api-rails/sp-api-template/app/api/entities/topic_entity.rb`
+- `/home/runner/work/share-it/share-it/api-rails/sp-api-template/app/api/v1/topics_api.rb`
+- `/home/runner/work/share-it/share-it/api-rails/sp-api-template/app/api/base_api.rb`
+- `/home/runner/work/share-it/share-it/api-rails/sp-api-template/config/routes.rb`
+- `/home/runner/work/share-it/share-it/api-rails/sp-api-template/db/migrate/20260508150000_create_topics.rb`
