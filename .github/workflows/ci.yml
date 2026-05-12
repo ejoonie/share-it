@@ -42,11 +42,9 @@ jobs:
 
       - name: Set up database
         run: bundle exec rails db:schema:load
-        with:
-          working-directory: api-rails
+        working-directory: api-rails
 
       - name: Run tests
         run: bundle exec rspec spec/
-        with:
-          working-directory: api-rails
+        working-directory: api-rails
 
