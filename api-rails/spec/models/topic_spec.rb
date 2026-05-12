@@ -3,31 +3,31 @@ require "rails_helper"
 RSpec.describe Topic, type: :model do
   describe "validations" do
     it "is valid with valid attributes" do
-      topic = Topic.new(owner_id: "user_1", title: "My Topic", is_default: false)
+      topic = Topic.new(user: users(:user_one), title: "My Topic", is_default: false)
       expect(topic).to be_valid
     end
 
     it "is invalid without a title" do
-      topic = Topic.new(owner_id: "user_1", title: nil, is_default: false)
+      topic = Topic.new(user: users(:user_one), title: nil, is_default: false)
       expect(topic).not_to be_valid
       expect(topic.errors[:title]).to include("can't be blank")
     end
 
     it "is invalid with an empty title" do
-      topic = Topic.new(owner_id: "user_1", title: "", is_default: false)
+      topic = Topic.new(user: users(:user_one), title: "", is_default: false)
       expect(topic).not_to be_valid
       expect(topic.errors[:title]).to include("can't be blank")
     end
 
     it "is valid with spaces in title" do
-      topic = Topic.new(owner_id: "user_1", title: "My Topic With Spaces", is_default: false)
+      topic = Topic.new(user: users(:user_one), title: "My Topic With Spaces", is_default: false)
       expect(topic).to be_valid
     end
 
-    it "is invalid without owner_id" do
-      topic = Topic.new(owner_id: nil, title: "My Topic", is_default: false)
+    it "is invalid without a user" do
+      topic = Topic.new(user: nil, title: "My Topic", is_default: false)
       expect(topic).not_to be_valid
-      expect(topic.errors[:owner_id]).to include("can't be blank")
+      expect(topic.errors[:user]).to include("must exist")
     end
   end
 
