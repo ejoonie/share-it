@@ -6,6 +6,8 @@ class User < ApplicationRecord
   validates :token, presence: true, uniqueness: true
 
   has_many :topics
+  has_many :topic_follows, dependent: :destroy
+  has_many :followed_topics, through: :topic_follows, source: :topic
 
   private
 

@@ -20,6 +20,12 @@ module RequestHelpers
       headers: default_json_headers(token).merge(headers)
   end
 
+  def put_json(path, params: {}, headers: {}, token: "token_user_one")
+    put path,
+      params: params.to_json,
+      headers: default_json_headers(token).merge(headers)
+  end
+
   private
 
   def default_json_headers(token)
@@ -33,4 +39,3 @@ end
 RSpec.configure do |config|
   config.include RequestHelpers, type: :request
 end
-

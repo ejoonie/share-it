@@ -85,6 +85,123 @@ RSpec.describe "Topics API", type: :request do
     end
   end
 
+  # POST /api/v1/topics/:id/follow
+  describe "POST /api/v1/topics/:id/follow" do
+    it "creates a follow for current user" do
+      topic = topics(:two)
+
+      post_json "/api/v1/topics/#{topic.id}/follow"
+
+      expect(response).to have_http_status(201)
+      expect(json_response["topic_id"]).to eq(topic.id)
+      expect(json_response["user_id"]).to eq(users(:user_one).id)
+      expect(json_response["permissions"]).to eq(%w[create edit])
+      expect(json_response["followed_at"]).not_to be_nil
+    end
+
+    it "returns 404 for non-existent topic" do
+      post_json "/api/v1/topics/999999/follow"
+
+      expect(response).to have_http_status(404)
+    end
+  end
+
+  # DELETE /api/v1/topics/:id/follow
+  describe "DELETE /api/v1/topics/:id/follow" do
+    it "unfollows a topic" do
+      topic = topics(:one)
+
+      delete_json "/api/v1/topics/#{topic.id}/follow"
+
+      expect(response).to have_http_status(204)
+      expect(TopicFollow.find_by(topic: topic, user: users(:user_one))).to be_nil
+    end
+
+    it "returns 404 when follow does not exist" do
+      topic = topics(:two)
+
+      delete_json "/api/v1/topics/#{topic.id}/follow"
+
+      expect(response).to have_http_status(404)
+    end
+  end
+
+  # GET /api/v1/topics/:id/follows
+  describe "GET /api/v1/topics/:id/follows" do
+    it "lists topic follows for owner" do
+      topic = topics(:one)
+
+      get "/api/v1/topics/#{topic.id}/follows",
+        headers: { "x-token" => "token_user_one" }
+
+      expect(response).to have_http_status(200)
+      expect(json_response["total"]).to be >= 1
+      first_record = json_response["records"].first
+      expect(first_record).to include("permissions", "user")
+      expect(first_record["user"]).to include("id", "email", "name")
+    end
+
+    it "returns 403 when non-owner requests follow list" do
+      topic = topics(:one)
+
+      get "/api/v1/topics/#{topic.id}/follows",
+        headers: { "x-token" => "token_user_two" }
+
+      expect(response).to have_http_status(403)
+    end
+  end
+
+  # POST /api/v1/topics/:id/follows
+  describe "POST /api/v1/topics/:id/follows" do
+    it "invites a follower by email" do
+      topic = topics(:one)
+
+      post_json "/api/v1/topics/#{topic.id}/follows",
+        params: { email: "user2@example.com", permissions: %w[create admin] }
+
+      expect(response).to have_http_status(201)
+      expect(json_response["total"]).to eq(1)
+      record = json_response["records"].first
+      expect(record["permissions"]).to eq(%w[create admin])
+      expect(record["invited_at"]).not_to be_nil
+      expect(record["user"]["email"]).to eq("user2@example.com")
+    end
+
+    it "returns 404 when invited user does not exist" do
+      topic = topics(:one)
+
+      post_json "/api/v1/topics/#{topic.id}/follows",
+        params: { email: "missing@example.com", permissions: %w[create] }
+
+      expect(response).to have_http_status(404)
+    end
+  end
+
+  # PUT /api/v1/topics/:id/follows/:follow_id
+  describe "PUT /api/v1/topics/:id/follows/:follow_id" do
+    it "updates follow permissions" do
+      topic = topics(:one)
+      follow = topic_follows(:one)
+
+      put_json "/api/v1/topics/#{topic.id}/follows/#{follow.id}",
+        params: { permissions: %w[create edit admin] }
+
+      expect(response).to have_http_status(200)
+      expect(json_response["permissions"]).to eq(%w[create edit admin])
+    end
+
+    it "returns 403 when non-owner updates permissions" do
+      topic = topics(:one)
+      follow = topic_follows(:one)
+
+      put_json "/api/v1/topics/#{topic.id}/follows/#{follow.id}",
+        params: { permissions: %w[create] },
+        token: "token_user_two"
+
+      expect(response).to have_http_status(403)
+    end
+  end
+
   # PATCH /api/v1/topics/:id
   describe "PATCH /api/v1/topics/:id" do
     it "updates a topic title" do
@@ -161,4 +278,3 @@ RSpec.describe "Topics API", type: :request do
     end
   end
 end
-

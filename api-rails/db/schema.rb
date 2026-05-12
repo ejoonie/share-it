@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_08_180000) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_12_203000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -25,6 +25,19 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_08_180000) do
     t.index ["user_id"], name: "index_topics_on_user_id"
   end
 
+  create_table "topic_follows", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "topic_id", null: false
+    t.datetime "followed_at"
+    t.datetime "invited_at"
+    t.jsonb "permissions", default: ["create", "edit"], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["topic_id"], name: "index_topic_follows_on_topic_id"
+    t.index ["user_id", "topic_id"], name: "index_topic_follows_on_user_id_and_topic_id", unique: true
+    t.index ["user_id"], name: "index_topic_follows_on_user_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "email", null: false
     t.string "nick_name", null: false
@@ -36,4 +49,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_08_180000) do
   end
 
   add_foreign_key "topics", "users"
+  add_foreign_key "topic_follows", "topics"
+  add_foreign_key "topic_follows", "users"
 end
