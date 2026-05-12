@@ -38,10 +38,15 @@ jobs:
         with:
           ruby-version: "3.4.4"
           bundler-cache: true
+          working-directory: api-rails
 
       - name: Set up database
-        run: cd api-rails && bundle exec rails db:schema:load
+        run: bundle exec rails db:schema:load
+        with:
+          working-directory: api-rails
 
       - name: Run tests
-        run: cd api-rails && bundle exec rspec spec/
+        run: bundle exec rspec spec/
+        with:
+          working-directory: api-rails
 
