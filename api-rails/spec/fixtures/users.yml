@@ -1,0 +1,9 @@
+user_one:
+  email: "user1@example.com"
+  nick_name: "User One"
+  token: "token_user_one"
+
+user_two:
+  email: "user2@example.com"
+  nick_name: "User Two"
+  token: "token_user_two"

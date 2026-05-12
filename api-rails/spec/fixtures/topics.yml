@@ -1,17 +1,17 @@
 one:
-  owner_id: "user_1"
+  user: user_one
   title: "First Topic"
   is_default: false
   deleted_at:
 
 two:
-  owner_id: "user_2"
+  user: user_two
   title: "Second Topic"
   is_default: false
   deleted_at:
 
 deleted:
-  owner_id: "user_1"
+  user: user_one
   title: "Deleted Topic"
   is_default: false
   deleted_at: "2026-01-01 00:00:00"

@@ -3,29 +3,29 @@ module RequestHelpers
     JSON.parse(response.body)
   end
 
-  def post_json(path, params: {}, headers: {}, user_id: "user_1")
+  def post_json(path, params: {}, headers: {}, token: "token_user_one")
     post path,
       params: params.to_json,
-      headers: default_json_headers(user_id).merge(headers)
+      headers: default_json_headers(token).merge(headers)
   end
 
-  def patch_json(path, params: {}, headers: {}, user_id: "user_1")
+  def patch_json(path, params: {}, headers: {}, token: "token_user_one")
     patch path,
       params: params.to_json,
-      headers: default_json_headers(user_id).merge(headers)
+      headers: default_json_headers(token).merge(headers)
   end
 
-  def delete_json(path, headers: {}, user_id: "user_1")
+  def delete_json(path, headers: {}, token: "token_user_one")
     delete path,
-      headers: default_json_headers(user_id).merge(headers)
+      headers: default_json_headers(token).merge(headers)
   end
 
   private
 
-  def default_json_headers(user_id)
+  def default_json_headers(token)
     {
       "Content-Type" => "application/json",
-      "x-user-id" => user_id
+      "x-token" => token
     }
   end
 end
