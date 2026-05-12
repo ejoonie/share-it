@@ -41,7 +41,8 @@ RSpec.describe "Topics API", type: :request do
         headers: { "x-token" => "token_user_one" }
 
       expect(response).to have_http_status(200)
-      topic_titles = json_response["topics"].map { |t| t["title"] }
+      topic_titles = json_response["records"].map { |t| t["title"] }
+      expect(json_response["total"]).to be_a(Integer)
       expect(topic_titles).to include("First Topic")
       expect(topic_titles).not_to include("Second Topic")
       expect(topic_titles).not_to include("Deleted Topic")
@@ -69,6 +70,14 @@ RSpec.describe "Topics API", type: :request do
 
     it "returns 404 for soft-deleted topic on show" do
       topic = topics(:deleted)
+      get "/api/v1/topics/#{topic.id}",
+        headers: { "x-token" => "token_user_one" }
+
+      expect(response).to have_http_status(404)
+    end
+
+    it "returns 404 for topic owned by another user" do
+      topic = topics(:two)
       get "/api/v1/topics/#{topic.id}",
         headers: { "x-token" => "token_user_one" }
 

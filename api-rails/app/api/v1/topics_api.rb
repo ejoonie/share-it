@@ -32,15 +32,15 @@ module V1
       # GET /api/v1/topics/owned
       desc '내 토픽 목록'
       get :owned do
-        topics = Topic.where(user: current_user).order(created_at: :desc)
-        { topics: Entities::TopicEntity.represent(topics) }
+        topics = current_user.topics.order(created_at: :desc)
+        { total: topics.count, records: Entities::TopicEntity.represent(topics) }
       end
 
       route_param :id do
         # GET /api/v1/topics/:id
         desc '토픽 조회'
         get do
-          topic = Topic.find_by(id: params[:id])
+          topic = current_user.topics.find_by(id: params[:id])
           error!({ message: 'Topic not found' }, 404) if topic.nil?
           present topic, with: Entities::TopicEntity
         end
