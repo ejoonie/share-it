@@ -53,11 +53,14 @@ module V1
           topic = find_topic!
 
           topic_follow = TopicFollow.find_or_initialize_by(topic: topic, user: current_user)
-          topic_follow.followed_at = Time.current
-          topic_follow.permissions = %w[create edit] if topic_follow.permissions.blank?
-          topic_follow.save!
-
-          status topic_follow.previously_new_record? ? 201 : 200
+          if topic_follow.new_record?
+            topic_follow.followed_at = Time.current
+            topic_follow.permissions = topic.default_permissions
+            topic_follow.save!
+            status 201
+          else
+            status 200
+          end
           present topic_follow, with: Entities::TopicFollowEntity
         end
 
@@ -109,7 +112,7 @@ module V1
 
             topic_follow = TopicFollow.find_or_initialize_by(topic: topic, user: user)
             topic_follow.permissions = follow_params[:permissions] if follow_params[:permissions].present?
-            topic_follow.permissions = %w[create edit] if topic_follow.permissions.blank?
+            topic_follow.permissions = topic.default_permissions if topic_follow.permissions.blank?
             topic_follow.invited_at ||= Time.current
             topic_follow.save!
             topic_follow

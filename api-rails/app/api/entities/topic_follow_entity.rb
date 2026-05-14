@@ -6,12 +6,6 @@ module Entities
     expose :permissions
     expose :followed_at
     expose :invited_at
-    expose :user do |topic_follow|
-      {
-        id: topic_follow.user.id,
-        email: topic_follow.user.email,
-        name: topic_follow.user.nick_name
-      }
-    end
+    expose :user, using: Entities::UserEntity
   end
 end

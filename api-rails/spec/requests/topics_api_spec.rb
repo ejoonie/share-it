@@ -10,6 +10,8 @@ RSpec.describe "Topics API", type: :request do
       expect(response).to have_http_status(201)
       expect(json_response["title"]).to eq("New Topic")
       expect(json_response["user_id"]).to eq(users(:user_one).id)
+      expect(json_response["token"]).to be_present
+      expect(json_response["default_permissions"]).to eq(%w[create edit])
       expect(json_response["deleted_at"]).to be_nil
     end
 
@@ -99,6 +101,29 @@ RSpec.describe "Topics API", type: :request do
       expect(json_response["followed_at"]).not_to be_nil
     end
 
+    it "uses topic default_permissions when creating a follow" do
+      topic = topics(:two)
+      topic.update!(default_permissions: %w[create admin])
+
+      post_json "/api/v1/topics/#{topic.id}/follow"
+
+      expect(response).to have_http_status(201)
+      expect(json_response["permissions"]).to eq(%w[create admin])
+    end
+
+    it "does nothing when already followed" do
+      follow = topic_follows(:one)
+      original_followed_at = follow.followed_at
+      original_permissions = follow.permissions
+
+      post_json "/api/v1/topics/#{follow.topic_id}/follow"
+
+      expect(response).to have_http_status(200)
+      follow.reload
+      expect(follow.followed_at).to eq(original_followed_at)
+      expect(follow.permissions).to eq(original_permissions)
+    end
+
     it "returns 404 for non-existent topic" do
       post_json "/api/v1/topics/999999/follow"
 
@@ -138,7 +163,7 @@ RSpec.describe "Topics API", type: :request do
       expect(json_response["total"]).to be >= 1
       first_record = json_response["records"].first
       expect(first_record).to include("permissions", "user")
-      expect(first_record["user"]).to include("id", "email", "name")
+      expect(first_record["user"]).to include("id", "email", "nick_name")
     end
 
     it "returns 403 when non-owner requests follow list" do
@@ -174,6 +199,17 @@ RSpec.describe "Topics API", type: :request do
         params: { email: "missing@example.com", permissions: %w[create] }
 
       expect(response).to have_http_status(404)
+    end
+
+    it "uses topic default_permissions when permissions are omitted" do
+      topic = topics(:one)
+      topic.update!(default_permissions: %w[create delete])
+
+      post_json "/api/v1/topics/#{topic.id}/follows",
+        params: { email: "user2@example.com" }
+
+      expect(response).to have_http_status(201)
+      expect(json_response["records"].first["permissions"]).to eq(%w[create delete])
     end
   end
 
