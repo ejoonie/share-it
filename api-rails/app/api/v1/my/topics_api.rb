@@ -76,17 +76,7 @@ module V1
             people = params[:people] || []
 
             records = people.map do |follow_params|
-              email = follow_params[:email].to_s.strip
-              user = User.find_or_initialize_by(email: email)
-              user.nick_name ||= email.split('@').first
-              user.save! if user.new_record?
-
-              topic_follow = TopicFollow.find_or_initialize_by(topic: topic, user: user)
-              topic_follow.permissions = follow_params[:permissions] if follow_params[:permissions].present?
-              topic_follow.permissions = topic.default_permissions if topic_follow.permissions.blank?
-              topic_follow.invited_at ||= Time.current
-              topic_follow.save!
-              topic_follow
+              topic.invite(email: follow_params[:email].to_s.strip, permissions: follow_params[:permissions])
             end
 
             status 201

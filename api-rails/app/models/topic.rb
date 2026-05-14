@@ -16,6 +16,18 @@ class Topic < ApplicationRecord
     update!(deleted_at: Time.current)
   end
 
+  def invite(email:, permissions:)
+    user = User.find_or_initialize_by(email: email)
+    user.nick_name ||= email.split('@').first
+    user.save! if user.new_record?
+
+    topic_follow = TopicFollow.find_or_initialize_by(topic: self, user: user)
+    topic_follow.permissions = permissions.present? ? permissions : default_permissions
+    topic_follow.invited_at ||= Time.current
+    topic_follow.save!
+    topic_follow
+  end
+
   private
 
   def generate_token

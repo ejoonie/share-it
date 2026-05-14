@@ -58,4 +58,18 @@ RSpec.describe Topic, type: :model do
       expect(Topic.find_by(id: topic.id)).to be_nil
     end
   end
+
+  describe "#invite" do
+    it "invites people to topic" do
+      topic = topics(:one)
+      expect {
+        topic.invite(
+          email: users(:user_two).email,
+          permissions: ["create"],
+          )
+      }.to change {
+        topic.topic_follows.count
+      }.by(1)
+    end
+  end
 end

@@ -65,6 +65,7 @@ RSpec.describe "MyTopics API", type: :request do
   describe "GET /api/v1/my/topics/:id/follows" do
     it "lists topic follows for owner" do
       topic = topics(:one)
+      users(:user_two).follow(topic)
 
       get_json "/api/v1/my/topics/#{topic.id}/follows", login_user: users(:user_one)
 
@@ -129,7 +130,7 @@ RSpec.describe "MyTopics API", type: :request do
   describe "PUT /api/v1/my/topics/:id/follows/:follow_id" do
     it "updates follow permissions" do
       topic = topics(:one)
-      follow = topic_follows(:one)
+      follow = users(:user_two).follow(topic)
 
       put_json "/api/v1/my/topics/#{topic.id}/follows/#{follow.id}",
                login_user: users(:user_one),
@@ -141,7 +142,7 @@ RSpec.describe "MyTopics API", type: :request do
 
     it "returns 403 when non-owner updates permissions" do
       topic = topics(:one)
-      follow = topic_follows(:one)
+      follow = users(:user_two).follow(topic)
 
       put_json "/api/v1/my/topics/#{topic.id}/follows/#{follow.id}",
                login_user: users(:user_two),

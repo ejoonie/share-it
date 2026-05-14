@@ -20,13 +20,16 @@ RSpec.describe TopicFollow, type: :model do
       )
 
       expect(topic_follow).not_to be_valid
-      expect(topic_follow.errors[:permissions]).to include("contains invalid values")
+      expect(topic_follow.errors[:permissions].first).to include("contains invalid values")
     end
 
     it "is invalid for duplicated user/topic pair" do
+      topic = topics(:one)
+      user = users(:user_one)
+      user.follow(topic)
       topic_follow = TopicFollow.new(
-        topic: topics(:one),
-        user: users(:user_one),
+        topic: topic,
+        user: user,
         permissions: %w[create]
       )
 

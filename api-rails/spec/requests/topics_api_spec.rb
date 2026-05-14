@@ -41,11 +41,12 @@ RSpec.describe "Topics API", type: :request do
     end
 
     it "does nothing when already followed" do
-      follow = topic_follows(:one)
+      topic = topics(:two)
+      follow = users(:user_one).follow(topic)
       original_followed_at = follow.followed_at
       original_permissions = follow.permissions
 
-      post_json "/api/v1/topics/#{follow.topic.token}/follow", login_user: users(:user_one)
+      post_json "/api/v1/topics/#{topic.token}/follow", login_user: users(:user_one)
 
       expect(response).to have_http_status(200)
       follow.reload

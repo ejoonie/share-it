@@ -14,6 +14,6 @@ class TopicFollow < ApplicationRecord
     return if permissions.blank?
     return if permissions.is_a?(Array) && (permissions - ALLOWED_PERMISSIONS).empty?
 
-    errors.add(:permissions, "contains invalid values")
+    errors.add(:permissions, "contains invalid values #{permissions}")
   end
 end
