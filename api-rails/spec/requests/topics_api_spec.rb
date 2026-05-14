@@ -5,8 +5,7 @@ RSpec.describe "Topics API", type: :request do
   describe "GET /api/v1/topics/:token" do
     it "shows a topic" do
       topic = topics(:one)
-      get "/api/v1/topics/#{topic.token}",
-          headers: { "x-token" => "token_user_one" }
+      get_json "/api/v1/topics/#{topic.token}", login_user: users(:user_one)
 
       expect(response).to have_http_status(200)
       expect(json_response["id"]).to eq(topic.id)
@@ -14,16 +13,14 @@ RSpec.describe "Topics API", type: :request do
     end
 
     it "returns 404 for non-existent topic" do
-      get "/api/v1/topics/xxxxx",
-          headers: { "x-token" => "token_user_one" }
+      get_json "/api/v1/topics/xxxxx", login_user: users(:user_one)
 
       expect(response).to have_http_status(404)
     end
 
     it "returns 404 for soft-deleted topic on show" do
       topic = topics(:deleted)
-      get "/api/v1/topics/#{topic.token}",
-          headers: { "x-token" => "token_user_one" }
+      get_json "/api/v1/topics/#{topic.token}", login_user: users(:user_one)
 
       expect(response).to have_http_status(404)
     end
@@ -34,7 +31,7 @@ RSpec.describe "Topics API", type: :request do
     it "creates a follow for current user" do
       topic = topics(:two)
 
-      post_json "/api/v1/topics/#{topic.token}/follow"
+      post_json "/api/v1/topics/#{topic.token}/follow", login_user: users(:user_one)
 
       expect(response).to have_http_status(201)
       expect(json_response["topic_id"]).to eq(topic.id)
@@ -48,7 +45,7 @@ RSpec.describe "Topics API", type: :request do
       original_followed_at = follow.followed_at
       original_permissions = follow.permissions
 
-      post_json "/api/v1/topics/#{follow.topic.token}/follow"
+      post_json "/api/v1/topics/#{follow.topic.token}/follow", login_user: users(:user_one)
 
       expect(response).to have_http_status(200)
       follow.reload
@@ -57,7 +54,7 @@ RSpec.describe "Topics API", type: :request do
     end
 
     it "returns 404 for non-existent topic" do
-      post_json "/api/v1/topics/999999/follow"
+      post_json "/api/v1/topics/999999/follow", login_user: users(:user_one)
 
       expect(response).to have_http_status(404)
     end

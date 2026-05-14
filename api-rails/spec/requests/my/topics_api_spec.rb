@@ -4,8 +4,7 @@ RSpec.describe "MyTopics API", type: :request do
   # GET /api/v1/my/topics/owned
   describe "GET /api/v1/my/topics/owned" do
     it "lists owned topics" do
-      get "/api/v1/my/topics/owned",
-          headers: { "x-token" => "token_user_one" }
+      get_json "/api/v1/my/topics/owned", login_user: users(:user_one)
 
       expect(response).to have_http_status(200)
       topic_titles = json_response["records"].map { |t| t["title"] }
@@ -24,8 +23,7 @@ RSpec.describe "MyTopics API", type: :request do
       expect {
         users(:user_one).follow(topic)
       }.to change {
-        get "/api/v1/my/topics/subscribed",
-            headers: { "x-token" => users(:user_one).token }
+        get_json "/api/v1/my/topics/subscribed", login_user: users(:user_one)
         json_response["total"]
       }.by(1)
     end
@@ -35,8 +33,7 @@ RSpec.describe "MyTopics API", type: :request do
   describe "GET /api/v1/my/topics/:id" do
     it "shows a topic" do
       topic = topics(:one)
-      get "/api/v1/my/topics/#{topic.id}",
-          headers: { "x-token" => "token_user_one" }
+      get_json "/api/v1/my/topics/#{topic.id}", login_user: users(:user_one)
 
       expect(response).to have_http_status(200)
       expect(json_response["id"]).to eq(topic.id)
@@ -44,24 +41,21 @@ RSpec.describe "MyTopics API", type: :request do
     end
 
     it "returns 404 for non-existent topic" do
-      get "/api/v1/my/topics/999999",
-          headers: { "x-token" => "token_user_one" }
+      get_json "/api/v1/my/topics/999999", login_user: users(:user_one)
 
       expect(response).to have_http_status(404)
     end
 
     it "returns 404 for soft-deleted topic on show" do
       topic = topics(:deleted)
-      get "/api/v1/my/topics/#{topic.id}",
-          headers: { "x-token" => "token_user_one" }
+      get_json "/api/v1/my/topics/#{topic.id}", login_user: users(:user_one)
 
       expect(response).to have_http_status(404)
     end
 
     it "returns 404 for topic owned by another user" do
       topic = topics(:two)
-      get "/api/v1/my/topics/#{topic.id}",
-          headers: { "x-token" => "token_user_one" }
+      get_json "/api/v1/my/topics/#{topic.id}", login_user: users(:user_one)
 
       expect(response).to have_http_status(404)
     end
@@ -72,8 +66,7 @@ RSpec.describe "MyTopics API", type: :request do
     it "lists topic follows for owner" do
       topic = topics(:one)
 
-      get "/api/v1/my/topics/#{topic.id}/follows",
-          headers: { "x-token" => "token_user_one" }
+      get_json "/api/v1/my/topics/#{topic.id}/follows", login_user: users(:user_one)
 
       expect(response).to have_http_status(200)
       expect(json_response["total"]).to be >= 1
@@ -85,8 +78,7 @@ RSpec.describe "MyTopics API", type: :request do
     it "returns 403 when non-owner requests follow list" do
       topic = topics(:one)
 
-      get "/api/v1/my/topics/#{topic.id}/follows",
-          headers: { "x-token" => "token_user_two" }
+      get_json "/api/v1/my/topics/#{topic.id}/follows", login_user: users(:user_two)
 
       expect(response).to have_http_status(404)
     end
@@ -98,6 +90,7 @@ RSpec.describe "MyTopics API", type: :request do
       topic = topics(:one)
 
       post_json "/api/v1/my/topics/#{topic.id}/invitations",
+                login_user: users(:user_one),
                 params: { people: [{ email: "user2@example.com", permissions: %w[create admin] }] }
 
       expect(response).to have_http_status(201)
@@ -113,6 +106,7 @@ RSpec.describe "MyTopics API", type: :request do
 
       expect {
         post_json "/api/v1/my/topics/#{topic.id}/invitations",
+                  login_user: users(:user_one),
                   params: { people: [{ email: "missing@example.com", permissions: %w[create] }] }
       }.to change(User, :count).by(1)
 
@@ -123,6 +117,7 @@ RSpec.describe "MyTopics API", type: :request do
       topic = topics(:one)
 
       post_json "/api/v1/my/topics/#{topic.id}/invitations",
+                login_user: users(:user_one),
                 params: { people: [{ email: "new_default_permissions_user@example.com" }] }
 
       expect(response).to have_http_status(201)
@@ -137,6 +132,7 @@ RSpec.describe "MyTopics API", type: :request do
       follow = topic_follows(:one)
 
       put_json "/api/v1/my/topics/#{topic.id}/follows/#{follow.id}",
+               login_user: users(:user_one),
                params: { permissions: %w[create edit admin] }
 
       expect(response).to have_http_status(200)
@@ -148,8 +144,8 @@ RSpec.describe "MyTopics API", type: :request do
       follow = topic_follows(:one)
 
       put_json "/api/v1/my/topics/#{topic.id}/follows/#{follow.id}",
-               params: { permissions: %w[create] },
-               token: "token_user_two"
+               login_user: users(:user_two),
+               params: { permissions: %w[create] }
 
       expect(response).to have_http_status(404)
     end
@@ -160,6 +156,7 @@ RSpec.describe "MyTopics API", type: :request do
     it "updates a topic title" do
       topic = topics(:one)
       patch_json "/api/v1/my/topics/#{topic.id}",
+                 login_user: users(:user_one),
                  params: { title: "Updated Title" }
 
       expect(response).to have_http_status(200)
@@ -169,6 +166,7 @@ RSpec.describe "MyTopics API", type: :request do
     it "strips whitespace from title on update" do
       topic = topics(:one)
       patch_json "/api/v1/my/topics/#{topic.id}",
+                 login_user: users(:user_one),
                  params: { title: "  Trimmed  " }
 
       expect(response).to have_http_status(200)
@@ -178,6 +176,7 @@ RSpec.describe "MyTopics API", type: :request do
     it "returns 403 when updating topic owned by another user" do
       topic = topics(:two)
       patch_json "/api/v1/my/topics/#{topic.id}",
+                 login_user: users(:user_one),
                  params: { title: "Hacked" }
 
       expect(response).to have_http_status(403)
@@ -185,6 +184,7 @@ RSpec.describe "MyTopics API", type: :request do
 
     it "returns 404 when updating non-existent topic" do
       patch_json "/api/v1/my/topics/999999",
+                 login_user: users(:user_one),
                  params: { title: "New Title" }
 
       expect(response).to have_http_status(404)
@@ -193,6 +193,7 @@ RSpec.describe "MyTopics API", type: :request do
     it "returns 400 when title is blank on update" do
       topic = topics(:one)
       patch_json "/api/v1/my/topics/#{topic.id}",
+                 login_user: users(:user_one),
                  params: { title: "   " }
 
       expect(response).to have_http_status(400)
@@ -203,7 +204,7 @@ RSpec.describe "MyTopics API", type: :request do
   describe "DELETE /api/v1/my/topics/:id" do
     it "soft deletes a topic" do
       topic = topics(:one)
-      delete_json "/api/v1/my/topics/#{topic.id}"
+      delete_json "/api/v1/my/topics/#{topic.id}", login_user: users(:user_one)
 
       expect(response).to have_http_status(200)
       expect(json_response["deleted_at"]).not_to be_nil
@@ -212,20 +213,20 @@ RSpec.describe "MyTopics API", type: :request do
 
     it "returns 403 when deleting topic owned by another user" do
       topic = topics(:two)
-      delete_json "/api/v1/my/topics/#{topic.id}"
+      delete_json "/api/v1/my/topics/#{topic.id}", login_user: users(:user_one)
 
       expect(response).to have_http_status(403)
     end
 
     it "returns 404 when deleting non-existent topic" do
-      delete_json "/api/v1/my/topics/999999"
+      delete_json "/api/v1/my/topics/999999", login_user: users(:user_one)
 
       expect(response).to have_http_status(404)
     end
 
     it "returns 404 when deleting already soft-deleted topic" do
       topic = topics(:deleted)
-      delete_json "/api/v1/my/topics/#{topic.id}"
+      delete_json "/api/v1/my/topics/#{topic.id}", login_user: users(:user_one)
 
       expect(response).to have_http_status(404)
     end
