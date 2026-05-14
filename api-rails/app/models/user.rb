@@ -9,6 +9,25 @@ class User < ApplicationRecord
   has_many :topic_follows, dependent: :destroy
   has_many :followed_topics, through: :topic_follows, source: :topic
 
+  def follow(topic)
+    topic_follow = TopicFollow.find_or_initialize_by(topic: topic, user: self)
+    if topic_follow.new_record?
+      topic_follow.followed_at = Time.current
+      topic_follow.permissions = topic.default_permissions
+      topic_follow.save!
+    end
+    topic_follow
+  end
+
+  def unfollow(topic)
+    topic_follow = TopicFollow.find_by(topic: topic, user: self)
+    topic_follow&.destroy!
+  end
+
+  def subscribed_topics
+    Topic.where(id: topic_follows.select(:topic_id))
+  end
+
   private
 
   def generate_token
