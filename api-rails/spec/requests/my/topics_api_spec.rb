@@ -29,6 +29,53 @@ RSpec.describe "MyTopics API", type: :request do
     end
   end
 
+  # DELETE /api/v1/my/topics/subscribed/:id
+  describe "DELETE /api/v1/my/topics/subscribed/:id" do
+    it "unfollows a subscribed topic" do
+      topic = topics(:two)
+      users(:user_one).follow(topic)
+
+      expect {
+        delete_json "/api/v1/my/topics/subscribed/#{topic.id}", login_user: users(:user_one)
+      }.to change(TopicFollow, :count).by(-1)
+
+      expect(response).to have_http_status(204)
+    end
+
+    it "returns 404 when topic is not subscribed" do
+      topic = topics(:two) # user_one has not followed this
+
+      delete_json "/api/v1/my/topics/subscribed/#{topic.id}", login_user: users(:user_one)
+
+      expect(response).to have_http_status(404)
+    end
+
+    it "returns 404 for non-existent topic" do
+      delete_json "/api/v1/my/topics/subscribed/999999", login_user: users(:user_one)
+
+      expect(response).to have_http_status(404)
+    end
+
+    it "returns 401 when not authenticated" do
+      topic = topics(:two)
+      users(:user_one).follow(topic)
+
+      delete "/api/v1/my/topics/subscribed/#{topic.id}"
+
+      expect(response).to have_http_status(401)
+    end
+
+    it "cannot unfollow another user's subscription" do
+      topic = topics(:two)
+      users(:user_one).follow(topic)
+
+      # user_two tries to unfollow user_one's subscription
+      delete_json "/api/v1/my/topics/subscribed/#{topic.id}", login_user: users(:user_two)
+
+      expect(response).to have_http_status(404)
+    end
+  end
+
   # GET /api/v1/my/topics/:id
   describe "GET /api/v1/my/topics/:id" do
     it "shows a topic" do

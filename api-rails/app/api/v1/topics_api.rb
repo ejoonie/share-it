@@ -29,16 +29,8 @@ module V1
         desc '토픽 구독 (공개 토픽)'
         post :follow do
           topic = find_topic_by_token!
-
-          topic_follow = TopicFollow.find_or_initialize_by(topic: topic, user: current_user)
-          if topic_follow.new_record?
-            topic_follow.followed_at = Time.current
-            topic_follow.permissions = topic.default_permissions
-            topic_follow.save!
-            status 201
-          else
-            status 200
-          end
+          topic_follow = current_user.follow(topic) # 이미 팔로우한 경우에도 아무런 변화 없이 성공 처리
+          status 201
           present topic_follow, with: Entities::TopicFollowEntity
         end
       end

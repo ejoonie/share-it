@@ -36,17 +36,27 @@ module V1
         end
 
         # GET /api/v1/my/topics/owned
-        desc '내 토픽 목록'
+        desc '내가 생성한 토픽 목록'
         get :owned do
           topics = current_user.topics.order(created_at: :desc)
           { total: topics.count, records: Entities::TopicEntity.represent(topics) }
         end
 
         # GET /api/v1/my/topics/subscribed
-        desc '내 구독 토픽'
+        desc '내가 구독하는 토픽'
         get :subscribed do
           topics = current_user.subscribed_topics.order(created_at: :desc)
           { total: topics.count, records: Entities::TopicEntity.represent(topics) }
+        end
+
+        # DELETE /api/v1/my/topics/subscribed/:id
+        desc '내가 구독하는 토픽 unfollow'
+        delete 'subscribed/:id' do
+          topic = current_user.subscribed_topics.find_by(id: params[:id])
+          error!({ message: 'Subscription not found' }, 404) if topic.nil?
+
+          current_user.unfollow(topic)
+          status 204
         end
 
         route_param :id do

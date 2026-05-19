@@ -31,7 +31,9 @@ RSpec.describe "Topics API", type: :request do
     it "creates a follow for current user" do
       topic = topics(:two)
 
-      post_json "/api/v1/topics/#{topic.token}/follow", login_user: users(:user_one)
+      expect {
+        post_json "/api/v1/topics/#{topic.token}/follow", login_user: users(:user_one)
+      }.to change(TopicFollow, :count).by(1)
 
       expect(response).to have_http_status(201)
       expect(json_response["topic_id"]).to eq(topic.id)
@@ -46,9 +48,11 @@ RSpec.describe "Topics API", type: :request do
       original_followed_at = follow.followed_at
       original_permissions = follow.permissions
 
-      post_json "/api/v1/topics/#{topic.token}/follow", login_user: users(:user_one)
+      expect {
+        post_json "/api/v1/topics/#{topic.token}/follow", login_user: users(:user_one)
+      }.not_to change(TopicFollow, :count)
 
-      expect(response).to have_http_status(200)
+      expect(response).to have_http_status(201)
       follow.reload
       expect(follow.followed_at).to eq(original_followed_at)
       expect(follow.permissions).to eq(original_permissions)
