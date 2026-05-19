@@ -29,6 +29,13 @@ RSpec.describe Topic, type: :model do
       expect(topic).not_to be_valid
       expect(topic.errors[:user]).to include("must exist")
     end
+
+    it "generates token and default_permissions before create" do
+      topic = Topic.create!(user: users(:user_one), title: "Generated Defaults Topic", is_default: false)
+
+      expect(topic.token).to match(/\A[0-9a-f\-]{36}\z/)
+      expect(topic.default_permissions).to eq(%w[create edit])
+    end
   end
 
   describe "scopes and soft delete" do
@@ -51,5 +58,18 @@ RSpec.describe Topic, type: :model do
       expect(Topic.find_by(id: topic.id)).to be_nil
     end
   end
-end
 
+  describe "#invite" do
+    it "invites people to topic" do
+      topic = topics(:one)
+      expect {
+        topic.invite(
+          email: users(:user_two).email,
+          permissions: ["create"],
+          )
+      }.to change {
+        topic.topic_follows.count
+      }.by(1)
+    end
+  end
+end

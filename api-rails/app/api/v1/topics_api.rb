@@ -8,68 +8,30 @@ module V1
         error!({ message: 'Unauthorized' }, 401) unless @current_user
         @current_user
       end
+
+      def find_topic_by_token!
+        topic = Topic.find_by(token: params[:token])
+        error!({ message: 'Topic not found' }, 404) if topic.nil?
+        topic
+      end
     end
 
     resource :topics do
-      # POST /api/v1/topics
-      desc '토픽 생성'
-      params do
-        requires :title, type: String, regexp: /\S/
-      end
-      post do
-        title = params[:title].strip
-
-        topic = Topic.create!(
-          user: current_user,
-          title: title,
-          is_default: false
-        )
-
-        status 201
-        present topic, with: Entities::TopicEntity
-      end
-
-      # GET /api/v1/topics/owned
-      desc '내 토픽 목록'
-      get :owned do
-        topics = current_user.topics.order(created_at: :desc)
-        { total: topics.count, records: Entities::TopicEntity.represent(topics) }
-      end
-
-      route_param :id do
-        # GET /api/v1/topics/:id
-        desc '토픽 조회'
+      route_param :token do
+        # GET /api/v1/topics/:token
+        desc '토픽 조회 (공개 토픽)'
         get do
-          topic = current_user.topics.find_by(id: params[:id])
-          error!({ message: 'Topic not found' }, 404) if topic.nil?
+          topic = find_topic_by_token!
           present topic, with: Entities::TopicEntity
         end
 
-        # PATCH /api/v1/topics/:id
-        desc '토픽 수정'
-        params do
-          requires :title, type: String, regexp: /\S/
-        end
-        patch do
-          topic = Topic.find_by(id: params[:id])
-          error!({ message: 'Topic not found' }, 404) if topic.nil?
-          error!({ message: 'Forbidden' }, 403) if topic.user_id != current_user.id
-
-          topic.update!(title: params[:title].strip)
-          present topic, with: Entities::TopicEntity
-        end
-
-        # DELETE /api/v1/topics/:id
-        desc '토픽 삭제'
-        delete do
-          topic = Topic.find_by(id: params[:id])
-          error!({ message: 'Topic not found' }, 404) if topic.nil?
-          error!({ message: 'Forbidden' }, 403) if topic.user_id != current_user.id
-
-          topic.soft_delete!
-          deleted_topic = Topic.unscoped.find(topic.id)
-          status 200
-          present deleted_topic, with: Entities::TopicEntity
+        # POST /api/v1/topics/:token/follow
+        desc '토픽 구독 (공개 토픽)'
+        post :follow do
+          topic = find_topic_by_token!
+          topic_follow = current_user.follow(topic) # 이미 팔로우한 경우에도 아무런 변화 없이 성공 처리
+          status 201
+          present topic_follow, with: Entities::TopicFollowEntity
         end
       end
     end
