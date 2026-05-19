@@ -10,9 +10,30 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_14_154000) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_19_200000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "entries", force: :cascade do |t|
+    t.bigint "topic_id", null: false
+    t.bigint "created_by_id", null: false
+    t.bigint "updated_by_id"
+    t.datetime "occurred_at"
+    t.string "kind"
+    t.string "currency", null: false, default: "usd"
+    t.integer "amount", null: false, default: 0
+    t.string "category"
+    t.string "title"
+    t.string "content"
+    t.boolean "checked", null: false, default: false
+    t.datetime "deleted_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["deleted_at"], name: "index_entries_on_deleted_at"
+    t.index ["topic_id"], name: "index_entries_on_topic_id"
+    t.index ["created_by_id"], name: "index_entries_on_created_by_id"
+    t.index ["updated_by_id"], name: "index_entries_on_updated_by_id"
+  end
 
   create_table "topics", force: :cascade do |t|
     t.string "title", null: false
@@ -51,6 +72,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_14_154000) do
     t.index ["token"], name: "index_users_on_token", unique: true
   end
 
+  add_foreign_key "entries", "topics"
+  add_foreign_key "entries", "users", column: "created_by_id"
+  add_foreign_key "entries", "users", column: "updated_by_id"
   add_foreign_key "topics", "users"
   add_foreign_key "topic_follows", "topics"
   add_foreign_key "topic_follows", "users"
