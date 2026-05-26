@@ -1,14 +1,8 @@
 module V1
   class TopicsAPI < Grape::API
-    helpers do
-      def current_user
-        token = headers['x-token'] || headers['X-Token']
-        error!({ message: 'x-token header is required' }, 401) unless token
-        @current_user ||= User.find_by(token: token)
-        error!({ message: 'Unauthorized' }, 401) unless @current_user
-        @current_user
-      end
+    helpers Helpers::AuthenticationHelper
 
+    helpers do
       def find_topic_by_token!
         topic = Topic.find_by(token: params[:token])
         error!({ message: 'Topic not found' }, 404) if topic.nil?
