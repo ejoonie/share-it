@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_19_200000) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_26_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -33,6 +33,16 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_19_200000) do
     t.index ["deleted_at"], name: "index_entries_on_deleted_at"
     t.index ["topic_id"], name: "index_entries_on_topic_id"
     t.index ["updated_by_id"], name: "index_entries_on_updated_by_id"
+  end
+
+  create_table "firebase_tokens", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "token", null: false
+    t.datetime "last_failed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["token"], name: "index_firebase_tokens_on_token", unique: true
+    t.index ["user_id"], name: "index_firebase_tokens_on_user_id"
   end
 
   create_table "topic_follows", force: :cascade do |t|
@@ -75,6 +85,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_19_200000) do
   add_foreign_key "entries", "topics"
   add_foreign_key "entries", "users", column: "created_by_id"
   add_foreign_key "entries", "users", column: "updated_by_id"
+  add_foreign_key "firebase_tokens", "users"
   add_foreign_key "topic_follows", "topics"
   add_foreign_key "topic_follows", "users"
   add_foreign_key "topics", "users"

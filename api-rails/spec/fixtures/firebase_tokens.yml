@@ -1,0 +1,4 @@
+firebase_token_one:
+  user: user_one
+  token: "valid_firebase_token_one"
+  last_failed_at:

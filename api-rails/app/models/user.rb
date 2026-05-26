@@ -6,6 +6,7 @@ class User < ApplicationRecord
   validates :token, presence: true, uniqueness: true
 
   has_many :topics
+  has_many :firebase_tokens, dependent: :destroy
   has_many :topic_follows, dependent: :destroy
   has_many :followed_topics, through: :topic_follows, source: :topic
   has_many :owned_entries, through: :topics, source: :entries
