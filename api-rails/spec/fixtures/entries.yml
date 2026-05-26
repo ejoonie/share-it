@@ -1,0 +1,55 @@
+entry_one:
+  topic: one
+  created_by: user_one
+  updated_by: user_one
+  occurred_at: "2026-01-15 10:00:00"
+  kind: "expense"
+  currency: "usd"
+  amount: 1000
+  category: "food"
+  title: "Lunch"
+  content: "Lunch with team"
+  checked: false
+  deleted_at:
+
+entry_two:
+  topic: one
+  created_by: user_two
+  updated_by: user_two
+  occurred_at: "2026-01-20 12:00:00"
+  kind: "income"
+  currency: "usd"
+  amount: 5000
+  category: "salary"
+  title: "Monthly salary"
+  content:
+  checked: true
+  deleted_at:
+
+entry_deleted:
+  topic: one
+  created_by: user_one
+  updated_by: user_one
+  occurred_at: "2026-01-01 00:00:00"
+  kind: "expense"
+  currency: "usd"
+  amount: 200
+  category: "misc"
+  title: "Deleted entry"
+  content:
+  checked: false
+  deleted_at: "2026-02-01 00:00:00"
+
+entry_in_topic_two:
+  topic: two
+  created_by: user_two
+  updated_by: user_two
+  occurred_at: "2026-01-10 09:00:00"
+  kind: "expense"
+  currency: "usd"
+  amount: 300
+  category: "transport"
+  title: "Taxi"
+  content:
+  checked: false
+  deleted_at:

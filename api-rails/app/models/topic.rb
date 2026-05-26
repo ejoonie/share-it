@@ -7,6 +7,7 @@ class Topic < ApplicationRecord
   belongs_to :user
   has_many :topic_follows, dependent: :destroy
   has_many :followers, through: :topic_follows, source: :user
+  has_many :entries, dependent: :destroy
 
   validates :title, presence: true
   validates :token, presence: true, uniqueness: true

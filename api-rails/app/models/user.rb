@@ -8,6 +8,9 @@ class User < ApplicationRecord
   has_many :topics
   has_many :topic_follows, dependent: :destroy
   has_many :followed_topics, through: :topic_follows, source: :topic
+  has_many :owned_entries, through: :topics, source: :entries
+  has_many :created_entries, class_name: 'Entry', foreign_key: 'created_by_id'
+  has_many :updated_entries, class_name: 'Entry', foreign_key: 'updated_by_id'
 
   def follow(topic)
     topic_follow = TopicFollow.find_or_initialize_by(topic: topic, user: self)
