@@ -49,6 +49,16 @@ RSpec.describe "MyEntries API", type: :request do
       expect(response).to have_http_status(404)
     end
 
+    it "returns 404 when topic belongs to another user" do
+      other_topic = topics(:two)
+
+      post_json "/api/v1/my/topics/#{other_topic.id}/entries",
+                login_user: users(:user_one),
+                params: { title: "Sneaky entry" }
+
+      expect(response).to have_http_status(404)
+    end
+
     it "returns 401 when not authenticated" do
       topic = topics(:one)
       post "/api/v1/my/topics/#{topic.id}/entries"
@@ -82,6 +92,13 @@ RSpec.describe "MyEntries API", type: :request do
 
       expect(response).to have_http_status(404)
     end
+
+    it "returns 404 when topic belongs to another user" do
+      other_topic = topics(:two)
+      get_json "/api/v1/my/topics/#{other_topic.id}/entries", login_user: users(:user_one)
+
+      expect(response).to have_http_status(404)
+    end
   end
 
   # GET /api/v1/my/topics/:topic_id/entries/:id
@@ -112,22 +129,31 @@ RSpec.describe "MyEntries API", type: :request do
 
       expect(response).to have_http_status(404)
     end
+
+    it "returns 404 when topic belongs to another user" do
+      other_topic = topics(:two)
+      entry = entries(:entry_in_topic_two)
+
+      get_json "/api/v1/my/topics/#{other_topic.id}/entries/#{entry.id}", login_user: users(:user_one)
+
+      expect(response).to have_http_status(404)
+    end
   end
 
   # PATCH /api/v1/my/topics/:topic_id/entries/:id
   describe "PATCH /api/v1/my/topics/:topic_id/entries/:id" do
-    it "updates an entry" do
+    it "updates an entry and sets updated_by to current user" do
       topic = topics(:one)
       entry = entries(:entry_one)
 
       patch_json "/api/v1/my/topics/#{topic.id}/entries/#{entry.id}",
-                 login_user: users(:user_two),
+                 login_user: users(:user_one),
                  params: { title: "Updated Title", amount: 999 }
 
       expect(response).to have_http_status(200)
       expect(json_response["title"]).to eq("Updated Title")
       expect(json_response["amount"]).to eq(999)
-      expect(json_response["updated_by_id"]).to eq(users(:user_two).id)
+      expect(json_response["updated_by_id"]).to eq(users(:user_one).id)
     end
 
     it "returns 404 for non-existent entry" do
@@ -135,6 +161,17 @@ RSpec.describe "MyEntries API", type: :request do
       patch_json "/api/v1/my/topics/#{topic.id}/entries/999999",
                  login_user: users(:user_one),
                  params: { title: "New Title" }
+
+      expect(response).to have_http_status(404)
+    end
+
+    it "returns 404 when topic belongs to another user" do
+      other_topic = topics(:two)
+      entry = entries(:entry_in_topic_two)
+
+      patch_json "/api/v1/my/topics/#{other_topic.id}/entries/#{entry.id}",
+                 login_user: users(:user_one),
+                 params: { title: "Hacked" }
 
       expect(response).to have_http_status(404)
     end
@@ -165,6 +202,16 @@ RSpec.describe "MyEntries API", type: :request do
       entry = entries(:entry_deleted)
 
       delete_json "/api/v1/my/topics/#{topic.id}/entries/#{entry.id}", login_user: users(:user_one)
+
+      expect(response).to have_http_status(404)
+    end
+
+    it "returns 404 when topic belongs to another user" do
+      other_topic = topics(:two)
+      entry = entries(:entry_in_topic_two)
+
+      delete_json "/api/v1/my/topics/#{other_topic.id}/entries/#{entry.id}",
+                  login_user: users(:user_one)
 
       expect(response).to have_http_status(404)
     end

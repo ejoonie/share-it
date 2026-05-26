@@ -39,3 +39,17 @@ entry_deleted:
   content:
   checked: false
   deleted_at: "2026-02-01 00:00:00"
+
+entry_in_topic_two:
+  topic: two
+  created_by: user_two
+  updated_by: user_two
+  occurred_at: "2026-01-10 09:00:00"
+  kind: "expense"
+  currency: "usd"
+  amount: 300
+  category: "transport"
+  title: "Taxi"
+  content:
+  checked: false
+  deleted_at:
