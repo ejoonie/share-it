@@ -1,7 +1,7 @@
 module V1
   module My
     class TopicsAPI < Grape::API
-      helpers Helpers::AuthenticationHelper
+      helpers ::Helpers::AuthenticationHelper
 
       helpers do
         def find_my_topic!

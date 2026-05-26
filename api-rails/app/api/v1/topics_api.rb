@@ -1,6 +1,6 @@
 module V1
   class TopicsAPI < Grape::API
-    helpers Helpers::AuthenticationHelper
+    helpers ::Helpers::AuthenticationHelper
 
     helpers do
       def find_topic_by_token!

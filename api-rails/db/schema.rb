@@ -20,19 +20,32 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_19_200000) do
     t.bigint "updated_by_id"
     t.datetime "occurred_at"
     t.string "kind"
-    t.string "currency", null: false, default: "usd"
-    t.integer "amount", null: false, default: 0
+    t.string "currency", default: "usd", null: false
+    t.integer "amount", default: 0, null: false
     t.string "category"
     t.string "title"
     t.string "content"
-    t.boolean "checked", null: false, default: false
+    t.boolean "checked", default: false, null: false
     t.datetime "deleted_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["created_by_id"], name: "index_entries_on_created_by_id"
     t.index ["deleted_at"], name: "index_entries_on_deleted_at"
     t.index ["topic_id"], name: "index_entries_on_topic_id"
-    t.index ["created_by_id"], name: "index_entries_on_created_by_id"
     t.index ["updated_by_id"], name: "index_entries_on_updated_by_id"
+  end
+
+  create_table "topic_follows", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "topic_id", null: false
+    t.datetime "followed_at"
+    t.datetime "invited_at"
+    t.jsonb "permissions", default: ["create", "edit"], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["topic_id"], name: "index_topic_follows_on_topic_id"
+    t.index ["user_id", "topic_id"], name: "index_topic_follows_on_user_id_and_topic_id", unique: true
+    t.index ["user_id"], name: "index_topic_follows_on_user_id"
   end
 
   create_table "topics", force: :cascade do |t|
@@ -49,19 +62,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_19_200000) do
     t.index ["user_id"], name: "index_topics_on_user_id"
   end
 
-  create_table "topic_follows", force: :cascade do |t|
-    t.bigint "user_id", null: false
-    t.bigint "topic_id", null: false
-    t.datetime "followed_at"
-    t.datetime "invited_at"
-    t.jsonb "permissions", default: ["create", "edit"], null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["topic_id"], name: "index_topic_follows_on_topic_id"
-    t.index ["user_id", "topic_id"], name: "index_topic_follows_on_user_id_and_topic_id", unique: true
-    t.index ["user_id"], name: "index_topic_follows_on_user_id"
-  end
-
   create_table "users", force: :cascade do |t|
     t.string "email", null: false
     t.string "nick_name", null: false
@@ -75,7 +75,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_19_200000) do
   add_foreign_key "entries", "topics"
   add_foreign_key "entries", "users", column: "created_by_id"
   add_foreign_key "entries", "users", column: "updated_by_id"
-  add_foreign_key "topics", "users"
   add_foreign_key "topic_follows", "topics"
   add_foreign_key "topic_follows", "users"
+  add_foreign_key "topics", "users"
 end

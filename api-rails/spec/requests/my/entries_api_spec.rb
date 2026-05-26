@@ -145,15 +145,17 @@ RSpec.describe "MyEntries API", type: :request do
     it "updates an entry and sets updated_by to current user" do
       topic = topics(:one)
       entry = entries(:entry_one)
+      login_user = users(:user_one)
+      entry.update(topic: topic)
 
       patch_json "/api/v1/my/topics/#{topic.id}/entries/#{entry.id}",
-                 login_user: users(:user_one),
+                 login_user: login_user,
                  params: { title: "Updated Title", amount: 999 }
 
       expect(response).to have_http_status(200)
       expect(json_response["title"]).to eq("Updated Title")
       expect(json_response["amount"]).to eq(999)
-      expect(json_response["updated_by_id"]).to eq(users(:user_one).id)
+      expect(json_response["updated_by_id"]).to eq(login_user.id)
     end
 
     it "returns 404 for non-existent entry" do
