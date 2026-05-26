@@ -25,9 +25,9 @@ module V1
         user = User.create!(email: email, nick_name: nick_name)
       end
 
-      FirebaseToken.find_or_create_by!(token: firebase_token) do |ft|
-        ft.user = user
-      end
+      ft = FirebaseToken.find_or_initialize_by(token: firebase_token)
+      ft.user = user
+      ft.save!
 
       status 200
       present user, with: Entities::UserEntity
