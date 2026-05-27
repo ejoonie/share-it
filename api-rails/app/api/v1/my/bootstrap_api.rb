@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 module V1
-  class MeAPI < Grape::API
-    helpers ::Helpers::AuthenticationHelper
+  module My
+    class BootstrapAPI < Grape::API
+      helpers ::Helpers::AuthenticationHelper
 
-    resource :me do
-      # GET /api/v1/me/bootstrap
+      # GET /api/v1/my/bootstrap
       desc 'Initialize user with default topic and starter entries'
       get :bootstrap do
         topic = nil

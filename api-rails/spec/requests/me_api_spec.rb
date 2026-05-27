@@ -2,13 +2,13 @@
 
 require 'rails_helper'
 
-RSpec.describe 'Me API', type: :request do
-  describe 'GET /api/v1/me/bootstrap' do
+RSpec.describe 'My Bootstrap API', type: :request do
+  describe 'GET /api/v1/my/bootstrap' do
     it 'creates a default topic and starter entries when user has no topics' do
       user = users(:user_three)
 
       expect do
-        get_json '/api/v1/me/bootstrap', login_user: user
+        get_json '/api/v1/my/bootstrap', login_user: user
       end.to change(Topic, :count).by(1).and change(Entry, :count).by(2)
 
       expect(response).to have_http_status(200)
@@ -38,7 +38,7 @@ RSpec.describe 'Me API', type: :request do
       existing_topic = user.topics.order(created_at: :asc).first
 
       expect do
-        get_json '/api/v1/me/bootstrap', login_user: user
+        get_json '/api/v1/my/bootstrap', login_user: user
       end.not_to change(Topic, :count)
 
       expect(response).to have_http_status(200)
@@ -48,11 +48,11 @@ RSpec.describe 'Me API', type: :request do
 
     it 'is idempotent after bootstrap data is created' do
       user = users(:user_three)
-      get_json '/api/v1/me/bootstrap', login_user: user
+      get_json '/api/v1/my/bootstrap', login_user: user
 
       topic_count = Topic.count
       entry_count = Entry.count
-      get_json '/api/v1/me/bootstrap', login_user: user
+      get_json '/api/v1/my/bootstrap', login_user: user
 
       expect(response).to have_http_status(200)
       expect(json_response['bootstrap_created']).to eq(false)
@@ -61,7 +61,7 @@ RSpec.describe 'Me API', type: :request do
     end
 
     it 'returns 401 when not authenticated' do
-      get '/api/v1/me/bootstrap'
+      get '/api/v1/my/bootstrap'
 
       expect(response).to have_http_status(401)
     end
