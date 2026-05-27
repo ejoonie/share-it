@@ -3,6 +3,7 @@ module Entities
     expose :id
     expose :email
     expose :nick_name
+    expose :is_guest
     expose :token
     expose :created_at
     expose :updated_at

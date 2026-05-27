@@ -1,14 +1,17 @@
 user_one:
   email: "user1@example.com"
   nick_name: "User One"
+  is_guest: false
   token: "token_user_one"
 
 user_two:
   email: "user2@example.com"
   nick_name: "User Two"
+  is_guest: false
   token: "token_user_two"
 
 user_three:
   email: "user3@example.com"
   nick_name: "User Three"
+  is_guest: false
   token: "token_user_three"
