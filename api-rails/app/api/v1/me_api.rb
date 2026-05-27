@@ -6,7 +6,7 @@ module V1
 
     resource :me do
       # GET /api/v1/me/bootstrap
-      desc '사용자 부트스트랩'
+      desc 'Initialize user with default topic and starter entries'
       get :bootstrap do
         topic = nil
         entries = []
@@ -18,7 +18,6 @@ module V1
             entries = topic.entries.order(created_at: :asc).to_a if topic
           else
             topic = current_user.topics.create!(
-              user: current_user,
               title: '✨ My First Space',
               is_default: true
             )
