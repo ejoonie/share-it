@@ -11,6 +11,7 @@ RSpec.describe "Users API", type: :request do
 
       expect(response).to have_http_status(201)
       expect(json_response["email"]).to eq("#{guest_token}@example.com")
+      expect(json_response["nick_name"]).to eq("Guest-#{guest_token.first(8)}")
       expect(json_response["is_guest"]).to eq(true)
       expect(json_response["token"]).to be_present
     end

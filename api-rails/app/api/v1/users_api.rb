@@ -9,10 +9,11 @@ module V1
       post do
         guest_token = params[:guest_token].strip
         email = "#{guest_token}@example.com"
+        nick_name = "Guest-#{guest_token.first(8)}"
 
         error!({ message: 'Guest already registered' }, 409) if User.exists?(email: email)
 
-        user = User.create!(email: email, nick_name: 'Guest', is_guest: true)
+        user = User.create!(email: email, nick_name: nick_name, is_guest: true)
 
         status 201
         present user, with: Entities::UserEntity
