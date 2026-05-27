@@ -15,6 +15,7 @@ class BaseAPI < Grape::API
     }
   end
   mount V1::UsersAPI
+  mount V1::MeAPI
   mount V1::TopicsAPI
   namespace :my do
     mount V1::My::TopicsAPI
