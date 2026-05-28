@@ -66,9 +66,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_27_194000) do
     t.string "email", null: false
     t.string "nick_name", null: false
     t.string "token", null: false
-    t.boolean "is_guest", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "is_guest", default: false, null: false
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["token"], name: "index_users_on_token", unique: true
   end
