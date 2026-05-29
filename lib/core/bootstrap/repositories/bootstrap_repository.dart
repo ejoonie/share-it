@@ -1,8 +1,8 @@
-import '../../../core/api/api_client.dart';
-import '../../../core/storage/token_storage.dart';
-import '../../../core/utils/token_utils.dart';
-import '../../../features/auth/data/models/user_model.dart';
-import '../models/bootstrap_response.dart';
+import '../../api/api_client.dart';
+import '../../models/bootstrap_response.dart';
+import '../../models/user_model.dart';
+import '../../storage/token_storage.dart';
+import '../../utils/token_utils.dart';
 
 class BootstrapRepository {
   final ApiClient _apiClient;
