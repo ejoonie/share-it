@@ -9,6 +9,7 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   sp-api:
+    container_name: sp-api
     image: ruby:3.3
     working_dir: /app
     volumes:
