@@ -15,7 +15,7 @@ class ApiException implements Exception {
 class ApiClient {
   // Base URL for the rails-api. Override for production or local dev.
   static const String baseUrl =
-      String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:3000');
+      String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:3001');
 
   final http.Client _client;
 
