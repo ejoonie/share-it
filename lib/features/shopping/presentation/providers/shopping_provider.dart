@@ -1,10 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/core_providers.dart';
 import '../../data/models/shopping_item_model.dart';
 import '../../data/repositories/shopping_repository.dart';
 
-final shoppingRepositoryProvider =
-    Provider<ShoppingRepository>((_) => ShoppingRepository());
+final shoppingRepositoryProvider = Provider<ShoppingRepository?>((ref) {
+  final entryRepo = ref.watch(entryRepositoryProvider);
+  if (entryRepo == null) return null;
+  return ShoppingRepository(entryRepository: entryRepo);
+});
 
 class ShoppingState {
   final List<ShoppingItemModel> items;
@@ -43,15 +47,19 @@ class ShoppingState {
 }
 
 class ShoppingNotifier extends StateNotifier<ShoppingState> {
-  final ShoppingRepository _repository;
+  final ShoppingRepository? _repository;
 
   ShoppingNotifier(this._repository) : super(ShoppingState.initial()) {
-    _load();
+    if (_repository != null) {
+      _load();
+    }
   }
 
   Future<void> _load() async {
+    final repo = _repository;
+    if (repo == null) return;
     try {
-      final items = await _repository.getAllItems();
+      final items = await repo.getAllItems();
       state = state.copyWith(items: items, isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: () => e.toString());
@@ -59,8 +67,10 @@ class ShoppingNotifier extends StateNotifier<ShoppingState> {
   }
 
   Future<void> addItem(ShoppingItemModel item) async {
+    final repo = _repository;
+    if (repo == null) return;
     try {
-      final added = await _repository.addItem(item);
+      final added = await repo.addItem(item);
       state = state.copyWith(items: [...state.items, added]);
     } catch (e) {
       state = state.copyWith(error: () => e.toString());
@@ -68,8 +78,10 @@ class ShoppingNotifier extends StateNotifier<ShoppingState> {
   }
 
   Future<void> updateItem(ShoppingItemModel item) async {
+    final repo = _repository;
+    if (repo == null) return;
     try {
-      final updated = await _repository.updateItem(item);
+      final updated = await repo.updateItem(item);
       state = state.copyWith(
         items: state.items
             .map((i) => i.id == updated.id ? updated : i)
@@ -81,8 +93,10 @@ class ShoppingNotifier extends StateNotifier<ShoppingState> {
   }
 
   Future<void> deleteItem(int id) async {
+    final repo = _repository;
+    if (repo == null) return;
     try {
-      await _repository.deleteItem(id);
+      await repo.deleteItem(id);
       state = state.copyWith(
           items: state.items.where((i) => i.id != id).toList());
     } catch (e) {
@@ -91,8 +105,10 @@ class ShoppingNotifier extends StateNotifier<ShoppingState> {
   }
 
   Future<void> toggleItem(ShoppingItemModel item) async {
+    final repo = _repository;
+    if (repo == null) return;
     try {
-      final toggled = await _repository.toggleItem(item);
+      final toggled = await repo.toggleItem(item);
       state = state.copyWith(
         items: state.items
             .map((i) => i.id == toggled.id ? toggled : i)
@@ -104,8 +120,10 @@ class ShoppingNotifier extends StateNotifier<ShoppingState> {
   }
 
   Future<void> deleteCheckedItems() async {
+    final repo = _repository;
+    if (repo == null) return;
     try {
-      await _repository.deleteCheckedItems();
+      await repo.deleteCheckedItems();
       state = state.copyWith(
           items: state.items.where((i) => !i.isChecked).toList());
     } catch (e) {

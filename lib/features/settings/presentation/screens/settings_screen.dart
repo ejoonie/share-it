@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/database/database_helper.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -112,8 +111,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _clearAllData() async {
-    final db = await DatabaseHelper.instance.database;
-    await db.delete(DatabaseHelper.eventsTable);
+    // Data is stored on the server; no local data to delete.
   }
 
   void _confirmClearData(BuildContext context) {

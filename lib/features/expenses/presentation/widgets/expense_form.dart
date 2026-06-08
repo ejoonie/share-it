@@ -20,7 +20,7 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
   late TextEditingController _amountController;
-  late TextEditingController _noteController;
+  late TextEditingController _contentController;
   late TextEditingController _categoryController;
   late ExpenseType _type;
   late DateTime _selectedDate;
@@ -44,7 +44,7 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
     _amountController = TextEditingController(
       text: e != null ? (e.amount / 100.0).toStringAsFixed(2) : '',
     );
-    _noteController = TextEditingController(text: e?.note ?? '');
+    _contentController = TextEditingController(text: e?.content ?? '');
     _categoryController = TextEditingController(text: e?.category ?? '');
     _type = e?.type ?? ExpenseType.expense;
     _selectedDate = widget.initialDate;
@@ -54,7 +54,7 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
   void dispose() {
     _titleController.dispose();
     _amountController.dispose();
-    _noteController.dispose();
+    _contentController.dispose();
     _categoryController.dispose();
     super.dispose();
   }
@@ -80,7 +80,7 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
 
     if (widget.expense == null) {
       final now = DateTime.now();
-      final createdAt = DateTime(
+      final occurredAt = DateTime(
         _selectedDate.year,
         _selectedDate.month,
         _selectedDate.day,
@@ -92,15 +92,14 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
             ExpenseModel(
               title: _titleController.text.trim(),
               amount: amountCents,
-              note: _noteController.text.trim().isEmpty
+              content: _contentController.text.trim().isEmpty
                   ? null
-                  : _noteController.text.trim(),
+                  : _contentController.text.trim(),
               category: _categoryController.text.trim().isEmpty
                   ? null
                   : _categoryController.text.trim(),
               type: _type,
-              createdAt: createdAt,
-              updatedAt: createdAt,
+              occurredAt: occurredAt,
             ),
           );
     } else {
@@ -108,14 +107,14 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
             widget.expense!.copyWith(
               title: _titleController.text.trim(),
               amount: amountCents,
-              note: _noteController.text.trim().isEmpty
+              content: () => _contentController.text.trim().isEmpty
                   ? null
-                  : _noteController.text.trim(),
-              category: _categoryController.text.trim().isEmpty
+                  : _contentController.text.trim(),
+              category: () => _categoryController.text.trim().isEmpty
                   ? null
                   : _categoryController.text.trim(),
               type: _type,
-              updatedAt: DateTime.now(),
+              occurredAt: _selectedDate,
             ),
           );
     }
@@ -245,7 +244,7 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
             ),
             const SizedBox(height: 12),
             TextFormField(
-              controller: _noteController,
+              controller: _contentController,
               decoration: const InputDecoration(
                 labelText: 'Note',
                 prefixIcon: Icon(Icons.notes),

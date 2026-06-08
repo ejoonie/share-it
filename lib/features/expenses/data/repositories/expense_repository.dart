@@ -1,58 +1,68 @@
-import '../../../../core/database/database_helper.dart';
+import '../../../../core/repositories/entry_repository.dart';
 import '../models/expense_model.dart';
 
 class ExpenseRepository {
-  final DatabaseHelper _db = DatabaseHelper.instance;
-  static const String _table = DatabaseHelper.eventsTable;
+  final EntryRepository _entryRepository;
 
-  Future<List<ExpenseModel>> getAllExpenses() async {
-    final rows = await _db.queryWhere(
-      _table,
-      '${DatabaseHelper.colType} IN (?, ?)',
-      ['income', 'expense'],
-    );
-    return rows.map(ExpenseModel.fromMap).toList();
+  ExpenseRepository({required EntryRepository entryRepository})
+      : _entryRepository = entryRepository;
+
+  Future<List<ExpenseModel>> _fetchExpenses() async {
+    final entries = await _entryRepository.listEntries();
+    return entries
+        .where((e) => e.kind == 'income' || e.kind == 'expense')
+        .map(ExpenseModel.fromEntry)
+        .toList();
   }
 
+  Future<List<ExpenseModel>> getAllExpenses() => _fetchExpenses();
+
   Future<List<ExpenseModel>> getExpensesByMonth(int year, int month) async {
-    final startDate = DateTime(year, month, 1);
-    final endDate = DateTime(year, month + 1, 1);
-    final rows = await _db.queryWhere(
-      _table,
-      '${DatabaseHelper.colType} IN (?, ?) AND created_at >= ? AND created_at < ?',
-      ['income', 'expense', startDate.toIso8601String(), endDate.toIso8601String()],
-    );
-    return rows.map(ExpenseModel.fromMap).toList();
+    final expenses = await _fetchExpenses();
+    return expenses.where((e) {
+      return e.occurredAt.year == year && e.occurredAt.month == month;
+    }).toList();
   }
 
   Future<List<ExpenseModel>> getExpensesByDate(DateTime date) async {
+    final expenses = await _fetchExpenses();
     final start = DateTime(date.year, date.month, date.day);
     final end = start.add(const Duration(days: 1));
-    final rows = await _db.queryWhere(
-      _table,
-      '${DatabaseHelper.colType} IN (?, ?) AND created_at >= ? AND created_at < ?',
-      ['income', 'expense', start.toIso8601String(), end.toIso8601String()],
-    );
-    return rows.map(ExpenseModel.fromMap).toList();
+    return expenses
+        .where((e) =>
+            !e.occurredAt.isBefore(start) && e.occurredAt.isBefore(end))
+        .toList();
   }
 
   Future<ExpenseModel> addExpense(ExpenseModel expense) async {
-    final model = expense.copyWith(updatedAt: DateTime.now());
-    final id = await _db.insert(_table, model.toMap());
-    return model.copyWith(id: id);
+    final entry = await _entryRepository.createEntry(
+      occurredAt: expense.occurredAt,
+      kind: expense.type.name,
+      amount: expense.amount,
+      category: expense.category,
+      title: expense.title.isEmpty ? null : expense.title,
+      content: expense.content,
+    );
+    return ExpenseModel.fromEntry(entry);
   }
 
   Future<ExpenseModel> updateExpense(ExpenseModel expense) async {
-    final updated = expense.copyWith(updatedAt: DateTime.now());
-    await _db.update(_table, updated.toMap(), expense.id!);
-    return updated;
+    final entry = await _entryRepository.updateEntry(
+      expense.id!,
+      occurredAt: expense.occurredAt,
+      kind: expense.type.name,
+      amount: expense.amount,
+      category: expense.category,
+      title: expense.title.isEmpty ? null : expense.title,
+      content: expense.content,
+    );
+    return ExpenseModel.fromEntry(entry);
   }
 
   Future<void> deleteExpense(int id) async {
-    await _db.delete(_table, id);
+    await _entryRepository.deleteEntry(id);
   }
 
-  /// Returns a map of date -> {income, expense} totals for a given month.
   Future<Map<DateTime, Map<String, int>>> getMonthlySummary(
     int year,
     int month,
@@ -62,9 +72,9 @@ class ExpenseRepository {
 
     for (final e in expenses) {
       final day = DateTime(
-        e.createdAt.year,
-        e.createdAt.month,
-        e.createdAt.day,
+        e.occurredAt.year,
+        e.occurredAt.month,
+        e.occurredAt.day,
       );
       summary[day] ??= {'income': 0, 'expense': 0};
       if (e.isIncome) {

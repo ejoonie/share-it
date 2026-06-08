@@ -1,26 +1,30 @@
 class EntryModel {
   final int id;
   final int topicId;
-  final String kind;
-  final String? currency;
-  final int? amount;
+  final DateTime? occurredAt;
+  final String? kind;
+  final String currency;
+  final int amount;
   final String? category;
-  final String title;
+  final String? title;
   final String? content;
   final bool checked;
-  final String createdAt;
-  final String updatedAt;
+  final DateTime? deletedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   const EntryModel({
     required this.id,
     required this.topicId,
-    required this.kind,
-    this.currency,
-    this.amount,
+    this.occurredAt,
+    this.kind,
+    this.currency = 'usd',
+    this.amount = 0,
     this.category,
-    required this.title,
+    this.title,
     this.content,
-    required this.checked,
+    this.checked = false,
+    this.deletedAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -29,15 +33,53 @@ class EntryModel {
     return EntryModel(
       id: json['id'] as int,
       topicId: json['topic_id'] as int,
-      kind: json['kind'] as String,
-      currency: json['currency'] as String?,
-      amount: json['amount'] as int?,
+      occurredAt: json['occurred_at'] != null
+          ? DateTime.parse(json['occurred_at'] as String)
+          : null,
+      kind: json['kind'] as String?,
+      currency: (json['currency'] as String?) ?? 'usd',
+      amount: (json['amount'] as int?) ?? 0,
       category: json['category'] as String?,
-      title: json['title'] as String,
+      title: json['title'] as String?,
       content: json['content'] as String?,
-      checked: json['checked'] as bool,
-      createdAt: json['created_at'] as String,
-      updatedAt: json['updated_at'] as String,
+      checked: (json['checked'] as bool?) ?? false,
+      deletedAt: json['deleted_at'] != null
+          ? DateTime.parse(json['deleted_at'] as String)
+          : null,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+    );
+  }
+
+  EntryModel copyWith({
+    int? id,
+    int? topicId,
+    DateTime? Function()? occurredAt,
+    String? Function()? kind,
+    String? currency,
+    int? amount,
+    String? Function()? category,
+    String? Function()? title,
+    String? Function()? content,
+    bool? checked,
+    DateTime? Function()? deletedAt,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return EntryModel(
+      id: id ?? this.id,
+      topicId: topicId ?? this.topicId,
+      occurredAt: occurredAt != null ? occurredAt() : this.occurredAt,
+      kind: kind != null ? kind() : this.kind,
+      currency: currency ?? this.currency,
+      amount: amount ?? this.amount,
+      category: category != null ? category() : this.category,
+      title: title != null ? title() : this.title,
+      content: content != null ? content() : this.content,
+      checked: checked ?? this.checked,
+      deletedAt: deletedAt != null ? deletedAt() : this.deletedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }

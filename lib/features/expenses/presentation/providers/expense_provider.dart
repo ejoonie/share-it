@@ -1,10 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/core_providers.dart';
 import '../../data/models/expense_model.dart';
 import '../../data/repositories/expense_repository.dart';
 
-final expenseRepositoryProvider =
-    Provider<ExpenseRepository>((_) => ExpenseRepository());
+final expenseRepositoryProvider = Provider<ExpenseRepository?>((ref) {
+  final entryRepo = ref.watch(entryRepositoryProvider);
+  if (entryRepo == null) return null;
+  return ExpenseRepository(entryRepository: entryRepo);
+});
 
 class ExpenseState {
   final DateTime focusedMonth;
@@ -87,21 +91,25 @@ class ExpenseState {
 }
 
 class ExpenseNotifier extends StateNotifier<ExpenseState> {
-  final ExpenseRepository _repository;
+  final ExpenseRepository? _repository;
 
   ExpenseNotifier(this._repository) : super(ExpenseState.initial()) {
-    _load(state.focusedMonth);
+    if (_repository != null) {
+      _load(state.focusedMonth);
+    }
   }
 
   Future<void> _load(DateTime month) async {
+    final repo = _repository;
+    if (repo == null) return;
     state = state.copyWith(isLoading: true, error: () => null);
     try {
       final m = DateTime(month.year, month.month);
       final today = DateTime.now();
       final selectedDate = DateTime(today.year, today.month, today.day);
-      final monthly = await _repository.getExpensesByMonth(m.year, m.month);
-      final summary = await _repository.getMonthlySummary(m.year, m.month);
-      final daily = await _repository.getExpensesByDate(selectedDate);
+      final monthly = await repo.getExpensesByMonth(m.year, m.month);
+      final summary = await repo.getMonthlySummary(m.year, m.month);
+      final daily = await repo.getExpensesByDate(selectedDate);
       state = state.copyWith(
         focusedMonth: m,
         selectedDate: selectedDate,
@@ -116,12 +124,14 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
   }
 
   Future<void> changeMonth(DateTime month) async {
+    final repo = _repository;
+    if (repo == null) return;
     try {
       final m = DateTime(month.year, month.month);
       final selectedDate = DateTime(m.year, m.month, 1);
-      final monthly = await _repository.getExpensesByMonth(m.year, m.month);
-      final summary = await _repository.getMonthlySummary(m.year, m.month);
-      final daily = await _repository.getExpensesByDate(selectedDate);
+      final monthly = await repo.getExpensesByMonth(m.year, m.month);
+      final summary = await repo.getMonthlySummary(m.year, m.month);
+      final daily = await repo.getExpensesByDate(selectedDate);
       state = state.copyWith(
         focusedMonth: m,
         selectedDate: selectedDate,
@@ -135,8 +145,10 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
   }
 
   Future<void> selectDate(DateTime date) async {
+    final repo = _repository;
+    if (repo == null) return;
     try {
-      final daily = await _repository.getExpensesByDate(date);
+      final daily = await repo.getExpensesByDate(date);
       state = state.copyWith(
         selectedDate: date,
         selectedDateExpenses: daily,
@@ -147,8 +159,10 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
   }
 
   Future<void> addExpense(ExpenseModel expense) async {
+    final repo = _repository;
+    if (repo == null) return;
     try {
-      await _repository.addExpense(expense);
+      await repo.addExpense(expense);
       await _refresh();
     } catch (e) {
       state = state.copyWith(error: () => e.toString());
@@ -156,8 +170,10 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
   }
 
   Future<void> updateExpense(ExpenseModel expense) async {
+    final repo = _repository;
+    if (repo == null) return;
     try {
-      await _repository.updateExpense(expense);
+      await repo.updateExpense(expense);
       await _refresh();
     } catch (e) {
       state = state.copyWith(error: () => e.toString());
@@ -165,8 +181,10 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
   }
 
   Future<void> deleteExpense(int id) async {
+    final repo = _repository;
+    if (repo == null) return;
     try {
-      await _repository.deleteExpense(id);
+      await repo.deleteExpense(id);
       await _refresh();
     } catch (e) {
       state = state.copyWith(error: () => e.toString());
@@ -182,15 +200,17 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
   }
 
   Future<void> _refresh() async {
-    final monthly = await _repository.getExpensesByMonth(
+    final repo = _repository;
+    if (repo == null) return;
+    final monthly = await repo.getExpensesByMonth(
       state.focusedMonth.year,
       state.focusedMonth.month,
     );
-    final summary = await _repository.getMonthlySummary(
+    final summary = await repo.getMonthlySummary(
       state.focusedMonth.year,
       state.focusedMonth.month,
     );
-    final daily = await _repository.getExpensesByDate(state.selectedDate);
+    final daily = await repo.getExpensesByDate(state.selectedDate);
     state = state.copyWith(
       monthlyExpenses: monthly,
       selectedDateExpenses: daily,
