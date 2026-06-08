@@ -1,6 +1,8 @@
 class EntryModel {
   final int id;
   final int topicId;
+  final int createdById;
+  final int? updatedById;
   final DateTime? occurredAt;
   final String? kind;
   final String currency;
@@ -16,6 +18,8 @@ class EntryModel {
   const EntryModel({
     required this.id,
     required this.topicId,
+    required this.createdById,
+    this.updatedById,
     this.occurredAt,
     this.kind,
     this.currency = 'usd',
@@ -33,6 +37,8 @@ class EntryModel {
     return EntryModel(
       id: json['id'] as int,
       topicId: json['topic_id'] as int,
+      createdById: json['created_by_id'] as int,
+      updatedById: json['updated_by_id'] as int?,
       occurredAt: json['occurred_at'] != null
           ? DateTime.parse(json['occurred_at'] as String)
           : null,
@@ -54,6 +60,8 @@ class EntryModel {
   EntryModel copyWith({
     int? id,
     int? topicId,
+    int? createdById,
+    int? Function()? updatedById,
     DateTime? Function()? occurredAt,
     String? Function()? kind,
     String? currency,
@@ -69,6 +77,8 @@ class EntryModel {
     return EntryModel(
       id: id ?? this.id,
       topicId: topicId ?? this.topicId,
+      createdById: createdById ?? this.createdById,
+      updatedById: updatedById != null ? updatedById() : this.updatedById,
       occurredAt: occurredAt != null ? occurredAt() : this.occurredAt,
       kind: kind != null ? kind() : this.kind,
       currency: currency ?? this.currency,

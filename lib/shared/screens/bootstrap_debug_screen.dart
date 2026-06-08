@@ -220,20 +220,22 @@ class _EntryCard extends StatelessWidget {
           const SizedBox(height: 8),
           _ValueTile(label: 'id', value: entry.id.toString()),
           _ValueTile(label: 'topic_id', value: entry.topicId.toString()),
+          _ValueTile(label: 'created_by_id', value: entry.createdById.toString()),
+          if (entry.updatedById != null)
+            _ValueTile(label: 'updated_by_id', value: entry.updatedById.toString()),
           _ValueTile(
             label: 'kind',
-            value: entry.kind,
+            value: entry.kind ?? 'null',
             valueColor: entry.kind == 'expense'
                 ? const Color(0xFFFAB387)
                 : const Color(0xFF89DCEB),
           ),
-          _ValueTile(label: 'title', value: entry.title),
+          if (entry.title != null)
+            _ValueTile(label: 'title', value: entry.title!),
           if (entry.content != null)
             _ValueTile(label: 'content', value: entry.content!),
-          if (entry.currency != null)
-            _ValueTile(label: 'currency', value: entry.currency!),
-          if (entry.amount != null)
-            _ValueTile(label: 'amount', value: entry.amount.toString()),
+          _ValueTile(label: 'currency', value: entry.currency),
+          _ValueTile(label: 'amount', value: entry.amount.toString()),
           if (entry.category != null)
             _ValueTile(label: 'category', value: entry.category!),
           _ValueTile(
