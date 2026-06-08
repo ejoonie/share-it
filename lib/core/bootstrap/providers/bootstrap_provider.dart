@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../api/api_client.dart';
 import '../../models/bootstrap_response.dart';
 import '../../storage/token_storage.dart';
-import 'bootstrap_repository.dart';
+import '../repositories/bootstrap_repository.dart';
 
 // ---------------------------------------------------------------------------
 // State
