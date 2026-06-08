@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/bootstrap/providers/bootstrap_provider.dart';
 import 'core/theme/app_theme.dart';
+import 'shared/screens/bootstrap_debug_screen.dart';
 import 'shared/widgets/bottom_nav_bar.dart';
 
 class ShareItApp extends StatelessWidget {
@@ -120,9 +122,27 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BottomNavBar(
-      currentIndex: _currentIndex,
-      onTap: _onTabTapped,
+    return Scaffold(
+      body: BottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: _onTabTapped,
+      ),
+      floatingActionButton: kDebugMode
+          ? FloatingActionButton.small(
+              heroTag: 'bootstrap_debug_fab',
+              tooltip: 'Bootstrap Debug',
+              backgroundColor: const Color(0xFF313244),
+              foregroundColor: const Color(0xFF89B4FA),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const BootstrapDebugScreen(),
+                  ),
+                );
+              },
+              child: const Icon(Icons.bug_report_outlined),
+            )
+          : null,
     );
   }
 }
