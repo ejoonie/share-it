@@ -99,6 +99,54 @@ RSpec.describe "MyEntries API", type: :request do
 
       expect(response).to have_http_status(404)
     end
+
+    context "with ransack search params" do
+      it "filters entries by kind" do
+        topic = topics(:one)
+        get_json "/api/v1/my/topics/#{topic.id}/entries?q[kind_eq]=expense",
+                 login_user: users(:user_one)
+
+        expect(response).to have_http_status(200)
+        expect(json_response["records"]).to all(include("kind" => "expense"))
+      end
+
+      it "filters entries by title containing a string" do
+        topic = topics(:one)
+        get_json "/api/v1/my/topics/#{topic.id}/entries?q[title_cont]=Lunch",
+                 login_user: users(:user_one)
+
+        expect(response).to have_http_status(200)
+        expect(json_response["records"]).to all(satisfy { |e| e["title"].to_s.include?("Lunch") })
+      end
+
+      it "filters entries by minimum amount" do
+        topic = topics(:one)
+        get_json "/api/v1/my/topics/#{topic.id}/entries?q[amount_gteq]=5000",
+                 login_user: users(:user_one)
+
+        expect(response).to have_http_status(200)
+        expect(json_response["records"]).to all(satisfy { |e| e["amount"] >= 5000 })
+      end
+
+      it "filters entries by checked status" do
+        topic = topics(:one)
+        get_json "/api/v1/my/topics/#{topic.id}/entries?q[checked_eq]=true",
+                 login_user: users(:user_one)
+
+        expect(response).to have_http_status(200)
+        expect(json_response["records"]).to all(include("checked" => true))
+      end
+
+      it "sorts entries by amount ascending when s param is given" do
+        topic = topics(:one)
+        get_json "/api/v1/my/topics/#{topic.id}/entries?q[s]=amount+asc",
+                 login_user: users(:user_one)
+
+        expect(response).to have_http_status(200)
+        amounts = json_response["records"].map { |e| e["amount"] }
+        expect(amounts).to eq(amounts.sort)
+      end
+    end
   end
 
   # GET /api/v1/my/topics/:topic_id/entries/:id
