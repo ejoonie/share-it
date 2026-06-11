@@ -1,54 +1,60 @@
-import '../../../../core/database/database_helper.dart';
+import '../../../../core/repositories/entry_repository.dart';
 import '../models/shopping_item_model.dart';
 
 class ShoppingRepository {
-  final DatabaseHelper _db = DatabaseHelper.instance;
-  static const String _table = DatabaseHelper.eventsTable;
-  static const String _typeValue = 'shopping';
+  final EntryRepository _entryRepository;
+
+  ShoppingRepository({required EntryRepository entryRepository})
+      : _entryRepository = entryRepository;
 
   Future<List<ShoppingItemModel>> getAllItems() async {
-    final rows = await _db.queryWhere(
-      _table,
-      '${DatabaseHelper.colType} = ?',
-      [_typeValue],
-    );
-    return rows.map(ShoppingItemModel.fromMap).toList();
+    final entries = await _entryRepository.listEntries();
+    return entries
+        .where((e) => e.kind == 'shopping')
+        .map(ShoppingItemModel.fromEntry)
+        .toList();
   }
 
   Future<ShoppingItemModel> addItem(ShoppingItemModel item) async {
-    final model = item.copyWith(updatedAt: DateTime.now());
-    final row = {...model.toMap(), DatabaseHelper.colType: _typeValue};
-    final id = await _db.insert(_table, row);
-    return model.copyWith(id: id);
+    final entry = await _entryRepository.createEntry(
+      kind: 'shopping',
+      title: item.title.isEmpty ? null : item.title,
+      amount: item.amount,
+      content: item.content,
+      checked: item.isChecked,
+    );
+    return ShoppingItemModel.fromEntry(entry);
   }
 
   Future<ShoppingItemModel> updateItem(ShoppingItemModel item) async {
-    final updated = item.copyWith(updatedAt: DateTime.now());
-    final row = {...updated.toMap(), DatabaseHelper.colType: _typeValue};
-    await _db.update(_table, row, item.id!);
-    return updated;
+    final entry = await _entryRepository.updateEntry(
+      item.id!,
+      title: item.title.isEmpty ? null : item.title,
+      amount: item.amount,
+      content: item.content,
+      checked: item.isChecked,
+    );
+    return ShoppingItemModel.fromEntry(entry);
   }
 
   Future<void> deleteItem(int id) async {
-    await _db.delete(_table, id);
+    await _entryRepository.deleteEntry(id);
   }
 
   Future<ShoppingItemModel> toggleItem(ShoppingItemModel item) async {
-    final toggled = item.copyWith(
-      isChecked: !item.isChecked,
-      updatedAt: DateTime.now(),
+    final entry = await _entryRepository.updateEntry(
+      item.id!,
+      checked: !item.isChecked,
     );
-    final row = {...toggled.toMap(), DatabaseHelper.colType: _typeValue};
-    await _db.update(_table, row, item.id!);
-    return toggled;
+    return ShoppingItemModel.fromEntry(entry);
   }
 
   Future<void> deleteCheckedItems() async {
-    final db = await _db.database;
-    await db.delete(
-      _table,
-      where: '${DatabaseHelper.colType} = ? AND ${DatabaseHelper.colIsChecked} = ?',
-      whereArgs: [_typeValue, DatabaseHelper.boolTrue],
-    );
+    final entries = await _entryRepository.listEntries();
+    final checkedShopping =
+        entries.where((e) => e.kind == 'shopping' && e.checked).toList();
+    for (final entry in checkedShopping) {
+      await _entryRepository.deleteEntry(entry.id);
+    }
   }
 }

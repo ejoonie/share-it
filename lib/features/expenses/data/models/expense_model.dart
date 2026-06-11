@@ -1,24 +1,28 @@
+import '../../../../core/models/entry_model.dart';
+
 enum ExpenseType { income, expense }
 
 class ExpenseModel {
   final int? id;
   final String title;
-  final int amount; // stored in cents
-  final String? note;
+  final int amount; // raw integer matching server (e.g. cents for USD)
+  final String? content;
   final String? category;
   final ExpenseType type;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime occurredAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const ExpenseModel({
     this.id,
     required this.title,
     required this.amount,
-    this.note,
+    this.content,
     this.category,
     this.type = ExpenseType.expense,
-    required this.createdAt,
-    required this.updatedAt,
+    required this.occurredAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
   double get amountInDollars => amount / 100.0;
@@ -30,9 +34,10 @@ class ExpenseModel {
     int? id,
     String? title,
     int? amount,
-    String? note,
-    String? category,
+    String? Function()? content,
+    String? Function()? category,
     ExpenseType? type,
+    DateTime? occurredAt,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -40,37 +45,40 @@ class ExpenseModel {
       id: id ?? this.id,
       title: title ?? this.title,
       amount: amount ?? this.amount,
-      note: note ?? this.note,
-      category: category ?? this.category,
+      content: content != null ? content() : this.content,
+      category: category != null ? category() : this.category,
       type: type ?? this.type,
+      occurredAt: occurredAt ?? this.occurredAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      if (id != null) 'id': id,
-      'title': title,
-      'amount': amount,
-      'note': note,
-      'category': category,
-      'type': type.name,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
-    };
+  factory ExpenseModel.fromEntry(EntryModel entry) {
+    final expenseType = entry.kind == 'income'
+        ? ExpenseType.income
+        : ExpenseType.expense;
+    return ExpenseModel(
+      id: entry.id,
+      title: entry.title ?? '',
+      amount: entry.amount,
+      content: entry.content,
+      category: entry.category,
+      type: expenseType,
+      occurredAt: entry.occurredAt ?? entry.createdAt,
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+    );
   }
 
-  factory ExpenseModel.fromMap(Map<String, dynamic> map) {
-    return ExpenseModel(
-      id: map['id'] as int?,
-      title: map['title'] as String,
-      amount: map['amount'] as int,
-      note: map['note'] as String?,
-      category: map['category'] as String?,
-      type: map['type'] == 'income' ? ExpenseType.income : ExpenseType.expense,
-      createdAt: DateTime.parse(map['created_at'] as String),
-      updatedAt: DateTime.parse(map['updated_at'] as String),
-    );
+  Map<String, dynamic> toEntryJson() {
+    return {
+      'occurred_at': occurredAt.toIso8601String(),
+      'kind': type.name,
+      'amount': amount,
+      if (content != null && content!.isNotEmpty) 'content': content,
+      if (category != null && category!.isNotEmpty) 'category': category,
+      if (title.isNotEmpty) 'title': title,
+    };
   }
 }

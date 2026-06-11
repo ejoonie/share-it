@@ -109,16 +109,9 @@ class ShoppingItemTile extends ConsumerWidget {
   }
 
   Widget? _buildSubtitle(ShoppingItemModel item) {
-    final parts = <String>[];
-    if (item.quantity != null && item.quantity!.isNotEmpty) {
-      parts.add(item.quantity!);
-    }
-    if (item.note != null && item.note!.isNotEmpty) {
-      parts.add(item.note!);
-    }
-    if (parts.isEmpty) return null;
+    if (item.content == null || item.content!.isEmpty) return null;
     return Text(
-      parts.join(' · '),
+      item.content!,
       style: const TextStyle(fontSize: 12),
     );
   }

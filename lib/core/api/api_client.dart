@@ -58,6 +58,32 @@ class ApiClient {
     return _handleResponse(response);
   }
 
+  Future<Map<String, dynamic>> patch(
+    String path,
+    Map<String, dynamic> body, {
+    String? authToken,
+  }) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final response = await _client.patch(
+      uri,
+      headers: _headers(authToken: authToken),
+      body: jsonEncode(body),
+    );
+    return _handleResponse(response);
+  }
+
+  Future<Map<String, dynamic>> delete(
+    String path, {
+    String? authToken,
+  }) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final response = await _client.delete(
+      uri,
+      headers: _headers(authToken: authToken),
+    );
+    return _handleResponse(response);
+  }
+
   Map<String, dynamic> _handleResponse(http.Response response) {
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     if (response.statusCode >= 200 && response.statusCode < 300) {

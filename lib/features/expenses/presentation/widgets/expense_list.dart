@@ -59,7 +59,7 @@ class _ExpenseListTile extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) =>
-          ExpenseForm(expense: expense, initialDate: expense.createdAt),
+          ExpenseForm(expense: expense, initialDate: expense.occurredAt),
     );
   }
 
@@ -116,8 +116,8 @@ class _ExpenseListTile extends ConsumerWidget {
           expense.title,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        subtitle: expense.note != null && expense.note!.isNotEmpty
-            ? Text(expense.note!, style: const TextStyle(fontSize: 12))
+        subtitle: expense.content != null && expense.content!.isNotEmpty
+            ? Text(expense.content!, style: const TextStyle(fontSize: 12))
             : expense.category != null
                 ? Text(expense.category!,
                     style: const TextStyle(fontSize: 12))

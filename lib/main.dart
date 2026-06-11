@@ -5,6 +5,7 @@ import 'app.dart';
 import 'core/api/api_client.dart';
 import 'core/bootstrap/providers/bootstrap_provider.dart';
 import 'core/bootstrap/repositories/bootstrap_repository.dart';
+import 'core/providers/core_providers.dart';
 import 'core/storage/token_storage.dart';
 import 'core/utils/token_utils.dart';
 
@@ -29,6 +30,8 @@ void main() async {
   runApp(
     ProviderScope(
       overrides: [
+        tokenStorageProvider.overrideWithValue(tokenStorage),
+        apiClientProvider.overrideWithValue(apiClient),
         bootstrapRepositoryProvider
             .overrideWithValue(bootstrapRepository),
         bootstrapNotifierProvider.overrideWith(

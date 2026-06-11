@@ -18,8 +18,7 @@ class _ShoppingFormState extends ConsumerState<ShoppingForm> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
   late TextEditingController _amountController;
-  late TextEditingController _quantityController;
-  late TextEditingController _noteController;
+  late TextEditingController _contentController;
 
   @override
   void initState() {
@@ -31,16 +30,14 @@ class _ShoppingFormState extends ConsumerState<ShoppingForm> {
           ? (i!.amount! / 100.0).toStringAsFixed(2)
           : '',
     );
-    _quantityController = TextEditingController(text: i?.quantity ?? '');
-    _noteController = TextEditingController(text: i?.note ?? '');
+    _contentController = TextEditingController(text: i?.content ?? '');
   }
 
   @override
   void dispose() {
     _titleController.dispose();
     _amountController.dispose();
-    _quantityController.dispose();
-    _noteController.dispose();
+    _contentController.dispose();
     super.dispose();
   }
 
@@ -57,19 +54,13 @@ class _ShoppingFormState extends ConsumerState<ShoppingForm> {
     }
 
     if (widget.item == null) {
-      final now = DateTime.now();
       ref.read(shoppingNotifierProvider.notifier).addItem(
             ShoppingItemModel(
               title: _titleController.text.trim(),
               amount: amountCents,
-              quantity: _quantityController.text.trim().isEmpty
+              content: _contentController.text.trim().isEmpty
                   ? null
-                  : _quantityController.text.trim(),
-              note: _noteController.text.trim().isEmpty
-                  ? null
-                  : _noteController.text.trim(),
-              createdAt: now,
-              updatedAt: now,
+                  : _contentController.text.trim(),
             ),
           );
     } else {
@@ -77,13 +68,9 @@ class _ShoppingFormState extends ConsumerState<ShoppingForm> {
             widget.item!.copyWith(
               title: _titleController.text.trim(),
               amount: () => amountCents,
-              quantity: () => _quantityController.text.trim().isEmpty
+              content: () => _contentController.text.trim().isEmpty
                   ? null
-                  : _quantityController.text.trim(),
-              note: () => _noteController.text.trim().isEmpty
-                  ? null
-                  : _noteController.text.trim(),
-              updatedAt: DateTime.now(),
+                  : _contentController.text.trim(),
             ),
           );
     }
@@ -134,43 +121,25 @@ class _ShoppingFormState extends ConsumerState<ShoppingForm> {
               autofocus: true,
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _quantityController,
-                    decoration: const InputDecoration(
-                      labelText: 'Qty',
-                      prefixIcon: Icon(Icons.format_list_numbered),
-                      hintText: 'e.g. 2, 500g',
-                    ),
-                    textInputAction: TextInputAction.next,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _amountController,
-                    decoration: const InputDecoration(
-                      labelText: 'Est. price',
-                      prefixIcon: Icon(Icons.attach_money),
-                      hintText: '0.00',
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                        RegExp(r'^\d+\.?\d{0,2}'),
-                      ),
-                    ],
-                    textInputAction: TextInputAction.next,
-                  ),
+            TextFormField(
+              controller: _amountController,
+              decoration: const InputDecoration(
+                labelText: 'Est. price',
+                prefixIcon: Icon(Icons.attach_money),
+                hintText: '0.00',
+              ),
+              keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(
+                  RegExp(r'^\d+\.?\d{0,2}'),
                 ),
               ],
+              textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 12),
             TextFormField(
-              controller: _noteController,
+              controller: _contentController,
               decoration: const InputDecoration(
                 labelText: 'Note',
                 prefixIcon: Icon(Icons.notes),
