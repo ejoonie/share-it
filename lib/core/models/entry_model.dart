@@ -40,7 +40,7 @@ class EntryModel {
       createdById: json['created_by_id'] as int,
       updatedById: json['updated_by_id'] as int?,
       occurredAt: json['occurred_at'] != null
-          ? DateTime.parse(json['occurred_at'] as String)
+          ? DateTime.parse(json['occurred_at'] as String).toLocal()
           : null,
       kind: json['kind'] as String?,
       currency: (json['currency'] as String?) ?? 'usd',

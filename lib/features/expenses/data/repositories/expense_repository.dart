@@ -20,8 +20,7 @@ class ExpenseRepository {
   Future<List<ExpenseModel>> getExpensesByMonth(int year, int month) async {
     final expenses = await _fetchExpenses();
     return expenses.where((e) {
-      final local = e.occurredAt.toLocal();
-      return local.year == year && local.month == month;
+      return e.occurredAt.year == year && e.occurredAt.month == month;
     }).toList();
   }
 
@@ -72,8 +71,11 @@ class ExpenseRepository {
     final Map<DateTime, Map<String, int>> summary = {};
 
     for (final e in expenses) {
-      final local = e.occurredAt.toLocal();
-      final day = DateTime(local.year, local.month, local.day);
+      final day = DateTime(
+        e.occurredAt.year,
+        e.occurredAt.month,
+        e.occurredAt.day,
+      );
       summary[day] ??= {'income': 0, 'expense': 0};
       if (e.isIncome) {
         summary[day]!['income'] = summary[day]!['income']! + e.amount;
