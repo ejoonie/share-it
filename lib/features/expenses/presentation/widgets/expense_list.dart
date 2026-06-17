@@ -59,7 +59,7 @@ class _ExpenseListTile extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) =>
-          ExpenseForm(expense: expense, initialDate: expense.occurredAt),
+          ExpenseForm(expense: expense, initialDate: expense.occurredAt.toLocal()),
     );
   }
 

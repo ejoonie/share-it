@@ -47,7 +47,7 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
     _contentController = TextEditingController(text: e?.content ?? '');
     _categoryController = TextEditingController(text: e?.category ?? '');
     _type = e?.type ?? ExpenseType.expense;
-    _selectedDate = widget.initialDate;
+    _selectedDate = widget.initialDate.toLocal();
   }
 
   @override

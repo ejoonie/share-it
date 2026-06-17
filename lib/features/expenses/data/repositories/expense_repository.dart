@@ -20,18 +20,20 @@ class ExpenseRepository {
   Future<List<ExpenseModel>> getExpensesByMonth(int year, int month) async {
     final expenses = await _fetchExpenses();
     return expenses.where((e) {
-      return e.occurredAt.year == year && e.occurredAt.month == month;
+      final local = e.occurredAt.toLocal();
+      return local.year == year && local.month == month;
     }).toList();
   }
 
   Future<List<ExpenseModel>> getExpensesByDate(DateTime date) async {
     final expenses = await _fetchExpenses();
-    final start = DateTime(date.year, date.month, date.day);
+    final localDate = date.toLocal();
+    final start = DateTime(localDate.year, localDate.month, localDate.day);
     final end = start.add(const Duration(days: 1));
-    return expenses
-        .where((e) =>
-            !e.occurredAt.isBefore(start) && e.occurredAt.isBefore(end))
-        .toList();
+    return expenses.where((e) {
+      final local = e.occurredAt.toLocal();
+      return !local.isBefore(start) && local.isBefore(end);
+    }).toList();
   }
 
   Future<ExpenseModel> addExpense(ExpenseModel expense) async {
@@ -71,10 +73,11 @@ class ExpenseRepository {
     final Map<DateTime, Map<String, int>> summary = {};
 
     for (final e in expenses) {
+      final local = e.occurredAt.toLocal();
       final day = DateTime(
-        e.occurredAt.year,
-        e.occurredAt.month,
-        e.occurredAt.day,
+        local.year,
+        local.month,
+        local.day,
       );
       summary[day] ??= {'income': 0, 'expense': 0};
       if (e.isIncome) {

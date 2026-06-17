@@ -33,7 +33,7 @@ class EntryRepository {
     bool? checked,
   }) async {
     final body = <String, dynamic>{
-      if (occurredAt != null) 'occurred_at': occurredAt.toIso8601String(),
+      if (occurredAt != null) 'occurred_at': occurredAt.toUtc().toIso8601String(),
       if (kind != null) 'kind': kind,
       if (currency != null) 'currency': currency,
       if (amount != null) 'amount': amount,
@@ -58,7 +58,7 @@ class EntryRepository {
     bool? checked,
   }) async {
     final body = <String, dynamic>{
-      if (occurredAt != null) 'occurred_at': occurredAt.toIso8601String(),
+      if (occurredAt != null) 'occurred_at': occurredAt.toUtc().toIso8601String(),
       if (kind != null) 'kind': kind,
       if (currency != null) 'currency': currency,
       if (amount != null) 'amount': amount,
