@@ -44,13 +44,10 @@ void main() {
   // 집계/필터링 시 반드시 로컬 날짜 기준으로 처리해야 달력 서머리와 레코드 날짜가 일치한다.
   // ---------------------------------------------------------------------------
   group('ExpenseRepository - timezone 집계 (이슈 #37)', () {
-    // UTC+9 환경에서 로컬 7일 21:30 = UTC 8일 06:30
-    // → 서머리와 getExpensesByDate 모두 "로컬 7일" 기준으로 동작해야 한다.
-
     late ExpenseRepository repo;
 
     // UTC 8일 06:30 (로컬 UTC-4 기준: 30일 20:30)
-    final utcDateTime = DateTime.utc(2026, 7, 1, 0, 30);
+    final utcDateTime = DateTime.utc(2026, 7, 1, 0, 30); // 7/1 00:30 UTC, 6/30 20:30 -0400
 
     setUp(() {
       repo = ExpenseRepository(
@@ -124,7 +121,7 @@ void main() {
       // 서머리에 표시된 날짜에 getExpensesByDate 로 조회하면 레코드가 있어야 한다
       for (final entry in summary.entries) {
         final date = entry.key;
-        final dayExpenses = await repo.getExpensesByDate(date);
+        final dayExpenses = await repo.getExpensesByDate(date.year, date.month, date.day);
         expect(
           dayExpenses,
           isNotEmpty,
@@ -145,7 +142,7 @@ void main() {
 
       final localDt = utcDt.toLocal();
       final result = await repo.getExpensesByDate(
-        DateTime(localDt.year, localDt.month, localDt.day),
+        localDt.year, localDt.month, localDt.day,
       );
 
       expect(result, hasLength(1));
@@ -165,14 +162,14 @@ void main() {
       final localDay = DateTime(localDt.year, localDt.month, localDt.day);
 
       // 로컬 날짜로 조회 → 있어야 함
-      final result = await repo.getExpensesByDate(localDay);
+      final result = await repo.getExpensesByDate(localDay.year, localDay.month, localDay.day);
       expect(result, hasLength(1),
           reason: '로컬 날짜 기준($localDay)으로 조회하면 결과가 있어야 한다');
 
       // UTC 날짜(다를 경우)로 조회 → 없어야 함
       final utcDay = DateTime(utcDt.year, utcDt.month, utcDt.day);
       if (utcDay != localDay) {
-        final wrongResult = await repo.getExpensesByDate(utcDay);
+        final wrongResult = await repo.getExpensesByDate(utcDay.year, utcDay.month, utcDay.day);
         expect(wrongResult, isEmpty,
             reason: 'UTC 날짜 기준($utcDay)으로 조회하면 결과가 없어야 한다');
       }
@@ -192,7 +189,7 @@ void main() {
         );
 
         final utcDay = DateTime(utcDt.year, utcDt.month, utcDt.day);
-        final result = await repo.getExpensesByDate(utcDay);
+        final result = await repo.getExpensesByDate(utcDay.year, utcDay.month, utcDay.day);
         expect(result, isEmpty,
             reason: 'UTC 날짜($utcDay)로 조회하면 로컬 기준이 다르므로 결과가 없어야 한다');
       }
