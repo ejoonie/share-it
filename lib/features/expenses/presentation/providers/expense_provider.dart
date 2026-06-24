@@ -127,7 +127,8 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     final repo = _repository;
     if (repo == null) return;
     try {
-      final m = DateTime(month.year, month.month);
+      final localMonth = month.toLocal();
+      final m = DateTime(localMonth.year, localMonth.month);
       final selectedDate = DateTime(m.year, m.month, 1);
       final monthly = await repo.getExpensesByMonth(m.year, m.month);
       final summary = await repo.getMonthlySummary(m.year, m.month);
@@ -148,9 +149,11 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     final repo = _repository;
     if (repo == null) return;
     try {
-      final daily = await repo.getExpensesByDate(date);
+      final local = date.toLocal();
+      final localDate = DateTime(local.year, local.month, local.day);
+      final daily = await repo.getExpensesByDate(localDate);
       state = state.copyWith(
-        selectedDate: date,
+        selectedDate: localDate,
         selectedDateExpenses: daily,
       );
     } catch (e) {
