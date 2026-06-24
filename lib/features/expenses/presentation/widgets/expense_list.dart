@@ -21,11 +21,14 @@ class ExpenseList extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long_outlined,
-                size: 48, color: Colors.grey.shade400),
+            Icon(
+              Icons.receipt_long_outlined,
+              size: 48,
+              color: Colors.grey.shade400,
+            ),
             const SizedBox(height: 8),
             Text(
-              '${formatter.format(state.selectedDate)}\nNo transactions',
+              '${formatter.format(DateTime(state.year, state.month, state.day))}\nNo transactions',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade500),
             ),
@@ -58,8 +61,12 @@ class _ExpenseListTile extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) =>
-          ExpenseForm(expense: expense, initialDate: expense.occurredAt.toLocal()),
+      builder: (_) => ExpenseForm(
+        expense: expense,
+        initYear: expense.occurredAt.year,
+        initMonth: expense.occurredAt.month,
+        initDay: expense.occurredAt.day,
+      ),
     );
   }
 
@@ -100,8 +107,7 @@ class _ExpenseListTile extends ConsumerWidget {
     return Card(
       margin: EdgeInsets.zero,
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: CircleAvatar(
           backgroundColor: isIncome
               ? const Color(0xFF43A047).withOpacity(0.1)
@@ -119,8 +125,7 @@ class _ExpenseListTile extends ConsumerWidget {
         subtitle: expense.content != null && expense.content!.isNotEmpty
             ? Text(expense.content!, style: const TextStyle(fontSize: 12))
             : expense.category != null
-                ? Text(expense.category!,
-                    style: const TextStyle(fontSize: 12))
+                ? Text(expense.category!, style: const TextStyle(fontSize: 12))
                 : null,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,

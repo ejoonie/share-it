@@ -25,14 +25,13 @@ class ExpenseRepository {
     }).toList();
   }
 
-  Future<List<ExpenseModel>> getExpensesByDate(DateTime date) async {
+  Future<List<ExpenseModel>> getExpensesByDate(int year, int month, int day) async {
     final expenses = await _fetchExpenses();
-    final localDate = date.toLocal();
-    final start = DateTime(localDate.year, localDate.month, localDate.day);
+    final start = DateTime(year, month, day); // 이 자체가 이미 로컬
     final end = start.add(const Duration(days: 1));
     return expenses.where((e) {
-      final local = e.occurredAt.toLocal();
-      return !local.isBefore(start) && local.isBefore(end);
+      final occurredAt = e.occurredAt; // 비교시에는 사실 변환 안해도 됨
+      return !occurredAt.isBefore(start) && occurredAt.isBefore(end);
     }).toList();
   }
 

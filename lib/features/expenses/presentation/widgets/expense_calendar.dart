@@ -16,7 +16,7 @@ class ExpenseCalendar extends ConsumerWidget {
       firstDay: DateTime(2000),
       lastDay: DateTime(2100),
       focusedDay: state.focusedMonth,
-      selectedDayPredicate: (day) => isSameDay(day, state.selectedDate),
+      selectedDayPredicate: (day) => isSameDay(day, DateTime.utc(state.year, state.month, state.day)),
       calendarFormat: CalendarFormat.month,
       availableCalendarFormats: const {CalendarFormat.month: 'Month'},
       headerVisible: false,
@@ -39,39 +39,45 @@ class ExpenseCalendar extends ConsumerWidget {
         ),
         cellMargin: const EdgeInsets.all(2),
       ),
-      onDaySelected: (selectedDay, focusedDay) {
-        ref.read(expenseNotifierProvider.notifier).selectDate(selectedDay);
+      // calendar day selected
+      onDaySelected: (selectedUtc, focusedUtc) {
+        print('selectedDay: ${selectedUtc.toIso8601String()}, timezone: ${selectedUtc.timeZoneName}');
+        print('focusedDay: ${focusedUtc.toIso8601String()}, timezone: ${focusedUtc.timeZoneName}');
+        ref.read(expenseNotifierProvider.notifier).selectDate(selectedUtc.year, selectedUtc.month, selectedUtc.day);
       },
       onPageChanged: (focusedDay) {
         ref
             .read(expenseNotifierProvider.notifier)
-            .changeMonth(DateTime(focusedDay.year, focusedDay.month));
+            .changeMonth(DateTime.utc(focusedDay.year, focusedDay.month));
       },
       calendarBuilders: CalendarBuilders(
-        defaultBuilder: (context, day, focusedDay) {
+        defaultBuilder: (context, utc, focusedDay) {
+          // print('defaultBuilder: ${utc.toIso8601String()}, timezone: ${utc.timeZoneName}');
           return _CalendarCell(
-            day: day,
+            day: utc,
             summary: state.monthlySummary[
-                DateTime(day.year, day.month, day.day)],
+                DateTime(utc.year, utc.month, utc.day)],
             isSelected: false,
             isToday: false,
           );
         },
-        selectedBuilder: (context, day, focusedDay) {
+        selectedBuilder: (context, utc, focusedDay) {
+          // print('selectedBuilder: ${day.toIso8601String()}, timezone: ${day.timeZoneName}');
           return _CalendarCell(
-            day: day,
+            day: utc,
             summary: state.monthlySummary[
-                DateTime(day.year, day.month, day.day)],
+                DateTime(utc.year, utc.month, utc.day)],
             isSelected: true,
             isToday: false,
           );
         },
-        todayBuilder: (context, day, focusedDay) {
+        todayBuilder: (context, utc, focusedDay) {
+          // print('todayBuilder: ${utc.toIso8601String()}, timezone: ${utc.timeZoneName}');
           return _CalendarCell(
-            day: day,
+            day: utc,
             summary: state.monthlySummary[
-                DateTime(day.year, day.month, day.day)],
-            isSelected: isSameDay(day, state.selectedDate),
+                DateTime(utc.year, utc.month, utc.day)],
+            isSelected: isSameDay(utc, DateTime.utc(state.year, state.month, state.day)),
             isToday: true,
           );
         },
