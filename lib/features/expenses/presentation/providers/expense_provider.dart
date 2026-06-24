@@ -12,7 +12,9 @@ final expenseRepositoryProvider = Provider<ExpenseRepository?>((ref) {
 
 class ExpenseState {
   final DateTime focusedMonth;
-  final DateTime selectedDate;
+  final int year;
+  final int month;
+  final int day;
   final List<ExpenseModel> monthlyExpenses;
   final List<ExpenseModel> selectedDateExpenses;
   final Map<DateTime, Map<String, int>> monthlySummary;
@@ -23,7 +25,9 @@ class ExpenseState {
 
   const ExpenseState({
     required this.focusedMonth,
-    required this.selectedDate,
+    required this.year,
+    required this.month,
+    required this.day,
     required this.monthlyExpenses,
     required this.selectedDateExpenses,
     required this.monthlySummary,
@@ -37,7 +41,9 @@ class ExpenseState {
     final now = DateTime.now();
     return ExpenseState(
       focusedMonth: DateTime(now.year, now.month),
-      selectedDate: DateTime(now.year, now.month, now.day),
+      year: now.year,
+      month: now.month,
+      day: now.day,
       monthlyExpenses: const [],
       selectedDateExpenses: const [],
       monthlySummary: const {},
@@ -78,7 +84,9 @@ class ExpenseState {
   }) {
     return ExpenseState(
       focusedMonth: focusedMonth ?? this.focusedMonth,
-      selectedDate: selectedDate ?? this.selectedDate,
+      year: selectedDate?.year ?? this.year,
+      month: selectedDate?.month ?? this.month,
+      day: selectedDate?.day ?? this.day,
       monthlyExpenses: monthlyExpenses ?? this.monthlyExpenses,
       selectedDateExpenses: selectedDateExpenses ?? this.selectedDateExpenses,
       monthlySummary: monthlySummary ?? this.monthlySummary,
@@ -109,7 +117,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
       final selectedDate = DateTime(today.year, today.month, today.day);
       final monthly = await repo.getExpensesByMonth(m.year, m.month);
       final summary = await repo.getMonthlySummary(m.year, m.month);
-      final daily = await repo.getExpensesByDate(selectedDate);
+      final daily = await repo.getExpensesByDate(selectedDate.year, selectedDate.month, selectedDate.day);
       state = state.copyWith(
         focusedMonth: m,
         selectedDate: selectedDate,
@@ -131,7 +139,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
       final selectedDate = DateTime(m.year, m.month, 1);
       final monthly = await repo.getExpensesByMonth(m.year, m.month);
       final summary = await repo.getMonthlySummary(m.year, m.month);
-      final daily = await repo.getExpensesByDate(selectedDate);
+      final daily = await repo.getExpensesByDate(selectedDate.year, selectedDate.month, selectedDate.day);
       state = state.copyWith(
         focusedMonth: m,
         selectedDate: selectedDate,
@@ -144,11 +152,12 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     }
   }
 
-  Future<void> selectDate(DateTime date) async {
+  Future<void> selectDate(int year, int month, int day) async {
+    final date = DateTime(year, month, day); // local
     final repo = _repository;
     if (repo == null) return;
     try {
-      final daily = await repo.getExpensesByDate(date);
+      final daily = await repo.getExpensesByDate(year, month, day);
       state = state.copyWith(
         selectedDate: date,
         selectedDateExpenses: daily,
@@ -210,7 +219,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
       state.focusedMonth.year,
       state.focusedMonth.month,
     );
-    final daily = await repo.getExpensesByDate(state.selectedDate);
+    final daily = await repo.getExpensesByDate(state.year, state.month, state.day);
     state = state.copyWith(
       monthlyExpenses: monthly,
       selectedDateExpenses: daily,

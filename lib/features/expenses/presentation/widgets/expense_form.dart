@@ -8,9 +8,19 @@ import '../../data/models/expense_model.dart';
 
 class ExpenseForm extends ConsumerStatefulWidget {
   final ExpenseModel? expense;
-  final DateTime initialDate;
+  final int initYear;
+  final int initMonth;
+  final int initDay;
+  final String timezone;
 
-  const ExpenseForm({super.key, this.expense, required this.initialDate});
+  const ExpenseForm({
+    super.key,
+    this.expense,
+    required this.initYear,
+    required this.initMonth,
+    required this.initDay,
+    this.timezone = 'America/New_York',
+  });
 
   @override
   ConsumerState<ExpenseForm> createState() => _ExpenseFormState();
@@ -23,7 +33,7 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
   late TextEditingController _contentController;
   late TextEditingController _categoryController;
   late ExpenseType _type;
-  late DateTime _selectedDate;
+  late DateTime _selectedDateUtc;
 
   final List<String> _categories = [
     'Food',
@@ -47,7 +57,8 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
     _contentController = TextEditingController(text: e?.content ?? '');
     _categoryController = TextEditingController(text: e?.category ?? '');
     _type = e?.type ?? ExpenseType.expense;
-    _selectedDate = widget.initialDate;
+    _selectedDateUtc =
+        DateTime.utc(widget.initYear, widget.initMonth, widget.initDay);
   }
 
   @override
@@ -60,14 +71,16 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
+    final pickedLocal = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
+      initialDate: _selectedDateUtc,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() => _selectedDate = picked);
+    ); // local 로 리턴함
+    if (pickedLocal != null) {
+      print('picked: $pickedLocal, utc: ${pickedLocal.toUtc()}, timezone: ${pickedLocal.timeZoneName}');
+      print('picked: ${pickedLocal.toIso8601String()}');
+      setState(() => _selectedDateUtc = pickedLocal.toUtc());
     }
   }
 
@@ -78,16 +91,16 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
     final amountDouble = double.tryParse(amountText) ?? 0.0;
     final amountCents = (amountDouble * 100).round();
 
+    final now = DateTime.now();
+    final localOccurredAt = DateTime(
+      _selectedDateUtc.year,
+      _selectedDateUtc.month,
+      _selectedDateUtc.day,
+      now.hour,
+      now.minute,
+      now.second,
+    ); // local
     if (widget.expense == null) {
-      final now = DateTime.now();
-      final occurredAt = DateTime(
-        _selectedDate.year,
-        _selectedDate.month,
-        _selectedDate.day,
-        now.hour,
-        now.minute,
-        now.second,
-      );
       ref.read(expenseNotifierProvider.notifier).addExpense(
             ExpenseModel(
               title: _titleController.text.trim(),
@@ -99,7 +112,7 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
                   ? null
                   : _categoryController.text.trim(),
               type: _type,
-              occurredAt: occurredAt,
+              occurredAt: localOccurredAt,
             ),
           );
     } else {
@@ -114,7 +127,7 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
                   ? null
                   : _categoryController.text.trim(),
               type: _type,
-              occurredAt: _selectedDate,
+              occurredAt: localOccurredAt,
             ),
           );
     }
@@ -179,7 +192,7 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
                   labelText: 'Date',
                   prefixIcon: Icon(Icons.calendar_today),
                 ),
-                child: Text(dateFormatter.format(_selectedDate)),
+                child: Text(dateFormatter.format(_selectedDateUtc)),
               ),
             ),
             const SizedBox(height: 12),
@@ -189,10 +202,9 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
                 labelText: 'Title *',
                 prefixIcon: Icon(Icons.title),
               ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty)
-                      ? 'Please enter a title'
-                      : null,
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Please enter a title'
+                  : null,
               textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 12),
@@ -206,8 +218,7 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
-                FilteringTextInputFormatter.allow(
-                    RegExp(r'^\d+\.?\d{0,2}')),
+                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
               ],
               validator: (v) {
                 if (v == null || v.trim().isEmpty) {
@@ -223,8 +234,7 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
             ),
             const SizedBox(height: 12),
             Autocomplete<String>(
-              initialValue:
-                  TextEditingValue(text: _categoryController.text),
+              initialValue: TextEditingValue(text: _categoryController.text),
               optionsBuilder: (value) {
                 if (value.text.isEmpty) return _categories;
                 return _categories.where(

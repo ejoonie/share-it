@@ -108,14 +108,18 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
     );
   }
 
-  void _showAddExpenseForm(DateTime selectedDate) {
+  void _showAddExpenseForm(int year, int month, int day) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => ExpenseForm(initialDate: selectedDate),
+      builder: (_) => ExpenseForm(
+        initYear: year,
+        initMonth: month,
+        initDay: day,
+      ),
     );
   }
 
@@ -216,7 +220,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddExpenseForm(state.selectedDate),
+        onPressed: () => _showAddExpenseForm(state.year, state.month, state.day),
         child: const Icon(Icons.add),
       ),
     );
