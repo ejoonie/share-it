@@ -96,6 +96,17 @@ class _ExpenseListTile extends ConsumerWidget {
     );
   }
 
+  Text? _buildSubTitle(BuildContext context) {
+    final debug = expense.occurredAt.toIso8601String();
+    if (expense.content != null && expense.content!.isNotEmpty) {
+      return Text('${expense.content!}\n${debug}', style: const TextStyle(fontSize: 10));
+    } else if (expense.category != null) {
+      return Text('${expense.category!}\n${debug}', style: const TextStyle(fontSize: 10));
+    } else {
+      return Text('${debug}', style: const TextStyle(fontSize: 10));
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isIncome = expense.isIncome;
@@ -122,11 +133,7 @@ class _ExpenseListTile extends ConsumerWidget {
           expense.title,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        subtitle: expense.content != null && expense.content!.isNotEmpty
-            ? Text(expense.content!, style: const TextStyle(fontSize: 12))
-            : expense.category != null
-                ? Text(expense.category!, style: const TextStyle(fontSize: 12))
-                : null,
+        subtitle: _buildSubTitle(context),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

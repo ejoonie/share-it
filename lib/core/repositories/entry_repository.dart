@@ -33,7 +33,7 @@ class EntryRepository {
     bool? checked,
   }) async {
     final body = <String, dynamic>{
-      if (occurredAt != null) 'occurred_at': occurredAt.toIso8601String(), // 서버에는 타임존만 있으면 utc 든 뭐든 상관없음
+      if (occurredAt != null) 'occurred_at': occurredAt.toUtc().toIso8601String(), // utc 로 변환해야 함. 그냥 iso 로 하면 로컬시간을 그대로 사용
       if (kind != null) 'kind': kind,
       if (currency != null) 'currency': currency,
       if (amount != null) 'amount': amount,
@@ -58,7 +58,7 @@ class EntryRepository {
     bool? checked,
   }) async {
     final body = <String, dynamic>{
-      if (occurredAt != null) 'occurred_at': occurredAt.toIso8601String(),
+      if (occurredAt != null) 'occurred_at': occurredAt.toUtc().toIso8601String(), // utc 로 변환해야 함. 그냥 iso 로 하면 로컬시간을 그대로 사용
       if (kind != null) 'kind': kind,
       if (currency != null) 'currency': currency,
       if (amount != null) 'amount': amount,
