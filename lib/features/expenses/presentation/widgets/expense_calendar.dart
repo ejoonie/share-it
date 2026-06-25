@@ -20,6 +20,7 @@ class ExpenseCalendar extends ConsumerWidget {
       calendarFormat: CalendarFormat.month,
       availableCalendarFormats: const {CalendarFormat.month: 'Month'},
       headerVisible: false,
+      daysOfWeekHeight: 32,
       daysOfWeekStyle: DaysOfWeekStyle(
         weekdayStyle: const TextStyle(fontSize: 12),
         weekendStyle: TextStyle(fontSize: 12, color: Colors.red.shade400),
