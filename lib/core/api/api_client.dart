@@ -12,6 +12,21 @@ class ApiException implements Exception {
   String toString() => 'ApiException($statusCode): $message';
 }
 
+String buildQueryString(Map<String, dynamic> params) {
+  final parts = <String>[];
+  params.forEach((k, v) {
+    final encodedKey = Uri.encodeQueryComponent(k);
+    if (v is List) {
+      for (final item in v) {
+        parts.add('$encodedKey=${Uri.encodeQueryComponent(item.toString())}');
+      }
+    } else {
+      parts.add('$encodedKey=${Uri.encodeQueryComponent(v.toString())}');
+    }
+  });
+  return parts.join('&');
+}
+
 class ApiClient {
   // Base URL for the rails-api. Override for production or local dev.
   static const String baseUrl =
@@ -49,8 +64,12 @@ class ApiClient {
   Future<Map<String, dynamic>> get(
     String path, {
     String? authToken,
+    Map<String, dynamic>? queryParams,
   }) async {
-    final uri = Uri.parse('$baseUrl$path');
+    var uri = Uri.parse('$baseUrl$path');
+    if (queryParams != null && queryParams.isNotEmpty) {
+      uri = Uri.parse('${uri.toString()}?${buildQueryString(queryParams)}');
+    }
     final response = await _client.get(
       uri,
       headers: _headers(authToken: authToken),

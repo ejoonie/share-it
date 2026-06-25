@@ -54,11 +54,28 @@ module V1
 
             # GET /api/v1/my/topics/:topic_id/entries
             desc '엔트리 목록'
+            params do
+              optional :q, type: Hash, default: {} do
+                optional :kind_eq, type: String
+                optional :currency_eq, type: String
+                optional :amount_eq, type: Integer
+                optional :amount_gteq, type: Integer
+                optional :amount_lteq, type: Integer
+                optional :category_eq, type: String
+                optional :title_cont, type: String
+                optional :content_cont, type: String
+                optional :checked_eq, type: Boolean
+                optional :occurred_at_gteq, type: DateTime
+                optional :occurred_at_lteq, type: DateTime
+                optional :created_at_gteq, type: DateTime
+                optional :created_at_lteq, type: DateTime
+                optional :s, type: String
+              end
+            end
             get do
               topic = find_topic!
 
-              entries = topic.entries.order(created_at: :desc)
-              { total: entries.count, records: Entities::EntryEntity.represent(entries) }
+              paginated_list(topic.entries, Entities::EntryEntity)
             end
 
             route_param :id do

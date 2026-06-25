@@ -8,11 +8,10 @@ class ShoppingRepository {
       : _entryRepository = entryRepository;
 
   Future<List<ShoppingItemModel>> getAllItems() async {
-    final entries = await _entryRepository.listEntries();
-    return entries
-        .where((e) => e.kind == 'shopping')
-        .map(ShoppingItemModel.fromEntry)
-        .toList();
+    final entries = await _entryRepository.listEntries(
+      q: {'q[kind_eq]': 'shopping'},
+    );
+    return entries.map(ShoppingItemModel.fromEntry).toList();
   }
 
   Future<ShoppingItemModel> addItem(ShoppingItemModel item) async {
@@ -50,10 +49,10 @@ class ShoppingRepository {
   }
 
   Future<void> deleteCheckedItems() async {
-    final entries = await _entryRepository.listEntries();
-    final checkedShopping =
-        entries.where((e) => e.kind == 'shopping' && e.checked).toList();
-    for (final entry in checkedShopping) {
+    final entries = await _entryRepository.listEntries(
+      q: {'q[kind_eq]': 'shopping', 'q[checked_eq]': 'true'},
+    );
+    for (final entry in entries) {
       await _entryRepository.deleteEntry(entry.id);
     }
   }

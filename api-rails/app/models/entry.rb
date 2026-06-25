@@ -9,6 +9,14 @@ class Entry < ApplicationRecord
   validates :amount, presence: true, numericality: { only_integer: true }
   validates :checked, inclusion: { in: [true, false] }
 
+  def self.ransackable_attributes(_auth_object = nil)
+    %w[kind currency amount category title content checked occurred_at created_at updated_at]
+  end
+
+  def self.ransackable_associations(_auth_object = nil)
+    []
+  end
+
   def soft_delete!
     update!(deleted_at: Time.current)
   end

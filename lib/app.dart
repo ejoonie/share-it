@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/bootstrap/providers/bootstrap_provider.dart';
 import 'core/theme/app_theme.dart';
+import 'features/expenses/presentation/providers/expense_provider.dart';
+import 'features/shopping/presentation/providers/shopping_provider.dart';
 import 'shared/screens/bootstrap_debug_screen.dart';
 import 'shared/widgets/bottom_nav_bar.dart';
 
@@ -106,18 +108,34 @@ class _ErrorScreen extends StatelessWidget {
   }
 }
 
-class MainScreen extends StatefulWidget {
+class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  ConsumerState<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends ConsumerState<MainScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadTab(0));
+  }
 
   void _onTabTapped(int index) {
     setState(() => _currentIndex = index);
+    _loadTab(index);
+  }
+
+  void _loadTab(int index) {
+    switch (index) {
+      case 0:
+        ref.read(expenseNotifierProvider.notifier).load();
+      case 1:
+        ref.read(shoppingNotifierProvider.notifier).load();
+    }
   }
 
   @override

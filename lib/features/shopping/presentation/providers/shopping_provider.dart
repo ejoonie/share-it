@@ -49,11 +49,9 @@ class ShoppingState {
 class ShoppingNotifier extends StateNotifier<ShoppingState> {
   final ShoppingRepository? _repository;
 
-  ShoppingNotifier(this._repository) : super(ShoppingState.initial()) {
-    if (_repository != null) {
-      _load();
-    }
-  }
+  ShoppingNotifier(this._repository) : super(ShoppingState.initial());
+
+  Future<void> load() => _load();
 
   Future<void> _load() async {
     final repo = _repository;
