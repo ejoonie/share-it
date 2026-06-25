@@ -5,6 +5,8 @@ class BaseAPI < Grape::API
   default_format :json
   content_type :json, 'application/json'
 
+  helpers ::Helpers::PaginationHelper
+
   get '/health' do
     status 200
 

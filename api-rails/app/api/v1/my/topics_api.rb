@@ -32,15 +32,13 @@ module V1
         # GET /api/v1/my/topics/owned
         desc '내가 생성한 토픽 목록'
         get :owned do
-          topics = current_user.topics.order(created_at: :desc)
-          { total: topics.count, records: Entities::TopicEntity.represent(topics) }
+          paginated_list(current_user.topics, Entities::TopicEntity)
         end
 
         # GET /api/v1/my/topics/subscribed
         desc '내가 구독하는 토픽'
         get :subscribed do
-          topics = current_user.subscribed_topics.order(created_at: :desc)
-          { total: topics.count, records: Entities::TopicEntity.represent(topics) }
+          paginated_list(current_user.subscribed_topics, Entities::TopicEntity)
         end
 
         # DELETE /api/v1/my/topics/subscribed/:id
@@ -58,12 +56,7 @@ module V1
           desc '내 토픽 구독자 목록'
           get :follows do
             topic = find_my_topic!
-
-            topic_follows = topic.topic_follows.includes(:user).order(created_at: :desc)
-            {
-              total: topic_follows.count,
-              records: Entities::TopicFollowEntity.represent(topic_follows)
-            }
+            paginated_list(topic.topic_follows.includes(:user), Entities::TopicFollowEntity)
           end
 
           # POST /api/v1/my/topics/:id/invitations

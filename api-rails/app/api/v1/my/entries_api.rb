@@ -75,10 +75,7 @@ module V1
             get do
               topic = find_topic!
 
-              search = topic.entries.ransack(params[:q])
-              entries = search.result(distinct: true)
-              entries = entries.order(created_at: :desc) unless params.dig(:q, :s).present?
-              { total: entries.count, records: Entities::EntryEntity.represent(entries) }
+              paginated_list(topic.entries, Entities::EntryEntity)
             end
 
             route_param :id do
