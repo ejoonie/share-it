@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../config/app_config.dart';
+
 class ApiException implements Exception {
   final int statusCode;
   final String message;
@@ -28,9 +30,8 @@ String buildQueryString(Map<String, dynamic> params) {
 }
 
 class ApiClient {
-  // Base URL for the rails-api. Override for production or local dev.
-  static const String baseUrl =
-      String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:3001');
+  // Base URL for the rails-api. Configure with APP_ENV and API_BASE_URL.
+  static String get baseUrl => AppConfig.apiBaseUrl;
 
   final http.Client _client;
 
