@@ -7,32 +7,33 @@ class ExpenseRepository {
   ExpenseRepository({required EntryRepository entryRepository})
       : _entryRepository = entryRepository;
 
-  Future<List<ExpenseModel>> _fetchExpenses() async {
-    final entries = await _entryRepository.listEntries();
-    return entries
-        .where((e) => e.kind == 'income' || e.kind == 'expense')
-        .map(ExpenseModel.fromEntry)
-        .toList();
+  static const _kindFilter = {'q[kind_in][]': ['income', 'expense']};
+
+  Future<List<ExpenseModel>> getAllExpenses() async {
+    final entries = await _entryRepository.listEntries(q: _kindFilter);
+    return entries.map(ExpenseModel.fromEntry).toList();
   }
 
-  Future<List<ExpenseModel>> getAllExpenses() => _fetchExpenses();
-
   Future<List<ExpenseModel>> getExpensesByMonth(int year, int month) async {
-    final expenses = await _fetchExpenses();
-    return expenses.where((e) {
-      final local = e.occurredAt.toLocal();
-      return local.year == year && local.month == month;
-    }).toList();
+    final startLocal = DateTime(year, month, 1);
+    final endLocal = DateTime(year, month + 1, 1);
+    final entries = await _entryRepository.listEntries(q: {
+      ..._kindFilter,
+      'q[occurred_at_gteq]': startLocal.toUtc().toIso8601String(),
+      'q[occurred_at_lt]': endLocal.toUtc().toIso8601String(),
+    });
+    return entries.map(ExpenseModel.fromEntry).toList();
   }
 
   Future<List<ExpenseModel>> getExpensesByDate(int year, int month, int day) async {
-    final expenses = await _fetchExpenses();
-    final start = DateTime(year, month, day); // 이 자체가 이미 로컬
-    final end = start.add(const Duration(days: 1));
-    return expenses.where((e) {
-      final occurredAt = e.occurredAt; // 비교시에는 사실 변환 안해도 됨
-      return !occurredAt.isBefore(start) && occurredAt.isBefore(end);
-    }).toList();
+    final startLocal = DateTime(year, month, day);
+    final endLocal = startLocal.add(const Duration(days: 1));
+    final entries = await _entryRepository.listEntries(q: {
+      ..._kindFilter,
+      'q[occurred_at_gteq]': startLocal.toUtc().toIso8601String(),
+      'q[occurred_at_lt]': endLocal.toUtc().toIso8601String(),
+    });
+    return entries.map(ExpenseModel.fromEntry).toList();
   }
 
   Future<ExpenseModel> addExpense(ExpenseModel expense) async {
@@ -64,11 +65,7 @@ class ExpenseRepository {
     await _entryRepository.deleteEntry(id);
   }
 
-  Future<Map<DateTime, Map<String, int>>> getMonthlySummary(
-    int year,
-    int month,
-  ) async {
-    final expenses = await getExpensesByMonth(year, month);
+  Map<DateTime, Map<String, int>> buildMonthlySummary(List<ExpenseModel> expenses) {
     final Map<DateTime, Map<String, int>> summary = {};
 
     for (final e in expenses) {
@@ -87,5 +84,13 @@ class ExpenseRepository {
     }
 
     return summary;
+  }
+
+  Future<Map<DateTime, Map<String, int>>> getMonthlySummary(
+    int year,
+    int month,
+  ) async {
+    final expenses = await getExpensesByMonth(year, month);
+    return buildMonthlySummary(expenses);
   }
 }

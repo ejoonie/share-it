@@ -101,11 +101,9 @@ class ExpenseState {
 class ExpenseNotifier extends StateNotifier<ExpenseState> {
   final ExpenseRepository? _repository;
 
-  ExpenseNotifier(this._repository) : super(ExpenseState.initial()) {
-    if (_repository != null) {
-      _load(state.focusedMonth);
-    }
-  }
+  ExpenseNotifier(this._repository) : super(ExpenseState.initial());
+
+  Future<void> load() => _load(state.focusedMonth);
 
   Future<void> _load(DateTime month) async {
     final repo = _repository;
@@ -116,7 +114,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
       final today = DateTime.now();
       final selectedDate = DateTime(today.year, today.month, today.day);
       final monthly = await repo.getExpensesByMonth(m.year, m.month);
-      final summary = await repo.getMonthlySummary(m.year, m.month);
+      final summary = repo.buildMonthlySummary(monthly);
       final daily = await repo.getExpensesByDate(selectedDate.year, selectedDate.month, selectedDate.day);
       state = state.copyWith(
         focusedMonth: m,
@@ -138,7 +136,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
       final m = DateTime(month.year, month.month);
       final selectedDate = DateTime(m.year, m.month, 1);
       final monthly = await repo.getExpensesByMonth(m.year, m.month);
-      final summary = await repo.getMonthlySummary(m.year, m.month);
+      final summary = repo.buildMonthlySummary(monthly);
       final daily = await repo.getExpensesByDate(selectedDate.year, selectedDate.month, selectedDate.day);
       state = state.copyWith(
         focusedMonth: m,
@@ -215,10 +213,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
       state.focusedMonth.year,
       state.focusedMonth.month,
     );
-    final summary = await repo.getMonthlySummary(
-      state.focusedMonth.year,
-      state.focusedMonth.month,
-    );
+    final summary = repo.buildMonthlySummary(monthly);
     final daily = await repo.getExpensesByDate(state.year, state.month, state.day);
     state = state.copyWith(
       monthlyExpenses: monthly,

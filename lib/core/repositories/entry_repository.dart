@@ -14,8 +14,16 @@ class EntryRepository {
 
   String get _basePath => '/api/v1/my/topics/$topicId/entries';
 
-  Future<List<EntryModel>> listEntries() async {
-    final json = await _apiClient.get(_basePath, authToken: authToken);
+  Future<List<EntryModel>> listEntries({
+    Map<String, dynamic>? q,
+    int page = 1,
+    int limit = 100,
+  }) async {
+    final json = await _apiClient.get(
+      _basePath,
+      authToken: authToken,
+      queryParams: {'page': page, 'limit': limit, ...?q},
+    );
     final records = json['records'] as List<dynamic>;
     return records
         .map((e) => EntryModel.fromJson(e as Map<String, dynamic>))
