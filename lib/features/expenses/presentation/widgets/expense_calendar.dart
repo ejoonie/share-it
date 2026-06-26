@@ -16,14 +16,24 @@ class ExpenseCalendar extends ConsumerWidget {
       firstDay: DateTime(2000),
       lastDay: DateTime(2100),
       focusedDay: state.focusedMonth,
-      selectedDayPredicate: (day) => isSameDay(day, DateTime.utc(state.year, state.month, state.day)),
+      selectedDayPredicate: (day) =>
+          isSameDay(day, DateTime.utc(state.year, state.month, state.day)),
       calendarFormat: CalendarFormat.month,
       availableCalendarFormats: const {CalendarFormat.month: 'Month'},
       headerVisible: false,
-      daysOfWeekHeight: 32,
-      daysOfWeekStyle: DaysOfWeekStyle(
-        weekdayStyle: const TextStyle(fontSize: 12),
-        weekendStyle: TextStyle(fontSize: 12, color: Colors.red.shade400),
+      daysOfWeekHeight: 38,
+      rowHeight: 62,
+      daysOfWeekStyle: const DaysOfWeekStyle(
+        weekdayStyle: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF1F2328),
+        ),
+        weekendStyle: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF4FA26A),
+        ),
       ),
       calendarStyle: CalendarStyle(
         outsideDaysVisible: false,
@@ -38,13 +48,15 @@ class ExpenseCalendar extends ConsumerWidget {
         markerDecoration: const BoxDecoration(
           color: Colors.transparent,
         ),
-        cellMargin: const EdgeInsets.all(2),
+        cellMargin: const EdgeInsets.all(3),
       ),
       // calendar day selected
       onDaySelected: (selectedUtc, focusedUtc) {
-        print('selectedDay: ${selectedUtc.toIso8601String()}, timezone: ${selectedUtc.timeZoneName}');
-        print('focusedDay: ${focusedUtc.toIso8601String()}, timezone: ${focusedUtc.timeZoneName}');
-        ref.read(expenseNotifierProvider.notifier).selectDate(selectedUtc.year, selectedUtc.month, selectedUtc.day);
+        ref.read(expenseNotifierProvider.notifier).selectDate(
+              selectedUtc.year,
+              selectedUtc.month,
+              selectedUtc.day,
+            );
       },
       onPageChanged: (focusedDay) {
         ref
@@ -78,7 +90,8 @@ class ExpenseCalendar extends ConsumerWidget {
             day: utc,
             summary: state.monthlySummary[
                 DateTime(utc.year, utc.month, utc.day)],
-            isSelected: isSameDay(utc, DateTime.utc(state.year, state.month, state.day)),
+            isSelected:
+                isSameDay(utc, DateTime.utc(state.year, state.month, state.day)),
             isToday: true,
           );
         },
@@ -109,8 +122,8 @@ class _CalendarCell extends StatelessWidget {
     Color bgColor = Colors.transparent;
     Color textColor =
         day.weekday == DateTime.sunday || day.weekday == DateTime.saturday
-            ? Colors.red.shade400
-            : Colors.black87;
+            ? const Color(0xFF4FA26A)
+            : const Color(0xFF1F2328);
 
     if (isSelected) {
       bgColor = primary;
@@ -120,10 +133,11 @@ class _CalendarCell extends StatelessWidget {
     }
 
     return Container(
-      margin: const EdgeInsets.all(2),
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
       decoration: BoxDecoration(
         color: bgColor,
-        shape: BoxShape.circle,
+        shape: isToday && !isSelected ? BoxShape.rectangle : BoxShape.circle,
+        borderRadius: isToday && !isSelected ? BorderRadius.circular(14) : null,
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -131,9 +145,9 @@ class _CalendarCell extends StatelessWidget {
           Text(
             '${day.day}',
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 20,
               fontWeight:
-                  isSelected || isToday ? FontWeight.bold : FontWeight.normal,
+                  isSelected || isToday ? FontWeight.w800 : FontWeight.w500,
               color: textColor,
             ),
           ),
@@ -141,7 +155,7 @@ class _CalendarCell extends StatelessWidget {
             Text(
               _formatShort(income),
               style: TextStyle(
-                fontSize: 7,
+                fontSize: 12,
                 color: isSelected ? Colors.white : const Color(0xFF43A047),
                 height: 1,
               ),
@@ -151,7 +165,7 @@ class _CalendarCell extends StatelessWidget {
             Text(
               _formatShort(expense),
               style: TextStyle(
-                fontSize: 7,
+                fontSize: 12,
                 color:
                     isSelected ? Colors.white70 : const Color(0xFFE53935),
                 height: 1,

@@ -20,12 +20,12 @@ class AppTheme {
       surface: _surfaceColor,
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: _primaryColor,
-      foregroundColor: Colors.white,
+      backgroundColor: Colors.white,
+      foregroundColor: _primaryColor,
       elevation: 0,
       centerTitle: true,
       titleTextStyle: TextStyle(
-        color: Colors.white,
+        color: Color(0xFF1F2328),
         fontSize: 18,
         fontWeight: FontWeight.w600,
       ),
@@ -33,6 +33,29 @@ class AppTheme {
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
       backgroundColor: _primaryColor,
       foregroundColor: Colors.white,
+      elevation: 8,
+      shape: CircleBorder(),
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      height: 88,
+      backgroundColor: Colors.white,
+      elevation: 8,
+      indicatorColor: _primaryColor.withOpacity(0.14),
+      labelTextStyle: MaterialStateProperty.resolveWith((states) {
+        final selected = states.contains(MaterialState.selected);
+        return TextStyle(
+          fontSize: 13,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          color: selected ? _primaryColor : Colors.grey,
+        );
+      }),
+      iconTheme: MaterialStateProperty.resolveWith((states) {
+        final selected = states.contains(MaterialState.selected);
+        return IconThemeData(
+          size: 28,
+          color: selected ? _primaryColor : Colors.grey,
+        );
+      }),
     ),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       selectedItemColor: _primaryColor,

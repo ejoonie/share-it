@@ -127,26 +127,39 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(expenseNotifierProvider);
     final focusedMonth = state.focusedMonth;
+    final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       drawer: const SummaryDrawer(),
+      backgroundColor: Colors.white,
+      extendBody: true,
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        foregroundColor: primary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        toolbarHeight: 76,
+        leadingWidth: 72,
         leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.summarize_outlined),
-            tooltip: 'Summary',
-            onPressed: () => _openSummaryDrawer(ctx),
+          builder: (ctx) => Padding(
+            padding: const EdgeInsets.only(left: 18),
+            child: IconButton(
+              icon: const Icon(Icons.calendar_today_outlined),
+              tooltip: 'Summary',
+              iconSize: 28,
+              onPressed: () => _openSummaryDrawer(ctx),
+            ),
           ),
         ),
         title: _isSearching
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
-                style: const TextStyle(color: Colors.white),
-                cursorColor: Colors.white,
+                style: const TextStyle(color: Color(0xFF1F2328)),
+                cursorColor: primary,
                 decoration: const InputDecoration(
                   hintText: 'Search...',
-                  hintStyle: TextStyle(color: Colors.white70),
+                  hintStyle: TextStyle(color: Color(0xFF8A8F98)),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
@@ -161,6 +174,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.chevron_left),
+                    iconSize: 32,
                     onPressed: () => _navigateToPrevMonth(focusedMonth),
                   ),
                   GestureDetector(
@@ -168,14 +182,16 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                     child: Text(
                       DateFormat('MMM yyyy').format(focusedMonth),
                       style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1F2328),
+                        letterSpacing: -0.3,
                       ),
                     ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.chevron_right),
+                    iconSize: 32,
                     onPressed: () => _navigateToNextMonth(focusedMonth),
                   ),
                 ],
@@ -183,6 +199,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
         actions: [
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),
+            iconSize: 31,
             onPressed: () {
               setState(() {
                 _isSearching = !_isSearching;
@@ -195,9 +212,13 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
               });
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () => _showFilterDialog(state.activeFilter),
+          Padding(
+            padding: const EdgeInsets.only(right: 18),
+            child: IconButton(
+              icon: const Icon(Icons.tune),
+              iconSize: 31,
+              onPressed: () => _showFilterDialog(state.activeFilter),
+            ),
           ),
         ],
       ),
@@ -209,19 +230,51 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
           if (state.error != null) {
             return Center(child: Text('Error: ${state.error}'));
           }
-          return Column(
-            children: [
-              _MonthlySummaryBar(state: state),
-              ExpenseCalendar(state: state),
-              const Divider(height: 1),
-              Expanded(child: ExpenseList(state: state)),
-            ],
+          return SafeArea(
+            top: false,
+            bottom: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 10),
+                _MonthlySummaryBar(state: state),
+                const SizedBox(height: 24),
+                ExpenseCalendar(state: state),
+                const SizedBox(height: 18),
+                Divider(height: 1, color: Colors.grey.shade200),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 22, 24, 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Recent Transactions',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1F2328),
+                        ),
+                      ),
+                      Text(
+                        'View All',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(child: ExpenseList(state: state)),
+              ],
+            ),
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddExpenseForm(state.year, state.month, state.day),
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add, size: 34),
       ),
     );
   }
@@ -234,52 +287,110 @@ class _MonthlySummaryBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final formatter = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
+    final formatter = NumberFormat.currency(symbol: r'$', decimalDigits: 2);
     final income = state.monthlyIncomeTotal / 100.0;
     final expense = state.monthlyExpenseTotal / 100.0;
 
     return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 26),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.11),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
       child: Row(
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Income',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
-                Text(
-                  formatter.format(income),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF43A047),
-                  ),
-                ),
-              ],
+            child: _SummaryAmount(
+              icon: Icons.arrow_downward,
+              iconColor: const Color(0xFF4FA26A),
+              iconBackground: const Color(0xFFEAF7EE),
+              label: 'Income',
+              amount: formatter.format(income),
+              amountColor: const Color(0xFF4FA26A),
             ),
           ),
-          Container(width: 1, height: 36, color: Colors.grey.shade300),
+          Container(width: 1, height: 58, color: const Color(0xFFE0E3E7)),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                const Text('Expense',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
-                Text(
-                  formatter.format(expense),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFE53935),
-                  ),
-                ),
-              ],
+            child: _SummaryAmount(
+              icon: Icons.arrow_upward,
+              iconColor: const Color(0xFFFF3B3F),
+              iconBackground: const Color(0xFFFFEFF1),
+              label: 'Expense',
+              amount: formatter.format(expense),
+              amountColor: const Color(0xFFFF3B3F),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SummaryAmount extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBackground;
+  final String label;
+  final String amount;
+  final Color amountColor;
+
+  const _SummaryAmount({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBackground,
+    required this.label,
+    required this.amount,
+    required this.amountColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        CircleAvatar(
+          radius: 30,
+          backgroundColor: iconBackground,
+          child: Icon(icon, color: iconColor, size: 32),
+        ),
+        const SizedBox(width: 18),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF616771),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                amount,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: amountColor,
+                  letterSpacing: -0.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

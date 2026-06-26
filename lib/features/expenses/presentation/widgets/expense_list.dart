@@ -38,9 +38,9 @@ class ExpenseList extends StatelessWidget {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
       itemCount: items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 6),
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final item = items[index];
         return _ExpenseListTile(expense: item);
@@ -97,14 +97,22 @@ class _ExpenseListTile extends ConsumerWidget {
   }
 
   Text? _buildSubTitle(BuildContext context) {
-    final debug = expense.occurredAt.toIso8601String();
-    if (expense.content != null && expense.content!.isNotEmpty) {
-      return Text('${expense.content!}\n${debug}', style: const TextStyle(fontSize: 10));
-    } else if (expense.category != null) {
-      return Text('${expense.category!}\n${debug}', style: const TextStyle(fontSize: 10));
-    } else {
-      return Text('${debug}', style: const TextStyle(fontSize: 10));
-    }
+    final timestamp = DateFormat('yyyy-MM-dd HH:mm:ss').format(expense.occurredAt);
+    final details = expense.content?.isNotEmpty == true
+        ? expense.content!
+        : expense.category;
+    final subtitle = details == null || details.isEmpty
+        ? timestamp
+        : '$details\n$timestamp';
+
+    return Text(
+      subtitle,
+      style: const TextStyle(
+        fontSize: 14,
+        color: Color(0xFF6B707A),
+        height: 1.45,
+      ),
+    );
   }
 
   @override
@@ -117,21 +125,26 @@ class _ExpenseListTile extends ConsumerWidget {
 
     return Card(
       margin: EdgeInsets.zero,
+      elevation: 2,
+      shadowColor: Colors.black.withOpacity(0.12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        minVerticalPadding: 16,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         leading: CircleAvatar(
           backgroundColor: isIncome
               ? const Color(0xFF43A047).withOpacity(0.1)
               : const Color(0xFFE53935).withOpacity(0.1),
+          radius: 28,
           child: Icon(
             isIncome ? Icons.arrow_downward : Icons.arrow_upward,
             color: amountColor,
-            size: 20,
+            size: 30,
           ),
         ),
         title: Text(
           expense.title,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
         ),
         subtitle: _buildSubTitle(context),
         trailing: Row(
@@ -140,7 +153,7 @@ class _ExpenseListTile extends ConsumerWidget {
             Text(
               '$amountPrefix${formatter.format(expense.amountInDollars)}',
               style: TextStyle(
-                fontSize: 15,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: amountColor,
               ),
