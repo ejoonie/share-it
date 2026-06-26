@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../providers/expense_provider.dart';
 import '../../data/models/expense_model.dart';
 import 'expense_form.dart';
@@ -16,35 +17,68 @@ class ExpenseList extends StatelessWidget {
     final items = state.filteredSelectedDateExpenses;
     final formatter = DateFormat('yyyy-MM-dd');
 
-    if (items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.receipt_long_outlined,
-              size: 48,
-              color: Colors.grey.shade400,
+    return Column(
+      children: [
+        // Padding(
+        //   padding: const EdgeInsets.fromLTRB(16, 12, 12, 4),
+        //   child: Row(
+        //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        //     children: [
+        //       const Text(
+        //         'Recent Transactions',
+        //         style: TextStyle(
+        //           fontSize: 15,
+        //           fontWeight: FontWeight.w600,
+        //           color: Color(0xFF1A1A1A),
+        //         ),
+        //       ),
+        //       TextButton(
+        //         onPressed: () {},
+        //         style: TextButton.styleFrom(
+        //           foregroundColor: AppTheme.primaryColor,
+        //           padding: const EdgeInsets.symmetric(horizontal: 8),
+        //           minimumSize: Size.zero,
+        //           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        //         ),
+        //         child: const Text('View All', style: TextStyle(fontSize: 13)),
+        //       ),
+        //     ],
+        //   ),
+        // ),
+        if (items.isEmpty)
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 48,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${formatter.format(DateTime(state.year, state.month, state.day))}\nNo transactions',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey.shade500),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              '${formatter.format(DateTime(state.year, state.month, state.day))}\nNo transactions',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade500),
+          )
+        else
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 4),
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return _ExpenseListTile(expense: item);
+              },
             ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      itemCount: items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 6),
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return _ExpenseListTile(expense: item);
-      },
+          ),
+      ],
     );
   }
 }
@@ -111,8 +145,8 @@ class _ExpenseListTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isIncome = expense.isIncome;
     final amountColor =
-        isIncome ? const Color(0xFF43A047) : const Color(0xFFE53935);
-    final amountPrefix = isIncome ? '+' : '-';
+        isIncome ? AppTheme.incomeColor : AppTheme.expenseColor;
+    final amountPrefix = isIncome ? '+' : '';
     final formatter = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
 
     return Card(
@@ -121,10 +155,10 @@ class _ExpenseListTile extends ConsumerWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: CircleAvatar(
           backgroundColor: isIncome
-              ? const Color(0xFF43A047).withOpacity(0.1)
-              : const Color(0xFFE53935).withOpacity(0.1),
+              ? AppTheme.incomeColor.withOpacity(0.1)
+              : AppTheme.expenseColor.withOpacity(0.1),
           child: Icon(
-            isIncome ? Icons.arrow_downward : Icons.arrow_upward,
+            isIncome ? Icons.account_balance_wallet_outlined : Icons.receipt_long_outlined,
             color: amountColor,
             size: 20,
           ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../providers/expense_provider.dart';
 import '../../data/models/expense_model.dart';
 import '../widgets/expense_calendar.dart';
@@ -133,7 +134,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
       appBar: AppBar(
         leading: Builder(
           builder: (ctx) => IconButton(
-            icon: const Icon(Icons.summarize_outlined),
+            icon: const Icon(Icons.calendar_today_outlined),
             tooltip: 'Summary',
             onPressed: () => _openSummaryDrawer(ctx),
           ),
@@ -142,11 +143,11 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
-                style: const TextStyle(color: Colors.white),
-                cursorColor: Colors.white,
-                decoration: const InputDecoration(
+                style: const TextStyle(color: Color(0xFF1A1A1A)),
+                cursorColor: AppTheme.primaryColor,
+                decoration: InputDecoration(
                   hintText: 'Search...',
-                  hintStyle: TextStyle(color: Colors.white70),
+                  hintStyle: TextStyle(color: Colors.grey.shade400),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
@@ -170,7 +171,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: Color(0xFF1A1A1A),
                       ),
                     ),
                   ),
@@ -196,10 +197,14 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.filter_list),
+            icon: const Icon(Icons.tune_outlined),
             onPressed: () => _showFilterDialog(state.activeFilter),
           ),
         ],
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1),
+        ),
       ),
       body: Builder(
         builder: (ctx) {
@@ -221,6 +226,9 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddExpenseForm(state.year, state.month, state.day),
+        backgroundColor: AppTheme.primaryDark,
+        foregroundColor: Colors.white,
+        shape: const CircleBorder(),
         child: const Icon(Icons.add),
       ),
     );
@@ -240,43 +248,101 @@ class _MonthlySummaryBar extends StatelessWidget {
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+      // income, expense summary
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _SummaryCard(
+                label: 'Income',
+                amount: formatter.format(income),
+                icon: Icons.account_balance_wallet_outlined,
+                iconColor: AppTheme.incomeColor,
+                iconBgColor: AppTheme.incomeColor.withValues(alpha: 0.1),
+                amountColor: AppTheme.incomeColor,
+              ),
+            ),
+            Container(width: 1, height: 32, color: Colors.grey.shade300), // 가운데 버티컬 바
+            Expanded(
+              child: _SummaryCard(
+                label: 'Expense',
+                amount: formatter.format(expense),
+                icon: Icons.receipt_long_outlined,
+                iconColor: AppTheme.expenseColor,
+                iconBgColor: AppTheme.expenseColor.withValues(alpha: 0.1),
+                amountColor: AppTheme.expenseColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryCard extends StatelessWidget {
+  final String label;
+  final String amount;
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBgColor;
+  final Color amountColor;
+
+  const _SummaryCard({
+    required this.label,
+    required this.amount,
+    required this.icon,
+    required this.iconColor,
+    required this.iconBgColor,
+    required this.amountColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       child: Row(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Income',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
-                Text(
-                  formatter.format(income),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF43A047),
-                  ),
-                ),
-              ],
+          // icon
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: iconBgColor,
+              shape: BoxShape.circle,
             ),
+            child: Icon(icon, color: iconColor, size: 16),
           ),
-          Container(width: 1, height: 36, color: Colors.grey.shade300),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                const Text('Expense',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
-                Text(
-                  formatter.format(expense),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFE53935),
-                  ),
+          // blank
+          const SizedBox(width: 12),
+          // income, expense
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              Text(
+                amount,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.normal,
+                  color: amountColor,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),

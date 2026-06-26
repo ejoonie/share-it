@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../providers/expense_provider.dart';
 
 class ExpenseCalendar extends ConsumerWidget {
@@ -22,18 +23,18 @@ class ExpenseCalendar extends ConsumerWidget {
       headerVisible: false,
       daysOfWeekHeight: 32,
       daysOfWeekStyle: DaysOfWeekStyle(
-        weekdayStyle: const TextStyle(fontSize: 12),
+        weekdayStyle: TextStyle(fontSize: 12, color: Colors.grey.shade600),
         weekendStyle: TextStyle(fontSize: 12, color: Colors.red.shade400),
       ),
       calendarStyle: CalendarStyle(
-        outsideDaysVisible: false,
+        outsideDaysVisible: true,
         selectedDecoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary,
-          shape: BoxShape.circle,
+          color: Colors.transparent,
+          border: Border.all(color: AppTheme.primaryColor, width: 2),
         ),
         todayDecoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-          shape: BoxShape.circle,
+          color: AppTheme.primaryLight.withValues(alpha: 0.9),
+          shape: BoxShape.rectangle,
         ),
         markerDecoration: const BoxDecoration(
           color: Colors.transparent,
@@ -105,25 +106,30 @@ class _CalendarCell extends StatelessWidget {
     final income = summary?['income'] ?? 0;
     final expense = summary?['expense'] ?? 0;
     final primary = Theme.of(context).colorScheme.primary;
+    const incomeColor = AppTheme.incomeColor;
+    const expenseColor = AppTheme.expenseColor;
+
 
     Color bgColor = Colors.transparent;
     Color textColor =
         day.weekday == DateTime.sunday || day.weekday == DateTime.saturday
             ? Colors.red.shade400
             : Colors.black87;
+    Border? border;
 
     if (isSelected) {
-      bgColor = primary;
-      textColor = Colors.white;
+      border = Border.all(color: AppTheme.primaryColor, width: 1);
+      textColor = AppTheme.primaryColor;
     } else if (isToday) {
-      bgColor = primary.withOpacity(0.15);
+      bgColor = AppTheme.primaryColor.withValues(alpha: 0.12);
     }
 
     return Container(
-      margin: const EdgeInsets.all(2),
+      margin: const EdgeInsets.all(1),
       decoration: BoxDecoration(
         color: bgColor,
         shape: BoxShape.circle,
+        border: border,
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -142,7 +148,7 @@ class _CalendarCell extends StatelessWidget {
               _formatShort(income),
               style: TextStyle(
                 fontSize: 7,
-                color: isSelected ? Colors.white : const Color(0xFF43A047),
+                color: isSelected ? Colors.white : incomeColor,
                 height: 1,
               ),
               overflow: TextOverflow.ellipsis,
@@ -153,7 +159,7 @@ class _CalendarCell extends StatelessWidget {
               style: TextStyle(
                 fontSize: 7,
                 color:
-                    isSelected ? Colors.white70 : const Color(0xFFE53935),
+                    isSelected ? Colors.white70 : expenseColor,
                 height: 1,
               ),
               overflow: TextOverflow.ellipsis,
