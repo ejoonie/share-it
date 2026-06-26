@@ -226,6 +226,9 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddExpenseForm(state.year, state.month, state.day),
+        backgroundColor: AppTheme.primaryDark,
+        foregroundColor: Colors.white,
+        shape: const CircleBorder(),
         child: const Icon(Icons.add),
       ),
     );
