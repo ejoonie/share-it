@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../providers/expense_provider.dart';
 
 class ExpenseCalendar extends ConsumerWidget {
@@ -22,17 +23,17 @@ class ExpenseCalendar extends ConsumerWidget {
       headerVisible: false,
       daysOfWeekHeight: 32,
       daysOfWeekStyle: DaysOfWeekStyle(
-        weekdayStyle: const TextStyle(fontSize: 12),
+        weekdayStyle: TextStyle(fontSize: 12, color: Colors.grey.shade600),
         weekendStyle: TextStyle(fontSize: 12, color: Colors.red.shade400),
       ),
       calendarStyle: CalendarStyle(
         outsideDaysVisible: false,
-        selectedDecoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary,
+        selectedDecoration: const BoxDecoration(
+          color: AppTheme.primaryColor,
           shape: BoxShape.circle,
         ),
         todayDecoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+          color: AppTheme.primaryLight.withValues(alpha: 0.5),
           shape: BoxShape.circle,
         ),
         markerDecoration: const BoxDecoration(
