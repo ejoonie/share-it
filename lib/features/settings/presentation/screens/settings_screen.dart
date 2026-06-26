@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../auth/presentation/screens/login_screen.dart';
+import '../../../share/presentation/screens/share_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -73,6 +74,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: const Text('Use dark theme'),
             value: _darkMode,
             onChanged: (v) => setState(() => _darkMode = v),
+          ),
+          _SectionHeader(title: 'Share'),
+          ListTile(
+            leading: const Icon(Icons.share),
+            title: const Text('Share Expenses'),
+            subtitle: const Text('Share your expenses with others.'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push<void>(
+                context,
+                MaterialPageRoute(builder: (_) => const ShareScreen()),
+              );
+            },
           ),
           _SectionHeader(title: 'Account'),
           ListTile(

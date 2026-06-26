@@ -1,3 +1,4 @@
+import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/bootstrap/providers/bootstrap_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'features/expenses/presentation/providers/expense_provider.dart';
+import 'features/share/presentation/screens/subscribe_screen.dart';
 import 'features/shopping/presentation/providers/shopping_provider.dart';
 import 'shared/screens/bootstrap_debug_screen.dart';
 import 'shared/widgets/bottom_nav_bar.dart';
@@ -117,11 +119,41 @@ class MainScreen extends ConsumerStatefulWidget {
 
 class _MainScreenState extends ConsumerState<MainScreen> {
   int _currentIndex = 0;
+  final _appLinks = AppLinks();
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadTab(0));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadTab(0);
+      _initDeepLinks();
+    });
+  }
+
+  Future<void> _initDeepLinks() async {
+    // 앱이 종료된 상태에서 딥링크로 열린 경우
+    final initialUri = await _appLinks.getInitialLink();
+    if (initialUri != null && mounted) {
+      _handleDeepLink(initialUri);
+    }
+
+    // 앱이 백그라운드에 있다가 딥링크로 포그라운드로 온 경우
+    _appLinks.uriLinkStream.listen((uri) {
+      if (mounted) _handleDeepLink(uri);
+    });
+  }
+
+  void _handleDeepLink(Uri uri) {
+    // https://sharablepiggy.com/topics/{token}
+    final segments = uri.pathSegments;
+    if (segments.length >= 2 && segments[0] == 'topics') {
+      final token = segments[1];
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SubscribeScreen(topicToken: token),
+        ),
+      );
+    }
   }
 
   void _onTabTapped(int index) {

@@ -68,5 +68,7 @@
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>NSCameraUsageDescription</key>
+		<string>Scan a QR code to subscribe to another user's shared expense tracker.</string>
 	</dict>
 </plist>
