@@ -22,6 +22,8 @@ dependencies:
   # UI
   table_calendar: ^3.0.9
   intl: ^0.18.1
+  qr_flutter: ^4.1.0
+  share_plus: ^9.0.0
 
   # Icons
   cupertino_icons: ^1.0.6
