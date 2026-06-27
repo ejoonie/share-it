@@ -15,8 +15,8 @@ class SubscribeScreen extends ConsumerStatefulWidget {
 }
 
 class _SubscribeScreenState extends ConsumerState<SubscribeScreen> {
-  _Status _status = _Status.loading;
-  TopicModel? _topic;
+  AsyncValue<TopicModel> _topicState = const AsyncValue.loading();
+  AsyncValue<void>? _subscribeState; // null = 아직 시도 안 함
 
   @override
   void initState() {
@@ -33,22 +33,22 @@ class _SubscribeScreenState extends ConsumerState<SubscribeScreen> {
   }
 
   Future<void> _fetchTopic() async {
-    setState(() => _status = _Status.loading);
+    setState(() => _topicState = const AsyncValue.loading());
     try {
       final topic = await _repo.fetchByToken(widget.topicToken);
-      if (mounted) setState(() { _topic = topic; _status = _Status.idle; });
-    } catch (_) {
-      if (mounted) setState(() => _status = _Status.notFound);
+      if (mounted) setState(() => _topicState = AsyncValue.data(topic));
+    } catch (e, st) {
+      if (mounted) setState(() => _topicState = AsyncValue.error(e, st));
     }
   }
 
-  Future<void> _subscribe() async {
-    setState(() => _status = _Status.subscribing);
+  Future<void> _subscribe(TopicModel topic) async {
+    setState(() => _subscribeState = const AsyncValue.loading());
     try {
       await _repo.subscribe(widget.topicToken);
-      if (mounted) setState(() => _status = _Status.success);
-    } catch (_) {
-      if (mounted) setState(() => _status = _Status.error);
+      if (mounted) setState(() => _subscribeState = const AsyncValue.data(null));
+    } catch (e, st) {
+      if (mounted) setState(() => _subscribeState = AsyncValue.error(e, st));
     }
   }
 
@@ -67,40 +67,49 @@ class _SubscribeScreenState extends ConsumerState<SubscribeScreen> {
   }
 
   Widget _buildContent() {
-    return switch (_status) {
-      _Status.loading => const CircularProgressIndicator(),
-      _Status.notFound => _ResultView(
-          icon: Icons.search_off,
-          iconColor: Colors.red,
-          message: 'Topic not found.\nThe link may be invalid or expired.',
-          buttonLabel: 'Go Back',
-          onButton: () => Navigator.pop(context),
+    // 구독 시도 후 상태
+    final sub = _subscribeState;
+    if (sub != null) {
+      return sub.when(
+        loading: () => const CircularProgressIndicator(),
+        data: (_) => _topicState.maybeWhen(
+          data: (topic) => _ResultView(
+            icon: Icons.check_circle_outline,
+            iconColor: Colors.green,
+            message: 'Subscribed to "${topic.title}"!\nYou can now manage it together.',
+            buttonLabel: 'Done',
+            onButton: () => Navigator.pop(context),
+          ),
+          orElse: () => const SizedBox.shrink(),
         ),
-      _Status.idle => _IdleView(
-          topic: _topic!,
-          onSubscribe: _subscribe,
-          onCancel: () => Navigator.pop(context),
-        ),
-      _Status.subscribing => const CircularProgressIndicator(),
-      _Status.success => _ResultView(
-          icon: Icons.check_circle_outline,
-          iconColor: Colors.green,
-          message: 'Subscribed to "${_topic!.title}"!\nYou can now manage it together.',
-          buttonLabel: 'Done',
-          onButton: () => Navigator.pop(context),
-        ),
-      _Status.error => _ResultView(
+        error: (_, __) => _ResultView(
           icon: Icons.error_outline,
           iconColor: Colors.red,
           message: 'Failed to subscribe.\nPlease try again.',
           buttonLabel: 'Retry',
-          onButton: _subscribe,
+          onButton: () => _topicState.whenData((t) => _subscribe(t)),
         ),
-    };
+      );
+    }
+
+    // 토픽 조회 상태
+    return _topicState.when(
+      loading: () => const CircularProgressIndicator(),
+      error: (_, __) => _ResultView(
+        icon: Icons.search_off,
+        iconColor: Colors.red,
+        message: 'Topic not found.\nThe link may be invalid or expired.',
+        buttonLabel: 'Go Back',
+        onButton: () => Navigator.pop(context),
+      ),
+      data: (topic) => _IdleView(
+        topic: topic,
+        onSubscribe: () => _subscribe(topic),
+        onCancel: () => Navigator.pop(context),
+      ),
+    );
   }
 }
-
-enum _Status { loading, notFound, idle, subscribing, success, error }
 
 class _IdleView extends StatelessWidget {
   final TopicModel topic;
