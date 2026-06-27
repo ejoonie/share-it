@@ -18,7 +18,7 @@ class ShareItApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Share It',
+      title: 'Sharable Piggy',
       theme: AppTheme.lightTheme,
       home: _BootstrapGate(guestToken: guestToken),
       debugShowCheckedModeBanner: false,

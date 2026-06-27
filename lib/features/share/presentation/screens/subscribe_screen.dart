@@ -22,7 +22,7 @@ class _SubscribeScreenState extends ConsumerState<SubscribeScreen> {
       final apiClient = ref.read(apiClientProvider);
       final authToken =
           ref.read(tokenStorageProvider).getAuthToken();
-      if (authToken == null) throw Exception('로그인이 필요합니다');
+      if (authToken == null) throw Exception('Login required');
 
       final repo = SubscriptionRepository(
         apiClient: apiClient,
@@ -38,7 +38,7 @@ class _SubscribeScreenState extends ConsumerState<SubscribeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('토픽 구독')),
+      appBar: AppBar(title: const Text('Subscribe')),
       body: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
@@ -62,15 +62,15 @@ class _SubscribeScreenState extends ConsumerState<SubscribeScreen> {
       _Status.success => _ResultView(
           icon: Icons.check_circle_outline,
           iconColor: Colors.green,
-          message: '구독이 완료됐어요!\n이제 함께 관리할 수 있어요.',
-          buttonLabel: '확인',
+          message: 'Subscribed!\nYou can now manage this piggy together.',
+          buttonLabel: 'Done',
           onButton: () => Navigator.pop(context),
         ),
       _Status.error => _ResultView(
           icon: Icons.error_outline,
           iconColor: Colors.red,
-          message: '구독에 실패했어요.\n잠시 후 다시 시도해주세요.',
-          buttonLabel: '다시 시도',
+          message: 'Failed to subscribe.\nPlease try again.',
+          buttonLabel: 'Retry',
           onButton: _subscribe,
         ),
     };
@@ -97,14 +97,14 @@ class _IdleView extends StatelessWidget {
         const Icon(Icons.person_add_outlined, size: 72, color: Colors.orange),
         const SizedBox(height: 24),
         Text(
-          '토픽 구독 초대',
+          'You\'re invited!',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
         ),
         const SizedBox(height: 12),
         Text(
-          '이 토픽을 구독하면 함께 관리할 수 있어요.',
+          'Subscribe to this piggy and manage it together.',
           style: Theme.of(context)
               .textTheme
               .bodyMedium
@@ -124,7 +124,7 @@ class _IdleView extends StatelessWidget {
           width: double.infinity,
           child: FilledButton(
             onPressed: onSubscribe,
-            child: const Text('구독하기'),
+            child: const Text('Subscribe'),
           ),
         ),
         const SizedBox(height: 12),
@@ -132,7 +132,7 @@ class _IdleView extends StatelessWidget {
           width: double.infinity,
           child: OutlinedButton(
             onPressed: onCancel,
-            child: const Text('취소'),
+            child: const Text('Cancel'),
           ),
         ),
       ],
