@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../auth/presentation/screens/login_screen.dart';
 import '../../../share/presentation/screens/share_screen.dart';
@@ -15,9 +16,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notifications = false;
   bool _darkMode = false;
   String _startDay = 'Monday';
+  String _version = '';
 
-  final List<String> _currencies = ['USD', 'EUR', 'KRW', 'JPY', 'GBP'];
+  final List<String> _currencies = ['USD'];
   final List<String> _startDays = ['Monday', 'Sunday'];
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _version = '${info.version} (${info.buildNumber})');
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
-          _SectionHeader(title: 'General'),
+          const _SectionHeader(title: 'General'),
           ListTile(
             leading: const Icon(Icons.attach_money),
             title: const Text('Default Currency'),
@@ -43,23 +53,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const Divider(indent: 16, endIndent: 16),
-          ListTile(
-            leading: const Icon(Icons.calendar_today),
-            title: const Text('Week starts on'),
-            trailing: DropdownButton<String>(
-              value: _startDay,
-              underline: const SizedBox.shrink(),
-              items: _startDays
-                  .map(
-                    (d) => DropdownMenuItem(value: d, child: Text(d)),
-                  )
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) setState(() => _startDay = v);
-              },
-            ),
-          ),
-          _SectionHeader(title: 'Notifications'),
+          // ListTile(
+          //   leading: const Icon(Icons.calendar_today),
+          //   title: const Text('Week starts on'),
+          //   trailing: DropdownButton<String>(
+          //     value: _startDay,
+          //     underline: const SizedBox.shrink(),
+          //     items: _startDays
+          //         .map(
+          //           (d) => DropdownMenuItem(value: d, child: Text(d)),
+          //         )
+          //         .toList(),
+          //     onChanged: (v) {
+          //       if (v != null) setState(() => _startDay = v);
+          //     },
+          //   ),
+          // ),
+          const _SectionHeader(title: 'Notifications'),
           SwitchListTile(
             secondary: const Icon(Icons.notifications_outlined),
             title: const Text('Notifications'),
@@ -67,15 +77,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: _notifications,
             onChanged: (v) => setState(() => _notifications = v),
           ),
-          _SectionHeader(title: 'Theme'),
-          SwitchListTile(
-            secondary: const Icon(Icons.dark_mode_outlined),
-            title: const Text('Dark Mode'),
-            subtitle: const Text('Use dark theme'),
-            value: _darkMode,
-            onChanged: (v) => setState(() => _darkMode = v),
-          ),
-          _SectionHeader(title: 'Share'),
+          // _SectionHeader(title: 'Theme'),
+          // SwitchListTile(
+          //   secondary: const Icon(Icons.dark_mode_outlined),
+          //   title: const Text('Dark Mode'),
+          //   subtitle: const Text('Use dark theme'),
+          //   value: _darkMode,
+          //   onChanged: (v) => setState(() => _darkMode = v),
+          // ),
+          const _SectionHeader(title: 'Share'),
           ListTile(
             leading: const Icon(Icons.share),
             title: const Text('Share Expenses'),
@@ -88,7 +98,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
-          _SectionHeader(title: 'Account'),
+          const _SectionHeader(title: 'Account'),
           ListTile(
             leading: const Icon(Icons.login),
             title: const Text('Sign In'),
@@ -103,21 +113,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
-          _SectionHeader(title: 'Data'),
+          // _SectionHeader(title: 'Data'),
+          // ListTile(
+          //   leading: const Icon(Icons.delete_forever_outlined,
+          //       color: Colors.red),
+          //   title: const Text(
+          //     'Delete all data',
+          //     style: TextStyle(color: Colors.red),
+          //   ),
+          //   onTap: () => _confirmClearData(context),
+          // ),
+          const _SectionHeader(title: 'About'),
           ListTile(
-            leading: const Icon(Icons.delete_forever_outlined,
-                color: Colors.red),
-            title: const Text(
-              'Delete all data',
-              style: TextStyle(color: Colors.red),
-            ),
-            onTap: () => _confirmClearData(context),
-          ),
-          _SectionHeader(title: 'About'),
-          const ListTile(
-            leading: Icon(Icons.info_outline),
-            title: Text('Version'),
-            trailing: Text('1.0.0'),
+            leading: const Icon(Icons.info_outline),
+            title: const Text('Version'),
+            trailing: Text(_version.isEmpty ? '...' : _version),
           ),
         ],
       ),
