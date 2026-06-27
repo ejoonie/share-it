@@ -13,6 +13,8 @@ final tokenStorageProvider = Provider<TokenStorage>((ref) {
 
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
 
+final settingsRefreshProvider = StateProvider<int>((ref) => 0);
+
 final entryRepositoryProvider = Provider<EntryRepository?>((ref) {
   final bootstrapState = ref.watch(bootstrapNotifierProvider);
   if (bootstrapState.status != BootstrapStatus.success) return null;

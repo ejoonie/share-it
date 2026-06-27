@@ -11,10 +11,18 @@ class SubscriptionRepository {
   })  : _apiClient = apiClient,
         _authToken = authToken;
 
+  Future<TopicModel> fetchByToken(String topicToken) async {
+    final json = await _apiClient.get(
+      '/api/v1/topics/$topicToken',
+      authToken: _authToken,
+    );
+    return TopicModel.fromJson(json);
+  }
+
   Future<void> subscribe(String topicToken) async {
     await _apiClient.post(
-      '/api/v1/subscriptions',
-      {'topic_token': topicToken},
+      '/api/v1/topics/$topicToken/follow',
+      {},
       authToken: _authToken,
     );
   }

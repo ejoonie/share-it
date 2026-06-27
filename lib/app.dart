@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/bootstrap/providers/bootstrap_provider.dart';
+import 'core/providers/core_providers.dart';
 import 'core/theme/app_theme.dart';
 import 'features/expenses/presentation/providers/expense_provider.dart';
 import 'features/share/presentation/screens/subscribe_screen.dart';
@@ -163,6 +164,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   void _loadTab(int index) {
     if (index == 0) {
       ref.read(expenseNotifierProvider.notifier).load();
+    } else if (index == 2) {
+      ref.read(settingsRefreshProvider.notifier).update((n) => n + 1);
     }
   }
 

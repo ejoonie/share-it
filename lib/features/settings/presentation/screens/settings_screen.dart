@@ -122,6 +122,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(settingsRefreshProvider, (_, __) {
+      _loadMyPiggies();
+      _loadSubscriptions();
+    });
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(

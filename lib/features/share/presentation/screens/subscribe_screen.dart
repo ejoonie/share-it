@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/models/topic_model.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../data/repositories/subscription_repository.dart';
 
@@ -14,23 +15,39 @@ class SubscribeScreen extends ConsumerStatefulWidget {
 }
 
 class _SubscribeScreenState extends ConsumerState<SubscribeScreen> {
-  _Status _status = _Status.idle;
+  _Status _status = _Status.loading;
+  TopicModel? _topic;
 
-  Future<void> _subscribe() async {
+  @override
+  void initState() {
+    super.initState();
+    _fetchTopic();
+  }
+
+  SubscriptionRepository get _repo {
+    final authToken = ref.read(tokenStorageProvider).getAuthToken();
+    return SubscriptionRepository(
+      apiClient: ref.read(apiClientProvider),
+      authToken: authToken ?? '',
+    );
+  }
+
+  Future<void> _fetchTopic() async {
     setState(() => _status = _Status.loading);
     try {
-      final apiClient = ref.read(apiClientProvider);
-      final authToken =
-          ref.read(tokenStorageProvider).getAuthToken();
-      if (authToken == null) throw Exception('Login required');
+      final topic = await _repo.fetchByToken(widget.topicToken);
+      if (mounted) setState(() { _topic = topic; _status = _Status.idle; });
+    } catch (_) {
+      if (mounted) setState(() => _status = _Status.notFound);
+    }
+  }
 
-      final repo = SubscriptionRepository(
-        apiClient: apiClient,
-        authToken: authToken,
-      );
-      await repo.subscribe(widget.topicToken);
+  Future<void> _subscribe() async {
+    setState(() => _status = _Status.subscribing);
+    try {
+      await _repo.subscribe(widget.topicToken);
       if (mounted) setState(() => _status = _Status.success);
-    } catch (e) {
+    } catch (_) {
       if (mounted) setState(() => _status = _Status.error);
     }
   }
@@ -43,26 +60,32 @@ class _SubscribeScreenState extends ConsumerState<SubscribeScreen> {
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildContent(context),
-          ],
+          children: [_buildContent()],
         ),
       ),
     );
   }
 
-  Widget _buildContent(BuildContext context) {
+  Widget _buildContent() {
     return switch (_status) {
+      _Status.loading => const CircularProgressIndicator(),
+      _Status.notFound => _ResultView(
+          icon: Icons.search_off,
+          iconColor: Colors.red,
+          message: 'Topic not found.\nThe link may be invalid or expired.',
+          buttonLabel: 'Go Back',
+          onButton: () => Navigator.pop(context),
+        ),
       _Status.idle => _IdleView(
-          topicToken: widget.topicToken,
+          topic: _topic!,
           onSubscribe: _subscribe,
           onCancel: () => Navigator.pop(context),
         ),
-      _Status.loading => const Center(child: CircularProgressIndicator()),
+      _Status.subscribing => const CircularProgressIndicator(),
       _Status.success => _ResultView(
           icon: Icons.check_circle_outline,
           iconColor: Colors.green,
-          message: 'Subscribed!\nYou can now manage this piggy together.',
+          message: 'Subscribed to "${_topic!.title}"!\nYou can now manage it together.',
           buttonLabel: 'Done',
           onButton: () => Navigator.pop(context),
         ),
@@ -77,15 +100,15 @@ class _SubscribeScreenState extends ConsumerState<SubscribeScreen> {
   }
 }
 
-enum _Status { idle, loading, success, error }
+enum _Status { loading, notFound, idle, subscribing, success, error }
 
 class _IdleView extends StatelessWidget {
-  final String topicToken;
+  final TopicModel topic;
   final VoidCallback onSubscribe;
   final VoidCallback onCancel;
 
   const _IdleView({
-    required this.topicToken,
+    required this.topic,
     required this.onSubscribe,
     required this.onCancel,
   });
@@ -94,13 +117,15 @@ class _IdleView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const Icon(Icons.person_add_outlined, size: 72, color: Colors.orange),
+        const Icon(Icons.savings_outlined, size: 72, color: Colors.orange),
         const SizedBox(height: 24),
         Text(
-          'You\'re invited!',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          topic.title,
+          style: Theme.of(context)
+              .textTheme
+              .headlineSmall
+              ?.copyWith(fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 12),
         Text(
@@ -110,14 +135,6 @@ class _IdleView extends StatelessWidget {
               .bodyMedium
               ?.copyWith(color: Colors.grey),
           textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          topicToken,
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.copyWith(color: Colors.grey[400]),
         ),
         const SizedBox(height: 40),
         SizedBox(

@@ -105,10 +105,13 @@ class ApiClient {
   }
 
   Map<String, dynamic> _handleResponse(http.Response response) {
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return body;
+      if (response.body.isEmpty) return {};
+      return jsonDecode(response.body) as Map<String, dynamic>;
     }
+    final body = response.body.isNotEmpty
+        ? jsonDecode(response.body) as Map<String, dynamic>
+        : <String, dynamic>{};
     final message = (body['message'] as String?) ?? 'Unknown error';
     throw ApiException(statusCode: response.statusCode, message: message);
   }

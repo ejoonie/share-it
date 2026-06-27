@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -109,6 +110,38 @@ class _ShareBodyState extends ConsumerState<ShareBody> {
     return null;
   }
 
+  Future<void> _debugSubscribe() async {
+    final controller = TextEditingController();
+    final token = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('[Debug] Enter Topic Token'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'topic token'),
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Go'),
+          ),
+        ],
+      ),
+    );
+    if (token == null || token.isEmpty) return;
+    if (mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => SubscribeScreen(topicToken: token)),
+      );
+    }
+  }
+
   void _toggleScanner() {
     setState(() {
       _scannerOpen = !_scannerOpen;
@@ -140,6 +173,15 @@ class _ShareBodyState extends ConsumerState<ShareBody> {
           onToggle: _toggleScanner,
           onDetect: _onDetect,
         ),
+        if (kDebugMode) ...[
+          const SizedBox(height: 8),
+          TextButton.icon(
+            icon: const Icon(Icons.bug_report_outlined, size: 16),
+            label: const Text('[Debug] Enter token manually'),
+            onPressed: _debugSubscribe,
+            style: TextButton.styleFrom(foregroundColor: Colors.grey),
+          ),
+        ],
         const SizedBox(height: 16),
         const Divider(indent: 16, endIndent: 16),
         const SizedBox(height: 16),
