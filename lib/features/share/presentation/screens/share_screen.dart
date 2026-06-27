@@ -28,7 +28,7 @@ class ShareScreen extends ConsumerWidget {
     final shareUrl = '$baseUrl/topics/${topic.token}';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Share Piggy')),
+      appBar: AppBar(title: const Text('Share My Piggy')),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [

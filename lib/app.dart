@@ -7,7 +7,6 @@ import 'core/bootstrap/providers/bootstrap_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'features/expenses/presentation/providers/expense_provider.dart';
 import 'features/share/presentation/screens/subscribe_screen.dart';
-import 'features/shopping/presentation/providers/shopping_provider.dart';
 import 'shared/screens/bootstrap_debug_screen.dart';
 import 'shared/widgets/bottom_nav_bar.dart';
 
@@ -162,11 +161,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   void _loadTab(int index) {
-    switch (index) {
-      case 0:
-        ref.read(expenseNotifierProvider.notifier).load();
-      case 1:
-        ref.read(shoppingNotifierProvider.notifier).load();
+    if (index == 0) {
+      ref.read(expenseNotifierProvider.notifier).load();
     }
   }
 
@@ -177,22 +173,22 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
       ),
-      floatingActionButton: kDebugMode
-          ? FloatingActionButton.small(
-              heroTag: 'bootstrap_debug_fab',
-              tooltip: 'Bootstrap Debug',
-              backgroundColor: const Color(0xFF313244),
-              foregroundColor: const Color(0xFF89B4FA),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const BootstrapDebugScreen(),
-                  ),
-                );
-              },
-              child: const Icon(Icons.bug_report_outlined),
-            )
-          : null,
+      // floatingActionButton: kDebugMode
+      //     ? FloatingActionButton.small(
+      //         heroTag: 'bootstrap_debug_fab',
+      //         tooltip: 'Bootstrap Debug',
+      //         backgroundColor: const Color(0xFF313244),
+      //         foregroundColor: const Color(0xFF89B4FA),
+      //         onPressed: () {
+      //           Navigator.of(context).push(
+      //             MaterialPageRoute(
+      //               builder: (_) => const BootstrapDebugScreen(),
+      //             ),
+      //           );
+      //         },
+      //         child: const Icon(Icons.bug_report_outlined),
+      //       )
+      //     : null,
     );
   }
 }
