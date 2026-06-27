@@ -5,6 +5,8 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/bootstrap/providers/bootstrap_provider.dart';
+import '../../../../core/providers/core_providers.dart';
+import '../../../../core/repositories/topic_repository.dart';
 import 'qr_scan_screen.dart';
 
 class ShareScreen extends ConsumerWidget {
@@ -17,8 +19,8 @@ class ShareScreen extends ConsumerWidget {
 
     if (topic == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Share Budget')),
-        body: const Center(child: Text('Unable to load budget information.')),
+        appBar: AppBar(title: const Text('Share My Piggy')),
+        body: const Center(child: Text('Unable to load piggy information.')),
       );
     }
 
@@ -26,41 +28,123 @@ class ShareScreen extends ConsumerWidget {
     final shareUrl = '$baseUrl/topics/${topic.token}';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Share Budget')),
+      appBar: AppBar(title: const Text('Share Piggy')),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          _SectionTitle(title: topic.title),
-          const SizedBox(height: 32),
-          _QrSection(shareUrl: shareUrl),
-          const SizedBox(height: 32),
-          _UrlSection(shareUrl: shareUrl),
-          const SizedBox(height: 32),
           _ScanSection(),
+          const SizedBox(height: 16),
+          const Divider(indent: 16, endIndent: 16),
+          const SizedBox(height: 16),
+          _EditableTitle(topic: topic),
+          const SizedBox(height: 16),
+          _QrSection(shareUrl: shareUrl),
+          const SizedBox(height: 16),
+          _UrlSection(shareUrl: shareUrl),
+          const SizedBox(height: 16),
         ],
       ),
     );
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  final String title;
-  const _SectionTitle({required this.title});
+class _EditableTitle extends ConsumerStatefulWidget {
+  final dynamic topic;
+
+  const _EditableTitle({required this.topic});
+
+  @override
+  ConsumerState<_EditableTitle> createState() => _EditableTitleState();
+}
+
+class _EditableTitleState extends ConsumerState<_EditableTitle> {
+  bool _saving = false;
+
+  Future<void> _editTitle() async {
+    final controller = TextEditingController(text: widget.topic.title);
+    final newTitle = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Change Piggy Name'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Piggy'),
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (newTitle == null ||
+        newTitle.isEmpty ||
+        newTitle == widget.topic.title) {
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      final apiClient = ref.read(apiClientProvider);
+      final authToken = ref.read(tokenStorageProvider).getAuthToken();
+      if (authToken == null) throw Exception('Login required');
+
+      final repo = TopicRepository(apiClient: apiClient, authToken: authToken);
+      await repo.updateTitle(widget.topic.id, newTitle);
+
+      await ref
+          .read(bootstrapNotifierProvider.notifier)
+          .retry(ref.read(tokenStorageProvider).getGuestToken() ?? '');
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save. Please try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-          textAlign: TextAlign.center,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              widget.topic.title,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(width: 8),
+            _saving
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 20),
+                    color: Colors.grey,
+                    onPressed: _editTitle,
+                    tooltip: 'Change Name',
+                  ),
+          ],
         ),
         const SizedBox(height: 8),
         Text(
-          'Invite others to join this shared budget',
+          'Invite others to join this shared piggy',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.grey,
               ),
@@ -73,6 +157,7 @@ class _SectionTitle extends StatelessWidget {
 
 class _QrSection extends StatelessWidget {
   final String shareUrl;
+
   const _QrSection({required this.shareUrl});
 
   @override
@@ -105,7 +190,7 @@ class _QrSection extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Anyone who scans this QR code can subscribe this shared budget.',
+              'Anyone who scans this QR code can subscribe this shared piggy.',
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
@@ -121,6 +206,7 @@ class _QrSection extends StatelessWidget {
 
 class _UrlSection extends StatelessWidget {
   final String shareUrl;
+
   const _UrlSection({required this.shareUrl});
 
   @override
@@ -133,8 +219,7 @@ class _UrlSection extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.link,
-                    color: Theme.of(context).colorScheme.primary),
+                Icon(Icons.link, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   'Share Link',
@@ -166,7 +251,8 @@ class _UrlSection extends StatelessWidget {
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: shareUrl));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Link copied to clipboard')),
+                        const SnackBar(
+                            content: Text('Link copied to clipboard')),
                       );
                     },
                   ),
@@ -216,7 +302,7 @@ class _ScanSection extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Scan someone else\'s QR code to join their shared budget.',
+              'Scan someone else\'s QR code to join their shared piggy.',
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
