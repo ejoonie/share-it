@@ -12,6 +12,14 @@ class BootstrapResponse {
     required this.entries,
   });
 
+  BootstrapResponse copyWith({TopicModel? topic}) {
+    return BootstrapResponse(
+      bootstrapCreated: bootstrapCreated,
+      topic: topic ?? this.topic,
+      entries: entries,
+    );
+  }
+
   factory BootstrapResponse.fromJson(Map<String, dynamic> json) {
     final topicJson = json['topic'] as Map<String, dynamic>?;
     final entriesJson = json['entries'] as List<dynamic>? ?? [];
