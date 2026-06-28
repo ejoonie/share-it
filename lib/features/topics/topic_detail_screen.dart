@@ -1,51 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/models/topic_follow_model.dart';
 import '../../core/models/topic_model.dart';
-import '../../core/providers/core_providers.dart';
-import '../../core/repositories/topic_repository.dart';
+import '../settings/presentation/providers/settings_provider.dart';
+import 'providers/topic_detail_provider.dart';
 import 'topic_edit_screen.dart';
 
-class TopicDetailScreen extends ConsumerStatefulWidget {
+class TopicDetailScreen extends ConsumerWidget {
   const TopicDetailScreen({super.key, required this.topicId});
 
   final int topicId;
 
   @override
-  ConsumerState<TopicDetailScreen> createState() => _TopicDetailScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(topicDetailNotifierProvider(topicId));
+    final notifier = ref.read(topicDetailNotifierProvider(topicId).notifier);
 
-class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
-  AsyncValue<List<TopicFollowModel>> _subscribers = const AsyncValue.loading();
-  AsyncValue<TopicModel> _topic = const AsyncValue.loading();
-
-  int get topicId => widget.topicId;
-  int page = 1;
-  int limit = 10;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadTopic();
-    _loadTopicSubscribers();
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Topic Detail'),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_outlined),
-            onPressed: () => _openEdit(),
+            onPressed: () async {
+              await _openEdit(context, state, notifier);
+              ref.read(settingsNotifierProvider.notifier).loadMyPiggies();
+            },
           ),
         ],
       ),
       body: ListView(
         children: [
-          _topicDetailCard(context),
+          _TopicDetailCard(state: state),
           const Divider(indent: 16, endIndent: 16),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -54,72 +40,37 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
-          _topicSubscribersList(context),
+          _TopicSubscribersList(state: state),
         ],
       ),
     );
   }
 
-  Future<void> _loadTopicSubscribers({bool loadMore = false}) async {
-    final authToken = ref.read(tokenStorageProvider).getAuthToken();
-    if (authToken == null) return;
-
-    setState(() => _subscribers = const AsyncValue.loading());
-    if (loadMore) {
-      page += 1;
-    } else {
-      page = 1;
-    }
-
-    try {
-      final repo = TopicRepository(
-        apiClient: ref.read(apiClientProvider),
-        authToken: authToken,
-      );
-      final list = await repo.fetchFollows(
-        topicId: topicId,
-        page: page,
-        limit: limit,
-      );
-      if (mounted) setState(() => _subscribers = AsyncValue.data(list));
-    } catch (e, st) {
-      debugPrint('fetchSubscribers error: $e');
-      debugPrint('$st');
-      if (mounted) setState(() => _subscribers = AsyncValue.error(e, st));
-    }
-  }
-
-  Future<void> _openEdit() async {
-    final current = _topic.value;
+  Future<void> _openEdit(
+    BuildContext context,
+    TopicDetailState state,
+    TopicDetailNotifier notifier,
+  ) async {
+    final current = state.topic.value;
     if (current == null) return;
     final updated = await Navigator.push<TopicModel>(
       context,
       MaterialPageRoute(builder: (_) => TopicEditScreen(topic: current)),
     );
-    if (updated != null && mounted) {
-      setState(() => _topic = AsyncValue.data(updated));
+    if (updated != null) {
+      notifier.updateTopic(updated);
     }
   }
+}
 
-  Future<void> _loadTopic() async {
-    final authToken = ref.read(tokenStorageProvider).getAuthToken();
-    if (authToken == null) return;
+class _TopicDetailCard extends StatelessWidget {
+  final TopicDetailState state;
 
-    setState(() => _topic = const AsyncValue.loading());
-    try {
-      final repo = TopicRepository(
-        apiClient: ref.read(apiClientProvider),
-        authToken: authToken,
-      );
-      final t = await repo.fetchById(topicId);
-      if (mounted) setState(() => _topic = AsyncValue.data(t));
-    } catch (e, st) {
-      if (mounted) setState(() => _topic = AsyncValue.error(e, st));
-    }
-  }
+  const _TopicDetailCard({required this.state});
 
-  Widget _topicDetailCard(BuildContext context) {
-    return _topic.when(
+  @override
+  Widget build(BuildContext context) {
+    return state.topic.when(
       loading: () => const SizedBox(
         height: 200,
         child: Center(child: CircularProgressIndicator()),
@@ -127,18 +78,23 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
       error: (_, __) => const SizedBox.shrink(),
       data: (topic) => _TopicProfileCard(
         topic: topic,
-        followerCount: _subscribers.value?.length ?? 0,
+        followerCount: state.subscribers.value?.length ?? 0,
       ),
     );
   }
+}
 
-  Widget _topicSubscribersList(BuildContext context) {
-    return _subscribers.when(
+class _TopicSubscribersList extends StatelessWidget {
+  final TopicDetailState state;
+
+  const _TopicSubscribersList({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    return state.subscribers.when(
       loading: () => const Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
-        child: Center(
-          child: CircularProgressIndicator(),
-        ),
+        child: Center(child: CircularProgressIndicator()),
       ),
       error: (_, __) => const Padding(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -194,7 +150,6 @@ class _TopicProfileCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       child: Column(
         children: [
-          // 타이틀
           Text(
             'My Piggy',
             style: theme.textTheme.labelMedium?.copyWith(
@@ -210,7 +165,6 @@ class _TopicProfileCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          // 로고
           Container(
             width: 88,
             height: 88,
@@ -225,14 +179,15 @@ class _TopicProfileCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          // 통계
           IntrinsicHeight(
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(width: 100, child: _StatItem(label: 'Created', value: createdStr)),
                 VerticalDivider(color: theme.dividerColor, width: 48),
-                SizedBox(width: 100, child: _StatItem(label: 'Followers', value: _formatCount(followerCount))),
+                SizedBox(
+                    width: 100,
+                    child: _StatItem(label: 'Followers', value: _formatCount(followerCount))),
               ],
             ),
           ),

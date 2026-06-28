@@ -4,11 +4,10 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../../core/models/topic_model.dart';
 import '../../../../core/providers/core_providers.dart';
-import '../../../../core/repositories/topic_repository.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
-import '../../../share/data/repositories/subscription_repository.dart';
 import '../../../share/presentation/screens/share_screen.dart';
 import '../../../topics/topic_detail_screen.dart';
+import '../providers/settings_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -17,6 +16,8 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
+// ConsumerStatefulWidget은 로컬 UI 상태(_currency, _notifications, _version)와
+// settingsRefreshProvider 리스닝을 위해 유지
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _currency = 'USD';
   bool _notifications = false;
@@ -24,8 +25,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   final List<String> _currencies = ['USD'];
 
-  AsyncValue<List<TopicModel>> _subscriptionsState = const AsyncValue.loading();
-  AsyncValue<List<TopicModel>> _myPiggiesState = const AsyncValue.loading();
+  get notifier => ref.read(settingsNotifierProvider.notifier);
 
   @override
   void initState() {
@@ -35,45 +35,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         setState(() => _version = '${info.version} (${info.buildNumber})');
       }
     });
-    _loadSubscriptions();
-    _loadMyPiggies();
+
+    notifier.loadMyPiggies();
+    notifier.loadSubscriptions();
   }
 
-  Future<void> _loadSubscriptions() async {
-    final authToken = ref.read(tokenStorageProvider).getAuthToken();
-    if (authToken == null) return;
-
-    setState(() => _subscriptionsState = const AsyncValue.loading());
-    try {
-      final repo = SubscriptionRepository(
-        apiClient: ref.read(apiClientProvider),
-        authToken: authToken,
-      );
-      final list = await repo.fetchAll();
-      if (mounted) setState(() => _subscriptionsState = AsyncValue.data(list));
-    } catch (e, st) {
-      if (mounted) setState(() => _subscriptionsState = AsyncValue.error(e, st));
-    }
-  }
-
-  Future<void> _loadMyPiggies() async {
-    final authToken = ref.read(tokenStorageProvider).getAuthToken();
-    if (authToken == null) return;
-
-    setState(() => _myPiggiesState = const AsyncValue.loading());
-    try {
-      final repo = TopicRepository(
-        apiClient: ref.read(apiClientProvider),
-        authToken: authToken,
-      );
-      final list = await repo.fetchOwned();
-      if (mounted) setState(() => _myPiggiesState = AsyncValue.data(list));
-    } catch (e, st) {
-      if (mounted) setState(() => _myPiggiesState = AsyncValue.error(e, st));
-    }
-  }
-
-  Future<void> _unsubscribe(TopicModel sub) async {
+  Future<void> _confirmUnsubscribe(TopicModel sub) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -95,37 +62,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (confirmed != true) return;
 
-    final authToken = ref.read(tokenStorageProvider).getAuthToken();
-    if (authToken == null) return;
-
-    try {
-      final repo = SubscriptionRepository(
-        apiClient: ref.read(apiClientProvider),
-        authToken: authToken,
+    final success = await notifier.unsubscribe(sub.id);
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Failed to unsubscribe. Please try again.')),
       );
-      await repo.unsubscribe(sub.id);
-      if (mounted) {
-        setState(() {
-          _subscriptionsState = _subscriptionsState.whenData(
-            (list) => list.where((s) => s.id != sub.id).toList(),
-          );
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to unsubscribe. Please try again.')),
-        );
-      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     ref.listen(settingsRefreshProvider, (_, __) {
-      _loadMyPiggies();
-      _loadSubscriptions();
+      notifier.loadMyPiggies();
+      notifier.loadSubscriptions();
     });
+
+    final state = ref.watch(settingsNotifierProvider);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
@@ -168,74 +122,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             },
           ),
           const _SectionHeader(title: 'My Piggies'),
-          ..._myPiggiesState.when(
-            loading: () => [
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            ],
-            error: (_, __) => [
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Text('Failed to load piggies.', style: TextStyle(color: Colors.red)),
-              ),
-            ],
-            data: (piggies) => piggies.isEmpty
-                ? [
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Text('No piggies yet.', style: TextStyle(color: Colors.grey)),
-                    ),
-                  ]
-                : piggies.map(
-                    (topic) => ListTile(
-                      leading: const Icon(Icons.savings_outlined),
-                      title: Text(topic.title),
-                      subtitle: topic.isDefault ? const Text('Default') : null,
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.push<void>(
-                          context,
-                          MaterialPageRoute(builder: (_) => TopicDetailScreen(topicId: topic.id)),
-                        );
-                      },
-                    ),
-                  ).toList(),
-          ),
+          ..._buildMyPiggies(state),
           const _SectionHeader(title: 'My Subscriptions'),
-          ..._subscriptionsState.when(
-            loading: () => [
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            ],
-            error: (_, __) => [
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Text('Failed to load subscriptions.', style: TextStyle(color: Colors.red)),
-              ),
-            ],
-            data: (subs) => subs.isEmpty
-                ? [
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Text('No subscriptions yet.', style: TextStyle(color: Colors.grey)),
-                    ),
-                  ]
-                : subs.map(
-                    (sub) => ListTile(
-                      leading: const Icon(Icons.people_outline),
-                      title: Text(sub.title),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.close, size: 18, color: Colors.grey),
-                        tooltip: 'Unsubscribe',
-                        onPressed: () => _unsubscribe(sub),
-                      ),
-                    ),
-                  ).toList(),
-          ),
+          ..._buildSubscriptions(state),
           const _SectionHeader(title: 'Account'),
           ListTile(
             leading: const Icon(Icons.login),
@@ -259,10 +148,102 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
+
+  List<Widget> _buildMyPiggies(SettingsState state) {
+    return state.myPiggies.when(
+      loading: () => [
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ],
+      error: (_, __) => [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Text('Failed to load piggies.',
+              style: TextStyle(color: Colors.red)),
+        ),
+      ],
+      data: (piggies) => piggies.isEmpty
+          ? [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Text(
+                  'No piggies yet.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            ]
+          : piggies
+              .map(
+                (topic) => ListTile(
+                  leading: const Icon(Icons.savings_outlined),
+                  title: Text(topic.title),
+                  subtitle: topic.isDefault ? const Text('Default') : null,
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push<void>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TopicDetailScreen(topicId: topic.id),
+                      ),
+                    );
+                  },
+                ),
+              )
+              .toList(),
+    );
+  }
+
+  List<Widget> _buildSubscriptions(SettingsState state) {
+    return state.subscriptions.when(
+      loading: () => [
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      ],
+      error: (_, __) => [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Text(
+            'Failed to load subscriptions.',
+            style: TextStyle(color: Colors.red),
+          ),
+        ),
+      ],
+      data: (subs) => subs.isEmpty
+          ? [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Text(
+                  'No subscriptions yet.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            ]
+          : subs
+              .map(
+                (sub) => ListTile(
+                  leading: const Icon(Icons.people_outline),
+                  title: Text(sub.title),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.close, size: 18, color: Colors.grey),
+                    tooltip: 'Unsubscribe',
+                    onPressed: () => _confirmUnsubscribe(sub),
+                  ),
+                ),
+              )
+              .toList(),
+    );
+  }
 }
 
 class _SectionHeader extends StatelessWidget {
   final String title;
+
   const _SectionHeader({required this.title});
 
   @override
