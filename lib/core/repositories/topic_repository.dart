@@ -1,6 +1,5 @@
-import 'package:share_it/core/models/user_model.dart';
-
 import '../api/api_client.dart';
+import '../models/topic_follow_model.dart';
 import '../models/topic_model.dart';
 
 class TopicRepository {
@@ -41,19 +40,18 @@ class TopicRepository {
     return TopicModel.fromJson(json);
   }
 
-  Future<List<UserModel>> fetchSubscribers({
+  Future<List<TopicFollowModel>> fetchFollows({
     required int topicId,
-    int page = 1,
+    page = 1,
     int limit = 10,
   }) async {
     final json = await _apiClient.get(
-      '/api/v1/my/topics/$topicId/subscribers?page=$page&limit=$limit',
+      '/api/v1/my/topics/$topicId/follows',
       authToken: _authToken,
     );
-
     final list = json['records'] as List<dynamic>? ?? [];
     return list
-        .map((e) => UserModel.fromJson(e as Map<String, dynamic>))
+        .map((e) => TopicFollowModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 }

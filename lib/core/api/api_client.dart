@@ -68,6 +68,7 @@ class ApiClient {
     Map<String, dynamic>? queryParams,
   }) async {
     var uri = Uri.parse('$baseUrl$path');
+    print(uri);
     if (queryParams != null && queryParams.isNotEmpty) {
       uri = Uri.parse('${uri.toString()}?${buildQueryString(queryParams)}');
     }

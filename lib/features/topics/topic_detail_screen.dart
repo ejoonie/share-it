@@ -5,6 +5,7 @@ import 'package:flutter/src/widgets/framework.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_it/core/models/topic_model.dart';
 
+import '../../core/models/topic_follow_model.dart';
 import '../../core/models/user_model.dart';
 import '../../core/providers/core_providers.dart';
 import '../../core/repositories/topic_repository.dart';
@@ -19,7 +20,7 @@ class TopicDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
-  AsyncValue<List<UserModel>> _subscribers = const AsyncValue.loading();
+  AsyncValue<List<TopicFollowModel>> _subscribers = const AsyncValue.loading();
   AsyncValue<TopicModel> _topic = const AsyncValue.loading();
 
   get topicId => widget.topicId;
@@ -70,13 +71,15 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
         apiClient: ref.read(apiClientProvider),
         authToken: authToken,
       );
-      final list = await repo.fetchSubscribers(
+      final list = await repo.fetchFollows(
         topicId: topicId,
         page: page,
         limit: limit,
       );
       if (mounted) setState(() => _subscribers = AsyncValue.data(list));
     } catch (e, st) {
+      debugPrint('fetchSubscribers error: $e');
+      debugPrint('$st');
       if (mounted) setState(() => _subscribers = AsyncValue.error(e, st));
     }
   }
@@ -133,7 +136,7 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
                 final sub = subs[index];
                 return ListTile(
                   leading: const Icon(Icons.people_outline),
-                  title: Text(sub.nickName),
+                  title: Text(sub.user.nickName),
                 );
               },
             ),
