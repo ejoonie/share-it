@@ -2,77 +2,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/models/topic_model.dart';
-import '../../../../core/providers/core_providers.dart';
-import '../../data/repositories/subscription_repository.dart';
+import '../providers/subscribe_provider.dart';
 
-class SubscribeScreen extends ConsumerStatefulWidget {
+class SubscribeScreen extends ConsumerWidget {
   final String topicToken;
 
   const SubscribeScreen({super.key, required this.topicToken});
 
   @override
-  ConsumerState<SubscribeScreen> createState() => _SubscribeScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(subscribeNotifierProvider(topicToken));
+    final notifier = ref.read(subscribeNotifierProvider(topicToken).notifier);
 
-class _SubscribeScreenState extends ConsumerState<SubscribeScreen> {
-  AsyncValue<TopicModel> _topicState = const AsyncValue.loading();
-  AsyncValue<void>? _subscribeState; // null = 아직 시도 안 함
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchTopic();
-  }
-
-  SubscriptionRepository get _repo {
-    final authToken = ref.read(tokenStorageProvider).getAuthToken();
-    return SubscriptionRepository(
-      apiClient: ref.read(apiClientProvider),
-      authToken: authToken ?? '',
-    );
-  }
-
-  Future<void> _fetchTopic() async {
-    setState(() => _topicState = const AsyncValue.loading());
-    try {
-      final topic = await _repo.fetchByToken(widget.topicToken);
-      if (mounted) setState(() => _topicState = AsyncValue.data(topic));
-    } catch (e, st) {
-      if (mounted) setState(() => _topicState = AsyncValue.error(e, st));
-    }
-  }
-
-  Future<void> _subscribe(TopicModel topic) async {
-    setState(() => _subscribeState = const AsyncValue.loading());
-    try {
-      await _repo.subscribe(widget.topicToken);
-      if (mounted) setState(() => _subscribeState = const AsyncValue.data(null));
-    } catch (e, st) {
-      if (mounted) setState(() => _subscribeState = AsyncValue.error(e, st));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Subscribe')),
       body: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [_buildContent()],
+          children: [_buildContent(context, state, notifier)],
         ),
       ),
     );
   }
 
-  Widget _buildContent() {
-    // 구독 시도 후 상태
-    final sub = _subscribeState;
+  Widget _buildContent(
+    BuildContext context,
+    SubscribeState state,
+    SubscribeNotifier notifier,
+  ) {
+    final sub = state.subscribeResult;
     if (sub != null) {
       return sub.when(
         loading: () => const CircularProgressIndicator(),
-        data: (_) => _topicState.maybeWhen(
+        data: (_) => state.topic.maybeWhen(
           data: (topic) => _ResultView(
             icon: Icons.check_circle_outline,
             iconColor: Colors.green,
@@ -87,13 +50,12 @@ class _SubscribeScreenState extends ConsumerState<SubscribeScreen> {
           iconColor: Colors.red,
           message: 'Failed to subscribe.\nPlease try again.',
           buttonLabel: 'Retry',
-          onButton: () => _topicState.whenData((t) => _subscribe(t)),
+          onButton: () => notifier.subscribe(),
         ),
       );
     }
 
-    // 토픽 조회 상태
-    return _topicState.when(
+    return state.topic.when(
       loading: () => const CircularProgressIndicator(),
       error: (_, __) => _ResultView(
         icon: Icons.search_off,
@@ -104,7 +66,7 @@ class _SubscribeScreenState extends ConsumerState<SubscribeScreen> {
       ),
       data: (topic) => _IdleView(
         topic: topic,
-        onSubscribe: () => _subscribe(topic),
+        onSubscribe: () => notifier.subscribe(),
         onCancel: () => Navigator.pop(context),
       ),
     );
