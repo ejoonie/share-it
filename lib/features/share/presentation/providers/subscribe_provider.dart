@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/models/topic_model.dart';
 import '../../../../core/providers/core_providers.dart';
-import '../../data/repositories/subscription_repository.dart';
 
 class SubscribeState {
   final AsyncValue<TopicModel> topic;
@@ -32,18 +31,11 @@ class SubscribeNotifier extends StateNotifier<SubscribeState> {
     fetchTopic();
   }
 
-  SubscriptionRepository get _repo {
-    final authToken = _ref.read(tokenStorageProvider).getAuthToken();
-    return SubscriptionRepository(
-      apiClient: _ref.read(apiClientProvider),
-      authToken: authToken ?? '',
-    );
-  }
-
   Future<void> fetchTopic() async {
     state = state.copyWith(topic: const AsyncValue.loading());
     try {
-      final topic = await _repo.fetchByToken(topicToken);
+      final topic =
+          await _ref.read(subscriptionRepositoryProvider).fetchByToken(topicToken);
       state = state.copyWith(topic: AsyncValue.data(topic));
     } catch (e, st) {
       state = state.copyWith(topic: AsyncValue.error(e, st));
@@ -56,7 +48,7 @@ class SubscribeNotifier extends StateNotifier<SubscribeState> {
       subscribeResult: const AsyncValue.loading(),
     );
     try {
-      await _repo.subscribe(topicToken);
+      await _ref.read(subscriptionRepositoryProvider).subscribe(topicToken);
       state = SubscribeState(
         topic: state.topic,
         subscribeResult: const AsyncValue.data(null),

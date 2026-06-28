@@ -4,12 +4,10 @@ import '../models/entry_model.dart';
 class EntryRepository {
   final ApiClient _apiClient;
   final int topicId;
-  final String authToken;
 
   EntryRepository({
     required ApiClient apiClient,
     required this.topicId,
-    required this.authToken,
   }) : _apiClient = apiClient;
 
   String get _basePath => '/api/v1/my/topics/$topicId/entries';
@@ -21,7 +19,6 @@ class EntryRepository {
   }) async {
     final json = await _apiClient.get(
       _basePath,
-      authToken: authToken,
       queryParams: {'page': page, 'limit': limit, ...?q},
     );
     final records = json['records'] as List<dynamic>;
@@ -41,7 +38,7 @@ class EntryRepository {
     bool? checked,
   }) async {
     final body = <String, dynamic>{
-      if (occurredAt != null) 'occurred_at': occurredAt.toUtc().toIso8601String(), // utc 로 변환해야 함. 그냥 iso 로 하면 로컬시간을 그대로 사용
+      if (occurredAt != null) 'occurred_at': occurredAt.toUtc().toIso8601String(),
       if (kind != null) 'kind': kind,
       if (currency != null) 'currency': currency,
       if (amount != null) 'amount': amount,
@@ -50,7 +47,7 @@ class EntryRepository {
       if (content != null) 'content': content,
       if (checked != null) 'checked': checked,
     };
-    final json = await _apiClient.post(_basePath, body, authToken: authToken);
+    final json = await _apiClient.post(_basePath, body);
     return EntryModel.fromJson(json);
   }
 
@@ -66,7 +63,7 @@ class EntryRepository {
     bool? checked,
   }) async {
     final body = <String, dynamic>{
-      if (occurredAt != null) 'occurred_at': occurredAt.toUtc().toIso8601String(), // utc 로 변환해야 함. 그냥 iso 로 하면 로컬시간을 그대로 사용
+      if (occurredAt != null) 'occurred_at': occurredAt.toUtc().toIso8601String(),
       if (kind != null) 'kind': kind,
       if (currency != null) 'currency': currency,
       if (amount != null) 'amount': amount,
@@ -75,19 +72,12 @@ class EntryRepository {
       if (content != null) 'content': content,
       if (checked != null) 'checked': checked,
     };
-    final json = await _apiClient.patch(
-      '$_basePath/$id',
-      body,
-      authToken: authToken,
-    );
+    final json = await _apiClient.patch('$_basePath/$id', body);
     return EntryModel.fromJson(json);
   }
 
   Future<EntryModel> deleteEntry(int id) async {
-    final json = await _apiClient.delete(
-      '$_basePath/$id',
-      authToken: authToken,
-    );
+    final json = await _apiClient.delete('$_basePath/$id');
     return EntryModel.fromJson(json);
   }
 }

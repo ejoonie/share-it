@@ -75,7 +75,7 @@ class BootstrapNotifier extends StateNotifier<BootstrapState> {
         }
       }
 
-      final bootstrapData = await _repository.getBootstrap(authToken);
+      final bootstrapData = await _repository.getBootstrap();
       state = state.copyWith(
         status: BootstrapStatus.success,
         data: bootstrapData,

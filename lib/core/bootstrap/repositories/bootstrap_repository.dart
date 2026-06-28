@@ -37,11 +37,8 @@ class BootstrapRepository {
 
   /// Calls GET /api/v1/my/bootstrap with the stored auth token and returns
   /// the [BootstrapResponse].
-  Future<BootstrapResponse> getBootstrap(String authToken) async {
-    final json = await _apiClient.get(
-      '/api/v1/my/bootstrap',
-      authToken: authToken,
-    );
+  Future<BootstrapResponse> getBootstrap() async {
+    final json = await _apiClient.get('/api/v1/my/bootstrap');
     return BootstrapResponse.fromJson(json);
   }
 }

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
+import '../storage/token_storage.dart';
 
 class ApiException implements Exception {
   final int statusCode;
@@ -34,29 +35,32 @@ class ApiClient {
   static String get baseUrl => AppConfig.apiBaseUrl;
 
   final http.Client _client;
+  final TokenStorage? _tokenStorage;
 
-  ApiClient({http.Client? client}) : _client = client ?? http.Client();
+  ApiClient({http.Client? client, TokenStorage? tokenStorage})
+      : _client = client ?? http.Client(),
+        _tokenStorage = tokenStorage;
 
-  Map<String, String> _headers({String? authToken}) {
+  Map<String, String> _headers() {
     final headers = <String, String>{
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
-    if (authToken != null) {
-      headers['x-token'] = authToken;
+    final token = _tokenStorage?.getAuthToken();
+    if (token != null) {
+      headers['x-token'] = token;
     }
     return headers;
   }
 
   Future<Map<String, dynamic>> post(
     String path,
-    Map<String, dynamic> body, {
-    String? authToken,
-  }) async {
+    Map<String, dynamic> body,
+  ) async {
     final uri = Uri.parse('$baseUrl$path');
     final response = await _client.post(
       uri,
-      headers: _headers(authToken: authToken),
+      headers: _headers(),
       body: jsonEncode(body),
     );
     return _handleResponse(response);
@@ -64,43 +68,37 @@ class ApiClient {
 
   Future<Map<String, dynamic>> get(
     String path, {
-    String? authToken,
     Map<String, dynamic>? queryParams,
   }) async {
     var uri = Uri.parse('$baseUrl$path');
-    print(uri);
     if (queryParams != null && queryParams.isNotEmpty) {
       uri = Uri.parse('${uri.toString()}?${buildQueryString(queryParams)}');
     }
     final response = await _client.get(
       uri,
-      headers: _headers(authToken: authToken),
+      headers: _headers(),
     );
     return _handleResponse(response);
   }
 
   Future<Map<String, dynamic>> patch(
     String path,
-    Map<String, dynamic> body, {
-    String? authToken,
-  }) async {
+    Map<String, dynamic> body,
+  ) async {
     final uri = Uri.parse('$baseUrl$path');
     final response = await _client.patch(
       uri,
-      headers: _headers(authToken: authToken),
+      headers: _headers(),
       body: jsonEncode(body),
     );
     return _handleResponse(response);
   }
 
-  Future<Map<String, dynamic>> delete(
-    String path, {
-    String? authToken,
-  }) async {
+  Future<Map<String, dynamic>> delete(String path) async {
     final uri = Uri.parse('$baseUrl$path');
     final response = await _client.delete(
       uri,
-      headers: _headers(authToken: authToken),
+      headers: _headers(),
     );
     return _handleResponse(response);
   }

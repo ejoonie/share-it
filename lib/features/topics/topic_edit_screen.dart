@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/topic_model.dart';
 import '../../core/providers/core_providers.dart';
-import '../../core/repositories/topic_repository.dart';
 
 class TopicEditScreen extends ConsumerStatefulWidget {
   final TopicModel topic;
@@ -46,11 +45,7 @@ class _TopicEditScreenState extends ConsumerState<TopicEditScreen> {
 
     setState(() => _saving = true);
     try {
-      final authToken = ref.read(tokenStorageProvider).getAuthToken();
-      final updated = await TopicRepository(
-        apiClient: ref.read(apiClientProvider),
-        authToken: authToken ?? '',
-      ).update(
+      final updated = await ref.read(topicRepositoryProvider).update(
         widget.topic.id,
         title: titleChanged ? newTitle : null,
         isDefault: defaultChanged && _isDefault ? true : null,
