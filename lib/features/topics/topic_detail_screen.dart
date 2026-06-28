@@ -5,6 +5,7 @@ import '../../core/models/topic_follow_model.dart';
 import '../../core/models/topic_model.dart';
 import '../../core/providers/core_providers.dart';
 import '../../core/repositories/topic_repository.dart';
+import 'topic_edit_screen.dart';
 
 class TopicDetailScreen extends ConsumerStatefulWidget {
   const TopicDetailScreen({super.key, required this.topicId});
@@ -33,7 +34,15 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Topic Detail')),
+      appBar: AppBar(
+        title: const Text('Topic Detail'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () => _openEdit(),
+          ),
+        ],
+      ),
       body: ListView(
         children: [
           _topicDetailCard(context),
@@ -77,6 +86,18 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
       debugPrint('fetchSubscribers error: $e');
       debugPrint('$st');
       if (mounted) setState(() => _subscribers = AsyncValue.error(e, st));
+    }
+  }
+
+  Future<void> _openEdit() async {
+    final current = _topic.value;
+    if (current == null) return;
+    final updated = await Navigator.push<TopicModel>(
+      context,
+      MaterialPageRoute(builder: (_) => TopicEditScreen(topic: current)),
+    );
+    if (updated != null && mounted) {
+      setState(() => _topic = AsyncValue.data(updated));
     }
   }
 

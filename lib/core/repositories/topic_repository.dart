@@ -31,10 +31,13 @@ class TopicRepository {
     return TopicModel.fromJson(json);
   }
 
-  Future<TopicModel> updateTitle(int topicId, String title) async {
+  Future<TopicModel> update(int topicId, {String? title, bool? isDefault}) async {
+    final body = <String, dynamic>{};
+    if (title != null) body['title'] = title;
+    if (isDefault != null) body['is_default'] = isDefault;
     final json = await _apiClient.patch(
       '/api/v1/my/topics/$topicId',
-      {'title': title},
+      body,
       authToken: _authToken,
     );
     return TopicModel.fromJson(json);

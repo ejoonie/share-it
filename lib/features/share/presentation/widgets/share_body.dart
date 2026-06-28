@@ -72,7 +72,7 @@ class _ShareBodyState extends ConsumerState<ShareBody> {
       await TopicRepository(
         apiClient: ref.read(apiClientProvider),
         authToken: authToken,
-      ).updateTitle(topicId, newTitle);
+      ).update(topicId, title: newTitle);
 
       if (mounted) setState(() => _topic = _topic!.copyWith(title: newTitle));
     } catch (_) {
