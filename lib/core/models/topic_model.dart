@@ -17,6 +17,18 @@ class TopicModel {
     required this.updatedAt,
   });
 
+  TopicModel copyWith({String? title}) {
+    return TopicModel(
+      id: id,
+      token: token,
+      userId: userId,
+      title: title ?? this.title,
+      isDefault: isDefault,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+  }
+
   factory TopicModel.fromJson(Map<String, dynamic> json) {
     return TopicModel(
       id: json['id'] as int,

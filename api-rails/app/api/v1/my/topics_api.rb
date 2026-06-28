@@ -120,14 +120,22 @@ module V1
           # PATCH /api/v1/my/topics/:id
           desc '내 토픽 수정'
           params do
-            requires :title, type: String, regexp: /\S/
+            optional :title, type: String, regexp: /\S/
+            optional :is_default, type: Boolean
           end
           patch do
             topic = Topic.find_by(id: params[:id])
             error!({ message: 'Topic not found' }, 404) if topic.nil?
             error!({ message: 'Forbidden' }, 403) if topic.user_id != current_user.id
 
-            topic.update!(title: params[:title].strip)
+            updates = {}
+            updates[:title] = params[:title].strip if params[:title].present?
+            if params.key?(:is_default) && params[:is_default]
+              current_user.topics.where(is_default: true).update_all(is_default: false)
+              updates[:is_default] = true
+            end
+
+            topic.update!(updates)
             present topic, with: Entities::TopicEntity
           end
 

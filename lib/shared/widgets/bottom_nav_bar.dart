@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../features/expenses/presentation/screens/expense_screen.dart';
-import '../../features/shopping/presentation/screens/shopping_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
+import '../../features/share/presentation/screens/share_screen.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -16,7 +16,7 @@ class BottomNavBar extends StatelessWidget {
 
   static const List<Widget> _screens = [
     ExpenseScreen(),
-    ShoppingScreen(),
+    ShareScreen(),
     SettingsScreen(),
   ];
 
@@ -37,9 +37,9 @@ class BottomNavBar extends StatelessWidget {
             label: 'Expenses',
           ),
           NavigationDestination(
-            icon: Icon(Icons.shopping_cart_outlined),
-            selectedIcon: Icon(Icons.shopping_cart),
-            label: 'Shopping',
+            icon: Icon(Icons.share_outlined),
+            selectedIcon: Icon(Icons.share),
+            label: 'Share',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),

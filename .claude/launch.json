@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "front",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-s", "front", "-l", "3002"],
+      "port": 3002
+    }
+  ]
+}

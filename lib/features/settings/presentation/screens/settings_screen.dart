@@ -1,30 +1,136 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../../../core/models/topic_model.dart';
+import '../../../../core/providers/core_providers.dart';
+import '../../../../core/repositories/topic_repository.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
+import '../../../share/data/repositories/subscription_repository.dart';
+import '../../../share/presentation/screens/share_screen.dart';
+import '../../../topics/topic_detail_screen.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _currency = 'USD';
   bool _notifications = false;
-  bool _darkMode = false;
-  String _startDay = 'Monday';
+  String _version = '';
 
-  final List<String> _currencies = ['USD', 'EUR', 'KRW', 'JPY', 'GBP'];
-  final List<String> _startDays = ['Monday', 'Sunday'];
+  final List<String> _currencies = ['USD'];
+
+  AsyncValue<List<TopicModel>> _subscriptionsState = const AsyncValue.loading();
+  AsyncValue<List<TopicModel>> _myPiggiesState = const AsyncValue.loading();
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) {
+        setState(() => _version = '${info.version} (${info.buildNumber})');
+      }
+    });
+    _loadSubscriptions();
+    _loadMyPiggies();
+  }
+
+  Future<void> _loadSubscriptions() async {
+    final authToken = ref.read(tokenStorageProvider).getAuthToken();
+    if (authToken == null) return;
+
+    setState(() => _subscriptionsState = const AsyncValue.loading());
+    try {
+      final repo = SubscriptionRepository(
+        apiClient: ref.read(apiClientProvider),
+        authToken: authToken,
+      );
+      final list = await repo.fetchAll();
+      if (mounted) setState(() => _subscriptionsState = AsyncValue.data(list));
+    } catch (e, st) {
+      if (mounted) setState(() => _subscriptionsState = AsyncValue.error(e, st));
+    }
+  }
+
+  Future<void> _loadMyPiggies() async {
+    final authToken = ref.read(tokenStorageProvider).getAuthToken();
+    if (authToken == null) return;
+
+    setState(() => _myPiggiesState = const AsyncValue.loading());
+    try {
+      final repo = TopicRepository(
+        apiClient: ref.read(apiClientProvider),
+        authToken: authToken,
+      );
+      final list = await repo.fetchOwned();
+      if (mounted) setState(() => _myPiggiesState = AsyncValue.data(list));
+    } catch (e, st) {
+      if (mounted) setState(() => _myPiggiesState = AsyncValue.error(e, st));
+    }
+  }
+
+  Future<void> _unsubscribe(TopicModel sub) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Unsubscribe'),
+        content: Text('Unsubscribe from "${sub.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Unsubscribe'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final authToken = ref.read(tokenStorageProvider).getAuthToken();
+    if (authToken == null) return;
+
+    try {
+      final repo = SubscriptionRepository(
+        apiClient: ref.read(apiClientProvider),
+        authToken: authToken,
+      );
+      await repo.unsubscribe(sub.id);
+      if (mounted) {
+        setState(() {
+          _subscriptionsState = _subscriptionsState.whenData(
+            (list) => list.where((s) => s.id != sub.id).toList(),
+          );
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to unsubscribe. Please try again.')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(settingsRefreshProvider, (_, __) {
+      _loadMyPiggies();
+      _loadSubscriptions();
+    });
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
-          _SectionHeader(title: 'General'),
+          const _SectionHeader(title: 'General'),
           ListTile(
             leading: const Icon(Icons.attach_money),
             title: const Text('Default Currency'),
@@ -32,9 +138,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               value: _currency,
               underline: const SizedBox.shrink(),
               items: _currencies
-                  .map(
-                    (c) => DropdownMenuItem(value: c, child: Text(c)),
-                  )
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                   .toList(),
               onChanged: (v) {
                 if (v != null) setState(() => _currency = v);
@@ -42,23 +146,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const Divider(indent: 16, endIndent: 16),
-          ListTile(
-            leading: const Icon(Icons.calendar_today),
-            title: const Text('Week starts on'),
-            trailing: DropdownButton<String>(
-              value: _startDay,
-              underline: const SizedBox.shrink(),
-              items: _startDays
-                  .map(
-                    (d) => DropdownMenuItem(value: d, child: Text(d)),
-                  )
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) setState(() => _startDay = v);
-              },
-            ),
-          ),
-          _SectionHeader(title: 'Notifications'),
+          const _SectionHeader(title: 'Notifications'),
           SwitchListTile(
             secondary: const Icon(Icons.notifications_outlined),
             title: const Text('Notifications'),
@@ -66,77 +154,106 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: _notifications,
             onChanged: (v) => setState(() => _notifications = v),
           ),
-          _SectionHeader(title: 'Theme'),
-          SwitchListTile(
-            secondary: const Icon(Icons.dark_mode_outlined),
-            title: const Text('Dark Mode'),
-            subtitle: const Text('Use dark theme'),
-            value: _darkMode,
-            onChanged: (v) => setState(() => _darkMode = v),
-          ),
-          _SectionHeader(title: 'Account'),
+          const _SectionHeader(title: 'Share'),
           ListTile(
-            leading: const Icon(Icons.login),
-            title: const Text('Sign In'),
-            subtitle: const Text('Sign in for sharing features'),
+            leading: const Icon(Icons.share),
+            title: const Text('Share Expenses'),
+            subtitle: const Text('Share your expenses with others.'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.push<void>(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const LoginScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const ShareScreen()),
               );
             },
           ),
-          _SectionHeader(title: 'Data'),
+          const _SectionHeader(title: 'My Piggies'),
+          ..._myPiggiesState.when(
+            loading: () => [
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ],
+            error: (_, __) => [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Text('Failed to load piggies.', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+            data: (piggies) => piggies.isEmpty
+                ? [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Text('No piggies yet.', style: TextStyle(color: Colors.grey)),
+                    ),
+                  ]
+                : piggies.map(
+                    (topic) => ListTile(
+                      leading: const Icon(Icons.savings_outlined),
+                      title: Text(topic.title),
+                      subtitle: topic.isDefault ? const Text('Default') : null,
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.push<void>(
+                          context,
+                          MaterialPageRoute(builder: (_) => TopicDetailScreen(topicId: topic.id)),
+                        );
+                      },
+                    ),
+                  ).toList(),
+          ),
+          const _SectionHeader(title: 'My Subscriptions'),
+          ..._subscriptionsState.when(
+            loading: () => [
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ],
+            error: (_, __) => [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Text('Failed to load subscriptions.', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+            data: (subs) => subs.isEmpty
+                ? [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Text('No subscriptions yet.', style: TextStyle(color: Colors.grey)),
+                    ),
+                  ]
+                : subs.map(
+                    (sub) => ListTile(
+                      leading: const Icon(Icons.people_outline),
+                      title: Text(sub.title),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.close, size: 18, color: Colors.grey),
+                        tooltip: 'Unsubscribe',
+                        onPressed: () => _unsubscribe(sub),
+                      ),
+                    ),
+                  ).toList(),
+          ),
+          const _SectionHeader(title: 'Account'),
           ListTile(
-            leading: const Icon(Icons.delete_forever_outlined,
-                color: Colors.red),
-            title: const Text(
-              'Delete all data',
-              style: TextStyle(color: Colors.red),
-            ),
-            onTap: () => _confirmClearData(context),
-          ),
-          _SectionHeader(title: 'About'),
-          const ListTile(
-            leading: Icon(Icons.info_outline),
-            title: Text('Version'),
-            trailing: Text('1.0.0'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _clearAllData() async {
-    // Data is stored on the server; no local data to delete.
-  }
-
-  void _confirmClearData(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Data'),
-        content: const Text('Delete all data? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await _clearAllData();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('All data has been deleted.')),
-                );
-              }
+            leading: const Icon(Icons.login),
+            title: const Text('Sign In'),
+            subtitle: const Text('Sign in to keep your data safe'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push<void>(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+          ),
+          const _SectionHeader(title: 'About'),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('Version'),
+            trailing: Text(_version.isEmpty ? '...' : _version),
           ),
         ],
       ),
