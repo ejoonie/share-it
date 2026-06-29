@@ -4,7 +4,7 @@
     {
       "name": "front",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "source ~/.nvm/nvm.sh && nvm use 20 && cd front && yarn dev --port 3002"],
+      "runtimeArgs": ["-c", "source ~/.nvm/nvm.sh && nvm use 22 && cd front && yarn dev --port 3002"],
       "port": 3002
     }
   ]
