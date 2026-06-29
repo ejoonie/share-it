@@ -11,21 +11,49 @@ export default defineNuxtConfig({
   app: {
     head: {
       htmlAttrs: { lang: 'en' },
-      title: 'Sharable Piggy',
+      title: 'Sharable Piggy – Shared expense & shopping list app',
+      titleTemplate: '%s | Sharable Piggy',
       meta: [
-        { name: 'description', content: 'Share household expenses and shopping lists in one shared piggy.' },
+        { name: 'description', content: 'Sharable Piggy helps families, partners, and roommates manage household expenses and shopping lists together in one shared budgeting app.' },
+        { name: 'keywords', content: 'shared expenses, household budget, shopping list, family finance, roommate app, expense tracker' },
+        { name: 'robots', content: 'index, follow' },
+        { name: 'theme-color', content: '#3dbfa8' },
+        // Open Graph
         { property: 'og:site_name', content: 'Sharable Piggy' },
         { property: 'og:type', content: 'website' },
-        { property: 'og:title', content: 'Sharable Piggy' },
-        { property: 'og:description', content: 'A simple app for sharing expenses and shopping lists with family, partners, and roommates.' },
+        { property: 'og:title', content: 'Sharable Piggy – Shared expense & shopping list app' },
+        { property: 'og:description', content: 'Sharable Piggy helps families, partners, and roommates manage household expenses and shopping lists together in one shared budgeting app.' },
         { property: 'og:url', content: 'https://sharablepiggy.com' },
-        { name: 'theme-color', content: '#3dbfa8' }
+        { property: 'og:image', content: 'https://sharablepiggy.com/og-image.png' },
+        { property: 'og:image:width', content: '1024' },
+        { property: 'og:image:height', content: '1024' },
+        { property: 'og:locale', content: 'en_US' },
+        // Twitter Card
+        { name: 'twitter:card', content: 'summary' },
+        { name: 'twitter:title', content: 'Sharable Piggy – Shared expense & shopping list app' },
+        { name: 'twitter:description', content: 'Manage household expenses and shopping lists together in one shared budgeting app.' },
+        { name: 'twitter:image', content: 'https://sharablepiggy.com/og-image.png' },
       ],
       link: [
         { rel: 'canonical', href: 'https://sharablepiggy.com' },
         { rel: 'icon', type: 'image/png', href: '/favicon.png' },
         { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
-      ]
+      ],
+      script: [
+        {
+          type: 'application/ld+json',
+          innerHTML: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'MobileApplication',
+            name: 'Sharable Piggy',
+            url: 'https://sharablepiggy.com',
+            description: 'Sharable Piggy helps families, partners, and roommates manage household expenses and shopping lists together.',
+            applicationCategory: 'FinanceApplication',
+            operatingSystem: 'iOS, Android',
+            offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+          }),
+        },
+      ],
     }
   },
   nitro: {

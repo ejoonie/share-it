@@ -1,0 +1,87 @@
+#
+#**Settings → Secrets and variables → Actions:**
+#
+#| Secret | 값 |
+#|---|---|
+#| `AWS_ACCESS_KEY_ID` | IAM 키 |
+#| `AWS_SECRET_ACCESS_KEY` | IAM 시크릿 |
+#| `AWS_REGION` | 예: `ap-northeast-2` |
+#| `S3_BUCKET` | 버킷 이름 |
+#| `CLOUDFRONT_DISTRIBUTION_ID` | CloudFront ID (없으면 생략 가능) |
+#| `NUXT_PUBLIC_API_BASE_URL` | `https://api.sharablepiggy.com` |
+#| `NUXT_PUBLIC_SITE_URL` | `https://sharablepiggy.com` |
+#| `NUXT_PUBLIC_IOS_STORE_URL` | 앱스토어 URL |
+#| `NUXT_PUBLIC_ANDROID_STORE_URL` | 플레이스토어 URL |
+#
+#**동작 방식:**
+#- `master` 브랜치에 `front/` 경로 변경이 푸시될 때만 실행
+#- HTML은 `no-cache`, 나머지 에셋은 1년 캐시로 분리 설정
+#- CloudFront 있으면 자동 캐시 무효화
+
+name: Deploy Front (S3)
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'front/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: front/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+        working-directory: front
+
+      - name: Generate static site
+        run: yarn generate
+        working-directory: front
+        env:
+          NUXT_PUBLIC_API_BASE_URL: ${{ secrets.NUXT_PUBLIC_API_BASE_URL }}
+          NUXT_PUBLIC_SITE_URL: ${{ secrets.NUXT_PUBLIC_SITE_URL }}
+          NUXT_PUBLIC_IOS_STORE_URL: ${{ secrets.NUXT_PUBLIC_IOS_STORE_URL }}
+          NUXT_PUBLIC_ANDROID_STORE_URL: ${{ secrets.NUXT_PUBLIC_ANDROID_STORE_URL }}
+
+      - name: Sync to S3
+        run: |
+          aws s3 sync front/.output/public s3://${{ secrets.S3_BUCKET }} \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "*.html" \
+            --exclude ".well-known/*"
+          aws s3 sync front/.output/public s3://${{ secrets.S3_BUCKET }} \
+            --delete \
+            --cache-control "no-cache" \
+            --include "*.html"
+          aws s3 sync front/.output/public s3://${{ secrets.S3_BUCKET }}/.well-known \
+            --delete \
+            --content-type "application/json" \
+            --include ".well-known/*"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+
+      - name: Invalidate CloudFront cache
+        if: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID != '' }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
