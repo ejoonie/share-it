@@ -2,8 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/models/topic_model.dart';
 import '../../../../core/providers/core_providers.dart';
-import '../../../../core/repositories/topic_repository.dart';
-import '../../../share/data/repositories/subscription_repository.dart';
 
 class SettingsState {
   final AsyncValue<List<TopicModel>> myPiggies;
@@ -25,36 +23,30 @@ class SettingsState {
   }
 }
 
+/// Manages data for the Settings screen.
+///
+/// This notifier is [autoDispose], so it is created when the Settings screen
+/// mounts and destroyed when it leaves the widget tree. Because the Settings
+/// screen is only reachable after bootstrap succeeds (see [_BootstrapGate] in
+/// app.dart), auth token is guaranteed to be present at construction time.
+/// Initial data load therefore happens in the constructor — no manual trigger
+/// from the UI is needed.
+///
+/// For explicit refreshes (e.g. returning from TopicDetailScreen after an
+/// edit), callers increment [settingsRefreshProvider], which the Settings
+/// screen listens to and forwards here.
 class SettingsNotifier extends StateNotifier<SettingsState> {
   final Ref _ref;
 
-  SettingsNotifier(this._ref) : super(const SettingsState());
-
-  TopicRepository? _topicRepo() {
-    final authToken = _ref.read(tokenStorageProvider).getAuthToken();
-    if (authToken == null) return null;
-    return TopicRepository(
-      apiClient: _ref.read(apiClientProvider),
-      authToken: authToken,
-    );
-  }
-
-  SubscriptionRepository? _subscriptionRepo() {
-    final authToken = _ref.read(tokenStorageProvider).getAuthToken();
-    if (authToken == null) return null;
-    return SubscriptionRepository(
-      apiClient: _ref.read(apiClientProvider),
-      authToken: authToken,
-    );
+  SettingsNotifier(this._ref) : super(const SettingsState()) {
+    loadMyPiggies();
+    loadSubscriptions();
   }
 
   Future<void> loadMyPiggies() async {
-    final repo = _topicRepo();
-    if (repo == null) return;
-
     state = state.copyWith(myPiggies: const AsyncValue.loading());
     try {
-      final list = await repo.fetchOwned();
+      final list = await _ref.read(topicRepositoryProvider).fetchOwned();
       state = state.copyWith(myPiggies: AsyncValue.data(list));
     } catch (e, st) {
       state = state.copyWith(myPiggies: AsyncValue.error(e, st));
@@ -62,12 +54,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   }
 
   Future<void> loadSubscriptions() async {
-    final repo = _subscriptionRepo();
-    if (repo == null) return;
-
     state = state.copyWith(subscriptions: const AsyncValue.loading());
     try {
-      final list = await repo.fetchAll();
+      final list = await _ref.read(subscriptionRepositoryProvider).fetchAll();
       state = state.copyWith(subscriptions: AsyncValue.data(list));
     } catch (e, st) {
       state = state.copyWith(subscriptions: AsyncValue.error(e, st));
@@ -75,11 +64,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   }
 
   Future<bool> unsubscribe(int topicId) async {
-    final repo = _subscriptionRepo();
-    if (repo == null) return false;
-
     try {
-      await repo.unsubscribe(topicId);
+      await _ref.read(subscriptionRepositoryProvider).unsubscribe(topicId);
       state = state.copyWith(
         subscriptions: state.subscriptions.whenData(
           (list) => list.where((s) => s.id != topicId).toList(),

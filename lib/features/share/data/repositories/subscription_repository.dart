@@ -3,35 +3,20 @@ import '../../../../core/models/topic_model.dart';
 
 class SubscriptionRepository {
   final ApiClient _apiClient;
-  final String _authToken;
 
-  SubscriptionRepository({
-    required ApiClient apiClient,
-    required String authToken,
-  })  : _apiClient = apiClient,
-        _authToken = authToken;
+  SubscriptionRepository({required ApiClient apiClient}) : _apiClient = apiClient;
 
   Future<TopicModel> fetchByToken(String topicToken) async {
-    final json = await _apiClient.get(
-      '/api/v1/topics/$topicToken',
-      authToken: _authToken,
-    );
+    final json = await _apiClient.get('/api/v1/topics/$topicToken');
     return TopicModel.fromJson(json);
   }
 
   Future<void> subscribe(String topicToken) async {
-    await _apiClient.post(
-      '/api/v1/topics/$topicToken/follow',
-      {},
-      authToken: _authToken,
-    );
+    await _apiClient.post('/api/v1/topics/$topicToken/follow', {});
   }
 
   Future<List<TopicModel>> fetchAll() async {
-    final json = await _apiClient.get(
-      '/api/v1/my/topics/subscribed',
-      authToken: _authToken,
-    );
+    final json = await _apiClient.get('/api/v1/my/topics/subscribed');
     final list = json['records'] as List<dynamic>? ?? [];
     return list
         .map((e) => TopicModel.fromJson(e as Map<String, dynamic>))
@@ -39,9 +24,6 @@ class SubscriptionRepository {
   }
 
   Future<void> unsubscribe(int topicId) async {
-    await _apiClient.delete(
-      '/api/v1/my/topics/subscribed/$topicId',
-      authToken: _authToken,
-    );
+    await _apiClient.delete('/api/v1/my/topics/subscribed/$topicId');
   }
 }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/models/topic_model.dart';
-import '../settings/presentation/providers/settings_provider.dart';
-import 'providers/topic_detail_provider.dart';
+import '../../../../core/models/topic_model.dart';
+import '../../../settings/presentation/providers/settings_provider.dart';
+import '../providers/topic_detail_provider.dart';
 import 'topic_edit_screen.dart';
 
 class TopicDetailScreen extends ConsumerWidget {

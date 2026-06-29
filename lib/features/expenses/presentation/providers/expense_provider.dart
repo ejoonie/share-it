@@ -98,10 +98,22 @@ class ExpenseState {
   }
 }
 
+/// Manages expense data for the main Expense screen.
+///
+/// [expenseNotifierProvider] watches [expenseRepositoryProvider], which in
+/// turn depends on [entryRepositoryProvider] → [bootstrapNotifierProvider].
+/// When bootstrap succeeds the repository chain resolves from null to a real
+/// instance, causing Riverpod to recreate this notifier with a non-null
+/// repository. The constructor then kicks off the initial load automatically —
+/// no manual trigger from the UI is needed.
+///
+/// After that, tapping the Expenses tab calls [load] explicitly to refresh.
 class ExpenseNotifier extends StateNotifier<ExpenseState> {
   final ExpenseRepository? _repository;
 
-  ExpenseNotifier(this._repository) : super(ExpenseState.initial());
+  ExpenseNotifier(this._repository) : super(ExpenseState.initial()) {
+    if (_repository != null) load();
+  }
 
   Future<void> load() => _load(state.focusedMonth);
 

@@ -18,7 +18,7 @@ module V1
             entries = topic.entries.order(created_at: :asc).to_a if topic
           else
             topic = current_user.topics.create!(
-              title: '✨ My First Space',
+              title: '✨ My First Piggy 🎉',
               is_default: true
             )
 
@@ -26,20 +26,23 @@ module V1
               created_by: current_user,
               updated_by: current_user,
               kind: 'todo',
-              title: 'Welcome to Share-it',
-              content: 'Tap the checkbox to complete your first task and clear your space.',
+              title: 'Review this month’s spending',
+              content: 'Check what changed and decide what to adjust together.',
               checked: false
             )
+
             entries << topic.entries.create!(
               created_by: current_user,
               updated_by: current_user,
               kind: 'expense',
               currency: 'usd',
-              amount: 650,
-              title: 'Blue Bottle Coffee',
-              content: 'Your journey toward mindful tracking starts here.',
-              checked: false
+              amount: 4825,
+              title: 'Grocery Run 🛒',
+              content: 'Shared expenses are easier when everyone can see the story.',
+              checked: false,
+              occurred_at: Time.current,
             )
+
             bootstrap_created = true
           end
         end

@@ -4,19 +4,11 @@ import '../models/topic_model.dart';
 
 class TopicRepository {
   final ApiClient _apiClient;
-  final String _authToken;
 
-  TopicRepository({
-    required ApiClient apiClient,
-    required String authToken,
-  })  : _apiClient = apiClient,
-        _authToken = authToken;
+  TopicRepository({required ApiClient apiClient}) : _apiClient = apiClient;
 
   Future<List<TopicModel>> fetchOwned() async {
-    final json = await _apiClient.get(
-      '/api/v1/my/topics/owned',
-      authToken: _authToken,
-    );
+    final json = await _apiClient.get('/api/v1/my/topics/owned');
     final list = json['records'] as List<dynamic>? ?? [];
     return list
         .map((e) => TopicModel.fromJson(e as Map<String, dynamic>))
@@ -24,10 +16,7 @@ class TopicRepository {
   }
 
   Future<TopicModel> fetchById(int topicId) async {
-    final json = await _apiClient.get(
-      '/api/v1/my/topics/$topicId',
-      authToken: _authToken,
-    );
+    final json = await _apiClient.get('/api/v1/my/topics/$topicId');
     return TopicModel.fromJson(json);
   }
 
@@ -35,11 +24,7 @@ class TopicRepository {
     final body = <String, dynamic>{};
     if (title != null) body['title'] = title;
     if (isDefault != null) body['is_default'] = isDefault;
-    final json = await _apiClient.patch(
-      '/api/v1/my/topics/$topicId',
-      body,
-      authToken: _authToken,
-    );
+    final json = await _apiClient.patch('/api/v1/my/topics/$topicId', body);
     return TopicModel.fromJson(json);
   }
 
@@ -48,10 +33,7 @@ class TopicRepository {
     page = 1,
     int limit = 10,
   }) async {
-    final json = await _apiClient.get(
-      '/api/v1/my/topics/$topicId/follows',
-      authToken: _authToken,
-    );
+    final json = await _apiClient.get('/api/v1/my/topics/$topicId/follows');
     final list = json['records'] as List<dynamic>? ?? [];
     return list
         .map((e) => TopicFollowModel.fromJson(e as Map<String, dynamic>))

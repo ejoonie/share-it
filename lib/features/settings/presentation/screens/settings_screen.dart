@@ -6,7 +6,7 @@ import '../../../../core/models/topic_model.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
 import '../../../share/presentation/screens/share_screen.dart';
-import '../../../topics/topic_detail_screen.dart';
+import '../../../topics/presentation/screens/topic_detail_screen.dart';
 import '../providers/settings_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -35,9 +35,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         setState(() => _version = '${info.version} (${info.buildNumber})');
       }
     });
-
-    notifier.loadMyPiggies();
-    notifier.loadSubscriptions();
   }
 
   Future<void> _confirmUnsubscribe(TopicModel sub) async {

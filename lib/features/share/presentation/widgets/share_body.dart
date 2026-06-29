@@ -6,7 +6,6 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../../core/bootstrap/providers/bootstrap_provider.dart';
 import '../../../../core/models/topic_model.dart';
 import '../../../../core/providers/core_providers.dart';
-import '../../../../core/repositories/topic_repository.dart';
 import '../screens/subscribe_screen.dart';
 import 'piggy_qr_code.dart';
 import 'share_url_card.dart';
@@ -66,13 +65,7 @@ class _ShareBodyState extends ConsumerState<ShareBody> {
 
     setState(() => _saving = true);
     try {
-      final authToken = ref.read(tokenStorageProvider).getAuthToken();
-      if (authToken == null) throw Exception('Login required');
-
-      await TopicRepository(
-        apiClient: ref.read(apiClientProvider),
-        authToken: authToken,
-      ).update(topicId, title: newTitle);
+      await ref.read(topicRepositoryProvider).update(topicId, title: newTitle);
 
       if (mounted) setState(() => _topic = _topic!.copyWith(title: newTitle));
     } catch (_) {
