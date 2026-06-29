@@ -19,9 +19,13 @@ export default defineNuxtConfig({
         { property: 'og:title', content: 'Sharable Piggy' },
         { property: 'og:description', content: 'A simple app for sharing expenses and shopping lists with family, partners, and roommates.' },
         { property: 'og:url', content: 'https://sharablepiggy.com' },
-        { name: 'theme-color', content: '#ff6b35' }
+        { name: 'theme-color', content: '#3dbfa8' }
       ],
-      link: [{ rel: 'canonical', href: 'https://sharablepiggy.com' }]
+      link: [
+        { rel: 'canonical', href: 'https://sharablepiggy.com' },
+        { rel: 'icon', type: 'image/png', href: '/favicon.png' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+      ]
     }
   },
   nitro: {
