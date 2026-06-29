@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:share_it/core/models/user_model.dart';
+import 'package:share_it/models/user_model.dart';
 
 void main() {
   group('UserModel', () {

@@ -3,13 +3,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'core/bootstrap/providers/bootstrap_provider.dart';
-import 'core/providers/core_providers.dart';
-import 'core/theme/app_theme.dart';
-import 'features/expenses/presentation/providers/expense_provider.dart';
-import 'features/share/presentation/screens/subscribe_screen.dart';
-import 'shared/screens/bootstrap_debug_screen.dart';
-import 'shared/widgets/bottom_nav_bar.dart';
+import 'providers/bootstrap_provider.dart';
+import 'providers/core_providers.dart';
+import 'theme/app_theme.dart';
+import 'providers/expense_provider.dart';
+import 'screens/subscribe_screen.dart';
+import 'screens/bootstrap_debug_screen.dart';
+import 'widgets/bottom_nav_bar.dart';
 
 class ShareItApp extends StatelessWidget {
   final String guestToken;

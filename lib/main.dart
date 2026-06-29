@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
-import 'core/api/api_client.dart';
-import 'core/bootstrap/providers/bootstrap_provider.dart';
-import 'core/bootstrap/repositories/bootstrap_repository.dart';
-import 'core/providers/core_providers.dart';
-import 'core/storage/token_storage.dart';
-import 'core/utils/token_utils.dart';
+import 'api/api_client.dart';
+import 'providers/bootstrap_provider.dart';
+import 'repositories/bootstrap_repository.dart';
+import 'providers/core_providers.dart';
+import 'storage/token_storage.dart';
+import 'utils/token_utils.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
