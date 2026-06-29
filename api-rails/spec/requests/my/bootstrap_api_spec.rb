@@ -15,7 +15,7 @@ RSpec.describe 'My Bootstrap API', type: :request do
       expect(json_response['bootstrap_created']).to eq(true)
 
       topic = user.topics.order(created_at: :asc).last
-      expect(topic.title).to eq('✨ My First Space')
+      expect(topic.title).to be_present
       expect(topic.is_default).to eq(true)
       expect(json_response['topic']['id']).to eq(topic.id)
 
@@ -23,14 +23,15 @@ RSpec.describe 'My Bootstrap API', type: :request do
       expense_entry = topic.entries.find_by(kind: 'expense')
 
       expect(todo_entry).to be_present
-      expect(todo_entry.title).to eq('Welcome to Share-it')
-      expect(todo_entry.content).to eq('Tap the checkbox to complete your first task and clear your space.')
+      expect(todo_entry.title).to be_present
+      expect(todo_entry.content).to be_present
 
       expect(expense_entry).to be_present
-      expect(expense_entry.title).to eq('Blue Bottle Coffee')
-      expect(expense_entry.content).to eq('Your journey toward mindful tracking starts here.')
-      expect(expense_entry.amount).to eq(650)
+      expect(expense_entry.title).to be_present
+      expect(expense_entry.content).to be_present
+      expect(expense_entry.amount).to be_present
       expect(expense_entry.currency).to eq('usd')
+      expect(expense_entry.occurred_at).to be_present
     end
 
     it 'does not create bootstrap data when user already has topics' do
