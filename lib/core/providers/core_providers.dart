@@ -7,24 +7,53 @@ import '../repositories/topic_repository.dart';
 import '../storage/token_storage.dart';
 import '../../features/share/data/repositories/subscription_repository.dart';
 
-// Provider → 값을 읽기만 할 때 (변경 없음)
-// StateProvider → 단순한 값을 읽고 변경할 때 (notifier/state 통합 축약형)
-// StateNotifierProvider → 복잡한 로직과 상태를 분리해서 관리할 때
+// ---------------------------------------------------------------------------
+// Provider types
+//   Provider              — read-only dependency, no state changes
+//   StateProvider         — simple value that can be changed externally
+//   StateNotifierProvider — complex state + logic separated into a Notifier
+//
+// Watching inside a Provider means "recreate me when the dependency changes",
+// not "rebuild the UI". UI rebuilds only happen when a widget calls ref.watch.
+// ---------------------------------------------------------------------------
 
-// app 시작시 shared pref 가 없어서 에러가 발생하기 때문에
-// bootstrap 시 강제 override 해야 하는 provider
+// ---------------------------------------------------------------------------
+// Bootstrap → provider chain
+//
+// This app creates a guest account on first launch, so an auth token is not
+// available until the bootstrap sequence completes. The provider chain below
+// propagates that readiness signal automatically:
+//
+//   bootstrapNotifierProvider (success)
+//       └─ entryRepositoryProvider   (null until topicId is known)
+//               └─ expenseRepositoryProvider
+//                       └─ ExpenseNotifier (auto-loads in constructor)
+//
+// Providers that do not depend on a specific topic (topics, subscriptions)
+// are always available once ApiClient has a TokenStorage, but are only
+// accessed from screens that are gated behind bootstrap (see _BootstrapGate
+// in app.dart), so the token is guaranteed to exist at call time.
+// ---------------------------------------------------------------------------
+
+/// Must be overridden in main() with a real [TokenStorage] instance.
+/// TokenStorage requires async initialisation (SharedPreferences), so it
+/// cannot be created inside a synchronous Provider body.
 final tokenStorageProvider = Provider<TokenStorage>((ref) {
   throw UnimplementedError(
     'tokenStorageProvider must be overridden with a TokenStorage instance.',
   );
 });
 
-// provider 의 watch 는 하위 provider 의 재생성의 의미
+/// Depends on [tokenStorageProvider] so that ApiClient always reads the
+/// current auth token from storage on every request.
 final apiClientProvider = Provider<ApiClient>((ref) {
   final tokenStorage = ref.watch(tokenStorageProvider);
   return ApiClient(tokenStorage: tokenStorage);
 });
 
+/// Incremented to signal the Settings screen to reload its data.
+/// Used when returning from TopicDetailScreen after an edit, or when the
+/// Settings tab is tapped.
 final settingsRefreshProvider = StateProvider<int>((ref) => 0);
 
 final topicRepositoryProvider = Provider<TopicRepository>((ref) {
@@ -35,11 +64,12 @@ final subscriptionRepositoryProvider = Provider<SubscriptionRepository>((ref) {
   return SubscriptionRepository(apiClient: ref.watch(apiClientProvider));
 });
 
+/// Returns null until bootstrap succeeds and a default topic is available.
+/// Downstream providers (expenseRepositoryProvider) treat null as "not ready"
+/// and skip loading until this resolves.
 final entryRepositoryProvider = Provider<EntryRepository?>((ref) {
   final topicId = ref.watch(bootstrapNotifierProvider).data?.topic?.id;
-
   if (topicId == null) return null;
-
   return EntryRepository(
     apiClient: ref.watch(apiClientProvider),
     topicId: topicId,

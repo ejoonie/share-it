@@ -125,7 +125,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadTab(0);
       _initDeepLinks();
     });
   }
@@ -162,9 +161,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   void _loadTab(int index) {
+    // Expense (index 0) auto-loads via ExpenseNotifier constructor when
+    // entryRepositoryProvider becomes available after bootstrap.
+    // Tapping the tab triggers an explicit refresh.
     if (index == 0) {
       ref.read(expenseNotifierProvider.notifier).load();
     } else if (index == 2) {
+      // Settings data is managed by settingsNotifierProvider (autoDispose).
+      // Incrementing settingsRefreshProvider signals the screen to reload,
+      // which is also used when returning from TopicDetailScreen after an edit.
       ref.read(settingsRefreshProvider.notifier).update((n) => n + 1);
     }
   }

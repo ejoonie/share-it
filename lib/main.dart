@@ -21,7 +21,7 @@ void main() async {
     await tokenStorage.saveGuestToken(guestToken);
   }
 
-  final apiClient = ApiClient();
+  final apiClient = ApiClient(tokenStorage: tokenStorage);
   final bootstrapRepository = BootstrapRepository(
     apiClient: apiClient,
     tokenStorage: tokenStorage,

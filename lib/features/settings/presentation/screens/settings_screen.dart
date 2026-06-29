@@ -35,9 +35,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         setState(() => _version = '${info.version} (${info.buildNumber})');
       }
     });
-
-    notifier.loadMyPiggies();
-    notifier.loadSubscriptions();
   }
 
   Future<void> _confirmUnsubscribe(TopicModel sub) async {

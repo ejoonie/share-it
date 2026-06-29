@@ -23,10 +23,25 @@ class SettingsState {
   }
 }
 
+/// Manages data for the Settings screen.
+///
+/// This notifier is [autoDispose], so it is created when the Settings screen
+/// mounts and destroyed when it leaves the widget tree. Because the Settings
+/// screen is only reachable after bootstrap succeeds (see [_BootstrapGate] in
+/// app.dart), auth token is guaranteed to be present at construction time.
+/// Initial data load therefore happens in the constructor — no manual trigger
+/// from the UI is needed.
+///
+/// For explicit refreshes (e.g. returning from TopicDetailScreen after an
+/// edit), callers increment [settingsRefreshProvider], which the Settings
+/// screen listens to and forwards here.
 class SettingsNotifier extends StateNotifier<SettingsState> {
   final Ref _ref;
 
-  SettingsNotifier(this._ref) : super(const SettingsState());
+  SettingsNotifier(this._ref) : super(const SettingsState()) {
+    loadMyPiggies();
+    loadSubscriptions();
+  }
 
   Future<void> loadMyPiggies() async {
     state = state.copyWith(myPiggies: const AsyncValue.loading());
