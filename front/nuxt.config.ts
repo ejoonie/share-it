@@ -5,14 +5,14 @@ export default defineNuxtConfig({
   ssr: true,
   app: {
     head: {
-      htmlAttrs: { lang: 'ko' },
+      htmlAttrs: { lang: 'en' },
       title: 'Sharable Piggy',
       meta: [
-        { name: 'description', content: '함께 쓰는 생활비와 장보기 목록을 피기 하나로 공유하세요.' },
+        { name: 'description', content: 'Share household expenses and shopping lists in one shared piggy.' },
         { property: 'og:site_name', content: 'Sharable Piggy' },
         { property: 'og:type', content: 'website' },
         { property: 'og:title', content: 'Sharable Piggy' },
-        { property: 'og:description', content: '가족, 커플, 룸메이트와 지출과 장보기를 쉽게 공유하는 앱입니다.' },
+        { property: 'og:description', content: 'A simple app for sharing expenses and shopping lists with family, partners, and roommates.' },
         { property: 'og:url', content: 'https://sharablepiggy.com' },
         { name: 'theme-color', content: '#ff6b35' }
       ],

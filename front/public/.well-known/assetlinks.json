@@ -5,7 +5,7 @@
       "namespace": "android_app",
       "package_name": "com.example.share_it",
       "sha256_cert_fingerprints": [
-        "TODO: 릴리즈 키스토어의 SHA-256 fingerprint 로 교체"
+        "TODO: Replace with the release keystore SHA-256 fingerprint"
       ]
     }
   }

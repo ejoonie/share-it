@@ -4,9 +4,9 @@
     <section class="invite-wrap">
       <div class="invite-card">
         <div class="pig">🐷</div>
-        <h1>피기 구독 초대</h1>
-        <p class="lead">누군가 Sharable Piggy 피기를 공유했어요. 앱에서 열어 함께 관리해 보세요.</p>
-        <button class="button primary" type="button" @click="openApp">앱에서 열기</button>
+        <h1>Piggy subscription invite</h1>
+        <p class="lead">Someone shared a Sharable Piggy with you. Open it in the app to start managing it together.</p>
+        <button class="button primary" type="button" @click="openApp">Open in app</button>
         <div class="download-grid">
           <a class="button" :href="androidStoreUrl">Google Play</a>
           <a class="button" :href="iosStoreUrl">App Store</a>
@@ -30,11 +30,11 @@ const storeUrl = computed(() => {
 const deepLink = computed(() => `sharablepiggy://topics/${encodeURIComponent(token.value)}`)
 
 useHead(() => ({
-  title: 'Sharable Piggy 초대',
+  title: 'Sharable Piggy invite',
   meta: [
-    { name: 'description', content: '공유받은 Sharable Piggy 피기를 앱에서 열어 구독하세요.' },
-    { property: 'og:title', content: 'Sharable Piggy 초대' },
-    { property: 'og:description', content: '앱에서 피기 초대를 열고 함께 관리하세요.' }
+    { name: 'description', content: 'Open your shared Sharable Piggy invite in the app.' },
+    { property: 'og:title', content: 'Sharable Piggy invite' },
+    { property: 'og:description', content: 'Open the piggy invite in the app and manage it together.' }
   ]
 }))
 

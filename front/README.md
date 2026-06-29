@@ -1,15 +1,15 @@
 # Sharable Piggy Front
 
-Nuxt 3 기반의 정적 웹 프런트입니다.
+This is a Nuxt 3 static web frontend.
 
-## 역할
+## Responsibilities
 
-- `https://sharablepiggy.com/` 공식 홈페이지
-- `https://sharablepiggy.com/topics/:token` 공유 초대 랜딩 및 앱 딥링크 폴백
-- `/privacy`, `/terms` 정책 페이지
-- `/.well-known/apple-app-site-association`, `/.well-known/assetlinks.json` 앱 링크 검증 파일 제공
+- Official homepage for `https://sharablepiggy.com/`
+- Shared invite landing and app deep-link fallback for `https://sharablepiggy.com/topics/:token`
+- Policy pages at `/privacy` and `/terms`
+- App-link verification files at `/.well-known/apple-app-site-association` and `/.well-known/assetlinks.json`
 
-## 개발
+## Development
 
 ```sh
 cd front
@@ -17,14 +17,14 @@ npm install
 npm run dev
 ```
 
-## 정적 빌드
+## Static build
 
 ```sh
 cd front
 npm run generate
 ```
 
-생성된 `.output/public` 디렉터리를 nginx 정적 루트로 배포합니다.
+Deploy the generated `.output/public` directory as the nginx static root.
 
 ```nginx
 server {
@@ -42,9 +42,9 @@ server {
 }
 ```
 
-## 환경 변수
+## Environment variables
 
-- `NUXT_PUBLIC_SITE_URL` 기본값: `https://sharablepiggy.com`
-- `NUXT_PUBLIC_API_BASE_URL` 기본값: `https://api.sharablepiggy.com`
+- `NUXT_PUBLIC_SITE_URL` default: `https://sharablepiggy.com`
+- `NUXT_PUBLIC_API_BASE_URL` default: `https://api.sharablepiggy.com`
 - `NUXT_PUBLIC_IOS_STORE_URL`
 - `NUXT_PUBLIC_ANDROID_STORE_URL`
