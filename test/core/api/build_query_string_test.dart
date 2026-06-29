@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:share_it/core/api/api_client.dart';
+import 'package:share_it/api/api_client.dart';
 
 void main() {
   group('buildQueryString', () {

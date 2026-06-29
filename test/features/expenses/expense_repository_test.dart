@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:share_it/core/api/api_client.dart';
-import 'package:share_it/core/models/entry_model.dart';
-import 'package:share_it/core/repositories/entry_repository.dart';
-import 'package:share_it/features/expenses/data/repositories/expense_repository.dart';
+import 'package:share_it/api/api_client.dart';
+import 'package:share_it/models/entry_model.dart';
+import 'package:share_it/repositories/entry_repository.dart';
+import 'package:share_it/repositories/expense_repository.dart';
 
 // stub EntryRepository that returns a fixed list of entries
 class _StubEntryRepository extends EntryRepository {

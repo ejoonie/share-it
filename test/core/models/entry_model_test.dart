@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:share_it/core/models/entry_model.dart';
+import 'package:share_it/models/entry_model.dart';
 
 void main() {
   group('EntryModel', () {
