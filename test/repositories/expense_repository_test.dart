@@ -12,7 +12,6 @@ class _StubEntryRepository extends EntryRepository {
       : super(
           apiClient: ApiClient(),
           topicId: 0,
-          authToken: '',
         );
 
   @override
