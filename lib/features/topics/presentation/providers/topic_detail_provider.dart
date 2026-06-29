@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/models/topic_follow_model.dart';
-import '../../../core/models/topic_model.dart';
-import '../../../core/providers/core_providers.dart';
+import '../../../../core/models/topic_follow_model.dart';
+import '../../../../core/models/topic_model.dart';
+import '../../../../core/providers/core_providers.dart';
+
 
 class TopicDetailState {
   final AsyncValue<TopicModel> topic;

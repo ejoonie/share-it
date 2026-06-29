@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/models/topic_model.dart';
-import '../../core/providers/core_providers.dart';
+import '../../../../core/models/topic_model.dart';
+import '../../../../core/providers/core_providers.dart';
 
 class TopicEditScreen extends ConsumerStatefulWidget {
   final TopicModel topic;
