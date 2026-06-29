@@ -1,6 +1,8 @@
 import '../api/api_client.dart';
 import '../models/entry_model.dart';
 
+/// Repository for managing entries.
+/// Used in expenses and shopping list
 class EntryRepository {
   final ApiClient _apiClient;
   final int topicId;
