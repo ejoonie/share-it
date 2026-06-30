@@ -23,7 +23,8 @@ name: Deploy Front (S3)
 on:
   push:
     branches:
-      - master
+      - c/-61
+#      - master
     paths:
       - 'front/**'
 
