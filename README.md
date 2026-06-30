@@ -1,4 +1,6 @@
 # share-it
+[![Deploy Front (S3)](https://github.com/ejoonie/share-it/actions/workflows/deploy-front.yml/badge.svg?branch=master)](https://github.com/ejoonie/share-it/actions/workflows/deploy-front.yml)
+
 ## Flutter environment configuration
 
 The Flutter app supports separate development and production configuration via
