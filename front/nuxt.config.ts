@@ -3,7 +3,16 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
   devtools: { enabled: true },
+  modules: ['@nuxtjs/sitemap'],
   css: ['~/assets/css/main.css'],
+  site: {
+    url: 'https://sharablepiggy.com',
+    name: 'Sharable Piggy',
+  },
+  sitemap: {
+    urls: ['/', '/privacy', '/terms'],
+    exclude: ['/topics/**'],
+  },
   vite: {
     plugins: [tailwindcss()],
   },
