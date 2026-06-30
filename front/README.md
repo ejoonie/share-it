@@ -48,3 +48,5 @@ server {
 - `NUXT_PUBLIC_API_BASE_URL` default: `https://api.sharablepiggy.com`
 - `NUXT_PUBLIC_IOS_STORE_URL`
 - `NUXT_PUBLIC_ANDROID_STORE_URL`
+
+trigger
