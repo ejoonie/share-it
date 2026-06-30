@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "front",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", "-s", "front", "-l", "3002"],
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "source ~/.nvm/nvm.sh && nvm use 22 && cd front && yarn dev --port 3002"],
       "port": 3002
     }
   ]

@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+@theme {
+  --color-mint-50: #f2fbf9;
+  --color-mint-100: #d6eeea;
+  --color-mint-400: #3dbfa8;
+  --color-mint-500: #2da090;
+  --color-mint-900: #0f2b27;
+  --color-mint-muted: #4d7a73;
+}
