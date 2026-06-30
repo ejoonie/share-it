@@ -49,4 +49,4 @@ server {
 - `NUXT_PUBLIC_IOS_STORE_URL`
 - `NUXT_PUBLIC_ANDROID_STORE_URL`
 
-trigger1
+trigger2
