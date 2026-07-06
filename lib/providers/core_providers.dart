@@ -4,6 +4,7 @@ import '../api/api_client.dart';
 import 'bootstrap_provider.dart';
 import '../repositories/entry_repository.dart';
 import '../repositories/topic_repository.dart';
+import '../repositories/auth_repository.dart';
 import '../storage/token_storage.dart';
 import '../repositories/subscription_repository.dart';
 
@@ -62,6 +63,13 @@ final topicRepositoryProvider = Provider<TopicRepository>((ref) {
 
 final subscriptionRepositoryProvider = Provider<SubscriptionRepository>((ref) {
   return SubscriptionRepository(apiClient: ref.watch(apiClientProvider));
+});
+
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  return AuthRepository(
+    apiClient: ref.watch(apiClientProvider),
+    tokenStorage: ref.watch(tokenStorageProvider),
+  );
 });
 
 /// Returns null until bootstrap succeeds and a default topic is available.

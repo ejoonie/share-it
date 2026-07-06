@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../models/topic_model.dart';
 import '../providers/core_providers.dart';
 import 'login_screen.dart';
+import 'change_password_screen.dart';
 import 'share_screen.dart';
 import 'topic_detail_screen.dart';
 import '../providers/settings_provider.dart';
@@ -132,6 +133,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Navigator.push<void>(
                 context,
                 MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.lock_outlined),
+            title: const Text('Change Password'),
+            subtitle: const Text('Update your account password'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push<void>(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const ChangePasswordScreen()),
               );
             },
           ),
