@@ -16,6 +16,7 @@ class BaseAPI < Grape::API
       timestamp: Time.now.to_i,
     }
   end
+  mount V1::AuthAPI
   mount V1::UsersAPI
   mount V1::TopicsAPI
   namespace :my do

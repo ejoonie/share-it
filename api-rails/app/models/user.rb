@@ -1,4 +1,6 @@
 class User < ApplicationRecord
+  has_secure_password validations: false
+
   before_validation :generate_token, on: :create
 
   validates :email, presence: true, uniqueness: true
@@ -29,6 +31,22 @@ class User < ApplicationRecord
 
   def subscribed_topics
     Topic.where(id: topic_follows.select(:topic_id))
+  end
+
+  def generate_otp!
+    self.otp_code = SecureRandom.random_number(100_000..999_999).to_s
+    self.otp_expires_at = 10.minutes.from_now
+    save!
+    otp_code
+  end
+
+  def verify_otp!(code)
+    return false if otp_code.nil? || otp_expires_at.nil?
+    return false if Time.current > otp_expires_at
+    return false if otp_code != code.to_s.strip
+
+    update!(otp_code: nil, otp_expires_at: nil)
+    true
   end
 
   private
