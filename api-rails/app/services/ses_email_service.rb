@@ -7,8 +7,15 @@
 #   AWS_ACCESS_KEY_ID    — AWS credentials (injected by IAM role in production)
 #   AWS_SECRET_ACCESS_KEY
 #   SES_SENDER_EMAIL     — verified sender address, e.g. noreply@sharablepiggy.com
+#
+# Non-production behaviour:
+#   - Subjects are prefixed with the current Rails environment, e.g. "[Piggy] development …"
+#   - Emails are only delivered to addresses listed in EMAIL_WHITELIST; all
+#     other recipients are silently skipped to prevent accidental sends.
 class SesEmailService
+  APP_NAME = 'Piggy'
   SENDER_EMAIL = ENV.fetch('SES_SENDER_EMAIL', 'noreply@sharablepiggy.com')
+  EMAIL_WHITELIST = %w[ejoonie@gmail.com].freeze
 
   class << self
     # Sends a login verification code to the given email address.
@@ -16,7 +23,7 @@ class SesEmailService
     # @param to      [String] recipient email address
     # @param code    [String] 6-digit OTP
     def send_login_code(to:, code:)
-      subject = '[Share It] Your login code'
+      subject = build_subject('Your login code')
       body_text = <<~TEXT
         Your login code is: #{code}
 
@@ -24,7 +31,7 @@ class SesEmailService
         If you did not request this, you can safely ignore this email.
       TEXT
       body_html = <<~HTML
-        <p>Your Share It login code is:</p>
+        <p>Your Piggy login code is:</p>
         <h2 style="letter-spacing:8px;">#{code}</h2>
         <p>This code expires in <strong>10 minutes</strong>.</p>
         <p style="color:#888;font-size:12px;">If you did not request this code, please ignore this email.</p>
@@ -38,7 +45,7 @@ class SesEmailService
     # @param to      [String] recipient email address
     # @param code    [String] 6-digit OTP
     def send_password_change_code(to:, code:)
-      subject = '[Share It] Password change verification'
+      subject = build_subject('Password change verification')
       body_text = <<~TEXT
         Your password change verification code is: #{code}
 
@@ -46,7 +53,7 @@ class SesEmailService
         If you did not request this, please secure your account immediately.
       TEXT
       body_html = <<~HTML
-        <p>Your Share It password change verification code is:</p>
+        <p>Your Piggy password change verification code is:</p>
         <h2 style="letter-spacing:8px;">#{code}</h2>
         <p>This code expires in <strong>10 minutes</strong>.</p>
         <p style="color:#888;font-size:12px;">If you did not request this, please secure your account immediately.</p>
@@ -57,11 +64,25 @@ class SesEmailService
 
     private
 
+    # Builds a subject line with an environment-aware prefix.
+    # Production:     "[Piggy] Your login code"
+    # Non-production: "[Piggy] development Your login code"
+    def build_subject(title)
+      prefix = Rails.env.production? ? "[#{APP_NAME}]" : "[#{APP_NAME}] #{Rails.env}"
+      "#{prefix} #{title}"
+    end
+
+    def whitelisted?(email)
+      EMAIL_WHITELIST.include?(email)
+    end
+
     def client
       @client ||= Aws::SESV2::Client.new(region: ENV.fetch('AWS_REGION', 'us-east-1'))
     end
 
     def send_email(to:, subject:, body_text:, body_html:)
+      return unless Rails.env.production? || whitelisted?(to)
+
       client.send_email(
         from_email_address: SENDER_EMAIL,
         destination: { to_addresses: [to] },
