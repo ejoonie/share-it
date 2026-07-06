@@ -5,6 +5,8 @@ module V1
     class AccountAPI < Grape::API
       helpers ::Helpers::AuthenticationHelper
 
+      before { current_user }
+
       resource :account do
         # POST /api/v1/my/account/accept_terms
         desc '서비스 이용 약관 동의'
