@@ -9,7 +9,7 @@
           Shared money management in one piggy.
         </h1>
         <p class="text-xl md:text-2xl leading-relaxed text-[#4d7a73] mb-10">
-          Sharable Piggy helps families, partners, and roommates manage household expenses and shopping lists together in one shared budgeting app.
+          Sharable Piggy helps families, friends, and roommates manage household expenses and shopping lists together in one shared budgeting app.
         </p>
         <div class="flex flex-row gap-3 items-center justify-center md:justify-start">
           <a :href="iosStoreUrl"><img src="/badge-appstore.svg" alt="Download on the App Store" class="h-13 md:h-17 w-auto" /></a>
