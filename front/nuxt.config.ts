@@ -26,7 +26,7 @@ export default defineNuxtConfig({
         { name: 'description', content: 'Sharable Piggy helps families, partners, and roommates manage household expenses and shopping lists together in one shared budgeting app.' },
         { name: 'keywords', content: 'shared expenses, household budget, shopping list, family finance, roommate app, expense tracker' },
         { name: 'robots', content: 'index, follow' },
-        { name: 'theme-color', content: '#3dbfa8' },
+        { name: 'theme-color', content: '#10B981' },
         // Open Graph
         { property: 'og:site_name', content: 'Sharable Piggy' },
         { property: 'og:type', content: 'website' },
