@@ -13,7 +13,12 @@
         </p>
         <div class="flex flex-row gap-3 items-center justify-center md:justify-start">
           <a :href="iosStoreUrl"><img src="/badge-appstore.svg" alt="Download on the App Store" class="h-13 md:h-17 w-auto" /></a>
-          <a :href="androidStoreUrl"><img src="/badge-playstore.png" alt="Get it on Google Play" class="h-18 md:h-25 w-auto" /></a>
+          <a :href="androidStoreUrl">
+            <picture>
+              <source srcset="/badge-playstore.webp" type="image/webp" />
+              <img src="/badge-playstore.png" alt="Get it on Google Play" class="h-18 md:h-25 w-auto" width="366" height="142" />
+            </picture>
+          </a>
         </div>
       </div>
 

@@ -14,7 +14,12 @@
           Open in app
         </button>
         <div class="flex gap-3 justify-center">
-          <a :href="androidStoreUrl"><img src="/badge-playstore.png" alt="Get it on Google Play" class="h-10 w-auto" /></a>
+          <a :href="androidStoreUrl">
+            <picture>
+              <source srcset="/badge-playstore.webp" type="image/webp" />
+              <img src="/badge-playstore.png" alt="Get it on Google Play" class="h-10 w-auto" width="366" height="142" />
+            </picture>
+          </a>
           <a :href="iosStoreUrl"><img src="/badge-appstore.svg" alt="Download on the App Store" class="h-10 w-auto" /></a>
         </div>
         <p class="mt-4 px-3 py-3 rounded-xl bg-[#f2fbf9] text-[#4d7a73] text-xs break-all">token: {{ token }}</p>

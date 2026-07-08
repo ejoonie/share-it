@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+
+Disallow: /topics/
+
+Sitemap: https://sharablepiggy.com/sitemap.xml
