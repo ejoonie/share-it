@@ -4,10 +4,10 @@
     <section class="grid place-items-center min-h-[calc(100vh-86px)] px-4 py-10">
       <div class="w-full max-w-[460px] text-center bg-white border border-mint-100 rounded-[28px] p-8 shadow-[0_18px_50px_rgba(24,95,84,.08)]">
         <div class="text-7xl mb-4">🐷</div>
-        <h1 class="text-2xl font-black text-mint-900 mb-3">Piggy subscription invite</h1>
-        <p class="text-mint-900 leading-relaxed mb-6">Someone shared a Sharable Piggy with you. Open it in the app to start managing it together.</p>
+        <h1 class="text-2xl font-black text-black-900 mb-3">Piggy subscription invite</h1>
+        <p class="text-black-900 leading-relaxed mb-6">Someone shared a Sharable Piggy with you. Open it in the app to start managing it together.</p>
         <button
-          class="w-full bg-mint-500 hover:bg-mint-600 text-mint-900 font-bold rounded-full py-3.5 px-6 mb-4 transition-colors cursor-pointer border-0"
+          class="w-full bg-mint-500 hover:bg-mint-600 text-black-900 font-bold rounded-full py-3.5 px-6 mb-4 transition-colors cursor-pointer border-0"
           type="button"
           @click="openApp"
         >
@@ -22,7 +22,7 @@
           </a>
           <a :href="iosStoreUrl"><img src="/badge-appstore.svg" alt="Download on the App Store" class="h-10 w-auto" /></a>
         </div>
-        <p class="mt-4 px-3 py-3 rounded-xl bg-mint-50 text-mint-900 text-xs break-all">token: {{ token }}</p>
+        <p class="mt-4 px-3 py-3 rounded-xl bg-mint-50 text-black-900 text-xs break-all">token: {{ token }}</p>
       </div>
     </section>
   </main>
