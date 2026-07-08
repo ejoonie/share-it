@@ -49,10 +49,20 @@ useHead(() => ({
   ]
 }))
 
+let redirectTimer: ReturnType<typeof window.setTimeout> | null = null
+
 function openApp() {
   window.location.href = deepLink.value
-  window.setTimeout(() => {
+  redirectTimer = window.setTimeout(() => {
+    redirectTimer = null
     window.location.href = storeUrl.value
   }, 1600)
 }
+
+onUnmounted(() => {
+  if (redirectTimer !== null) {
+    clearTimeout(redirectTimer)
+    redirectTimer = null
+  }
+})
 </script>
