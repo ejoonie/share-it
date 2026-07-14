@@ -1,10 +1,12 @@
 import 'package:app_links/app_links.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'providers/core_providers.dart';
 import 'providers/expense_provider.dart';
 import 'providers/session_provider.dart';
+import 'screens/bootstrap_debug_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/subscribe_screen.dart';
 import 'theme/app_theme.dart';
@@ -24,6 +26,7 @@ class ShareItApp extends StatelessWidget {
   }
 }
 
+/// Kicks off the session sequence and routes to the appropriate screen.
 class _SessionGate extends ConsumerStatefulWidget {
   const _SessionGate();
 
@@ -35,6 +38,7 @@ class _SessionGateState extends ConsumerState<_SessionGate> {
   @override
   void initState() {
     super.initState();
+    // Kick off session init after the first frame so providers are ready.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(sessionNotifierProvider.notifier).init();
     });
@@ -155,21 +159,26 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Future<void> _initDeepLinks() async {
+    // 앱이 종료된 상태에서 딥링크로 열린 경우
     final initialUri = await _appLinks.getInitialLink();
     if (initialUri != null && mounted) {
       _handleDeepLink(initialUri);
     }
+
+    // 앱이 백그라운드에 있다가 딥링크로 포그라운드로 온 경우
     _appLinks.uriLinkStream.listen((uri) {
       if (mounted) _handleDeepLink(uri);
     });
   }
 
   void _handleDeepLink(Uri uri) {
+    // https://sharablepiggy.com/topics/{token}
     final segments = uri.pathSegments;
     if (segments.length >= 2 && segments[0] == 'topics') {
+      final token = segments[1];
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => SubscribeScreen(topicToken: segments[1]),
+          builder: (_) => SubscribeScreen(topicToken: token),
         ),
       );
     }
@@ -177,9 +186,19 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   void _onTabTapped(int index) {
     setState(() => _currentIndex = index);
+    _loadTab(index);
+  }
+
+  void _loadTab(int index) {
+    // Expense (index 0) auto-loads via ExpenseNotifier constructor when
+    // entryRepositoryProvider becomes available after session load.
+    // Tapping the tab triggers an explicit refresh.
     if (index == 0) {
       ref.read(expenseNotifierProvider.notifier).load();
     } else if (index == 2) {
+      // Settings data is managed by settingsNotifierProvider (autoDispose).
+      // Incrementing settingsRefreshProvider signals the screen to reload,
+      // which is also used when returning from TopicDetailScreen after an edit.
       ref.read(settingsRefreshProvider.notifier).update((n) => n + 1);
     }
   }
@@ -191,6 +210,22 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
       ),
+      floatingActionButton: kDebugMode
+          ? FloatingActionButton.small(
+              heroTag: 'bootstrap_debug_fab',
+              tooltip: 'Bootstrap Debug',
+              backgroundColor: const Color(0xFF313244),
+              foregroundColor: const Color(0xFF89B4FA),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const BootstrapDebugScreen(),
+                  ),
+                );
+              },
+              child: const Icon(Icons.bug_report_outlined),
+            )
+          : null,
     );
   }
 }
