@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../models/topic_model.dart';
 import '../providers/core_providers.dart';
+import '../providers/session_provider.dart';
 import 'login_screen.dart';
 import 'change_password_screen.dart';
 import 'share_screen.dart';
@@ -36,6 +37,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         setState(() => _version = '${info.version} (${info.buildNumber})');
       }
     });
+  }
+
+  List<Widget> _buildAccountTiles(BuildContext context, WidgetRef ref) {
+    final sessionData = ref.watch(sessionNotifierProvider).data;
+    final user = sessionData?.user;
+    final isLoggedIn = user != null && !user.isGuest;
+
+    if (isLoggedIn) {
+      return [
+        ListTile(
+          leading: const Icon(Icons.account_circle_outlined),
+          title: const Text('My Account'),
+          subtitle: Text('Signed in as ${user.email}'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () {
+            Navigator.push<void>(
+              context,
+              MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+            );
+          },
+        ),
+      ];
+    }
+
+    return [
+      ListTile(
+        leading: const Icon(Icons.login),
+        title: const Text('Sign In'),
+        subtitle: const Text('Sign in to keep your data safe'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () async {
+          await Navigator.push<void>(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+          );
+          // 로그인 성공 시 세션 리프레시
+          if (context.mounted) {
+            ref.read(sessionNotifierProvider.notifier).reload();
+          }
+        },
+      ),
+    ];
   }
 
   Future<void> _confirmUnsubscribe(TopicModel sub) async {
@@ -124,31 +167,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const _SectionHeader(title: 'My Subscriptions'),
           ..._buildSubscriptions(state),
           const _SectionHeader(title: 'Account'),
-          ListTile(
-            leading: const Icon(Icons.login),
-            title: const Text('Sign In'),
-            subtitle: const Text('Sign in to keep your data safe'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push<void>(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.lock_outlined),
-            title: const Text('Change Password'),
-            subtitle: const Text('Update your account password'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push<void>(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const ChangePasswordScreen()),
-              );
-            },
-          ),
+          ..._buildAccountTiles(context, ref),
           const _SectionHeader(title: 'About'),
           ListTile(
             leading: const Icon(Icons.info_outline),
