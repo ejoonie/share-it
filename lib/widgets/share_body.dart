@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-import '../providers/bootstrap_provider.dart';
+import '../providers/session_provider.dart';
 import '../models/topic_model.dart';
 import '../providers/core_providers.dart';
 import '../screens/subscribe_screen.dart';
@@ -27,7 +27,7 @@ class _ShareBodyState extends ConsumerState<ShareBody> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _topic ??= ref.read(bootstrapNotifierProvider).data?.topic;
+    _topic ??= ref.read(sessionNotifierProvider).data?.topic;
   }
 
   @override

@@ -1,8 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class TokenStorage {
-  static const String _authTokenKey = 'auth_token';
-  static const String _guestTokenKey = 'guest_token';
+  static const String _tokenKey = 'token';
 
   final SharedPreferences _prefs;
 
@@ -13,18 +12,9 @@ class TokenStorage {
     return TokenStorage(prefs);
   }
 
-  String? getAuthToken() => _prefs.getString(_authTokenKey);
+  String? getToken() => _prefs.getString(_tokenKey);
 
-  Future<void> saveAuthToken(String token) =>
-      _prefs.setString(_authTokenKey, token);
+  Future<void> saveToken(String token) => _prefs.setString(_tokenKey, token);
 
-  String? getGuestToken() => _prefs.getString(_guestTokenKey);
-
-  Future<void> saveGuestToken(String token) =>
-      _prefs.setString(_guestTokenKey, token);
-
-  Future<void> clear() async {
-    await _prefs.remove(_authTokenKey);
-    await _prefs.remove(_guestTokenKey);
-  }
+  Future<void> clearToken() => _prefs.remove(_tokenKey);
 }
