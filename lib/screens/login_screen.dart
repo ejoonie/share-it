@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/core_providers.dart';
+import '../providers/session_provider.dart';
 
 // ---------------------------------------------------------------------------
 // 로그인 플로우 단계
@@ -79,7 +79,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _sendOtpAndGoToStep() async {
-    final authRepo = ref.read(authRepositoryProvider);
+    final authRepo = ref.read(sessionRepositoryProvider);
     await authRepo.requestLoginCode(_email);
     if (mounted) setState(() => _step = _LoginStep.otp);
   }
@@ -151,7 +151,7 @@ class _EmailStepState extends ConsumerState<_EmailStep> {
     setState(() { _isLoading = true; _error = null; });
 
     try {
-      final authRepo = ref.read(authRepositoryProvider);
+      final authRepo = ref.read(sessionRepositoryProvider);
       final result = await authRepo.checkEmail(_emailController.text.trim());
       await widget.onNext(
         _emailController.text.trim(),
@@ -441,7 +441,7 @@ class _OtpStepState extends ConsumerState<_OtpStep> {
     }
     setState(() { _isLoading = true; _error = null; });
     try {
-      final authRepo = ref.read(authRepositoryProvider);
+      final authRepo = ref.read(sessionRepositoryProvider);
       await authRepo.verifyLoginCode(widget.email, code);
       widget.onSuccess();
     } catch (e) {
@@ -452,7 +452,7 @@ class _OtpStepState extends ConsumerState<_OtpStep> {
   Future<void> _resend() async {
     setState(() => _resending = true);
     try {
-      final authRepo = ref.read(authRepositoryProvider);
+      final authRepo = ref.read(sessionRepositoryProvider);
       await authRepo.requestLoginCode(widget.email);
       if (mounted) {
         setState(() => _resending = false);
@@ -553,7 +553,7 @@ class _PasswordStepState extends ConsumerState<_PasswordStep> {
     }
     setState(() { _isLoading = true; _error = null; });
     try {
-      final authRepo = ref.read(authRepositoryProvider);
+      final authRepo = ref.read(sessionRepositoryProvider);
       await authRepo.loginWithPassword(widget.email, pw);
       widget.onSuccess();
     } catch (e) {

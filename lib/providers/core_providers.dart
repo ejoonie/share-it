@@ -4,7 +4,6 @@ import '../api/api_client.dart';
 import '../repositories/entry_repository.dart';
 import '../repositories/topic_repository.dart';
 import '../storage/token_storage.dart';
-import '../repositories/auth_repository.dart';
 import '../repositories/subscription_repository.dart';
 import 'session_provider.dart';
 
@@ -38,7 +37,3 @@ final entryRepositoryProvider = Provider<EntryRepository?>((ref) {
   );
 });
 
-/// AuthRepository provider — login_screen 등에서 사용.
-final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  throw UnimplementedError('authRepositoryProvider must be overridden');
-});

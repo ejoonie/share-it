@@ -5,7 +5,6 @@ import 'app.dart';
 import 'api/api_client.dart';
 import 'providers/session_provider.dart';
 import 'providers/core_providers.dart';
-import 'repositories/auth_repository.dart';
 import 'repositories/session_repository.dart';
 import 'storage/token_storage.dart';
 
@@ -18,10 +17,6 @@ void main() async {
     apiClient: apiClient,
     tokenStorage: tokenStorage,
   );
-  final authRepository = AuthRepository(
-    apiClient: apiClient,
-    tokenStorage: tokenStorage,
-  );
 
   runApp(
     ProviderScope(
@@ -29,7 +24,6 @@ void main() async {
         tokenStorageProvider.overrideWithValue(tokenStorage),
         apiClientProvider.overrideWithValue(apiClient),
         sessionRepositoryProvider.overrideWithValue(sessionRepository),
-        authRepositoryProvider.overrideWithValue(authRepository),
         sessionNotifierProvider.overrideWith(
           (ref) => SessionNotifier(
             repository: ref.watch(sessionRepositoryProvider),
