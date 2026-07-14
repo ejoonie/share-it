@@ -36,20 +36,12 @@ module V1
         # POST /api/v1/my/account/change_password
         desc '비밀번호 변경 (이메일 코드 검증 후 신규 패스워드 설정)'
         params do
-          requires :code,                  type: String, regexp: /\A\d{6}\z/
-          requires :password,              type: String
-          requires :password_confirmation, type: String
+          requires :code,     type: String, regexp: /\A\d{6}\z/
+          requires :password, type: String
         end
         post :change_password do
           error!({ message: 'Invalid or expired code.' }, 422) unless current_user.valid_login_code?(params[:code])
-
-          unless params[:password] == params[:password_confirmation]
-            error!({ message: 'Password confirmation does not match.' }, 422)
-          end
-
-          if params[:password].length < 6
-            error!({ message: 'Password must be at least 6 characters.' }, 422)
-          end
+          error!({ message: 'Password must be at least 6 characters.' }, 422) if params[:password].length < 6
 
           current_user.consume_login_code!
           current_user.update!(password: params[:password])
