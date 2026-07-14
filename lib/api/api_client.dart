@@ -46,7 +46,7 @@ class ApiClient {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
-    final token = _tokenStorage?.getAuthToken();
+    final token = _tokenStorage?.getToken();
     if (token != null) {
       headers['x-token'] = token;
     }

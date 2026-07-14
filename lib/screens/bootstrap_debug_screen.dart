@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/bootstrap_provider.dart';
+import '../providers/session_provider.dart';
 import '../models/entry_model.dart';
 import '../models/topic_model.dart';
 
@@ -10,7 +10,7 @@ class BootstrapDebugScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(bootstrapNotifierProvider);
+    final state = ref.watch(sessionNotifierProvider);
     final data = state.data;
 
     return Scaffold(
@@ -46,9 +46,9 @@ class BootstrapDebugScreen extends ConsumerWidget {
       body: data == null
           ? Center(
               child: Text(
-                state.status == BootstrapStatus.failure
-                    ? '❌ ${state.error ?? 'Unknown error'}'
-                    : '⏳ Bootstrap not yet completed…',
+                state.status == SessionStatus.unauthorized
+                    ? '❌ Unauthorized'
+                    : '⏳ Loading…',
                 style: const TextStyle(
                   color: Color(0xFFF38BA8),
                   fontFamily: 'monospace',
@@ -105,11 +105,10 @@ class BootstrapDebugScreen extends ConsumerWidget {
         _ValueTile(label: 'updated_at', value: t.updatedAt),
       ];
 
-  Color _statusColor(BootstrapStatus s) => switch (s) {
-        BootstrapStatus.initial => const Color(0xFF89B4FA),
-        BootstrapStatus.loading => const Color(0xFFF9E2AF),
-        BootstrapStatus.success => const Color(0xFFA6E3A1),
-        BootstrapStatus.failure => const Color(0xFFF38BA8),
+  Color _statusColor(SessionStatus s) => switch (s) {
+        SessionStatus.loading => const Color(0xFFF9E2AF),
+        SessionStatus.ready => const Color(0xFFA6E3A1),
+        SessionStatus.unauthorized => const Color(0xFFF38BA8),
       };
 }
 
