@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/core_providers.dart';
+import '../providers/session_provider.dart';
 
 /// Three-step password change flow:
 ///   1. Request OTP (step 0)
@@ -59,7 +59,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       _errorMessage = null;
     });
     try {
-      await ref.read(authRepositoryProvider).requestPasswordChange();
+      await ref.read(sessionRepositoryProvider).requestPasswordChange();
       if (!mounted) return;
       setState(() {
         _step = 1;
@@ -103,10 +103,9 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       _errorMessage = null;
     });
     try {
-      await ref.read(authRepositoryProvider).changePassword(
+      await ref.read(sessionRepositoryProvider).changePassword(
             code: _enteredCode,
             password: _passwordController.text,
-            passwordConfirmation: _confirmController.text,
           );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

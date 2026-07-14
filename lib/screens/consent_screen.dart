@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/user_model.dart';
-import '../providers/core_providers.dart';
+import '../providers/session_provider.dart';
 
 class ConsentScreen extends ConsumerStatefulWidget {
   final UserModel user;
@@ -31,7 +31,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
     });
 
     try {
-      await ref.read(authRepositoryProvider).acceptTerms();
+      await ref.read(sessionRepositoryProvider).acceptTerms();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

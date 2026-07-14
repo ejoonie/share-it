@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/core_providers.dart';
+import '../providers/session_provider.dart';
 import 'consent_screen.dart';
 
 class CodeVerificationScreen extends ConsumerStatefulWidget {
@@ -51,7 +51,7 @@ class _CodeVerificationScreenState
 
     try {
       final result = await ref
-          .read(authRepositoryProvider)
+          .read(sessionRepositoryProvider)
           .verifyLoginCode(widget.email, _code);
 
       if (!mounted) return;
@@ -86,7 +86,7 @@ class _CodeVerificationScreenState
       _errorMessage = null;
     });
     try {
-      await ref.read(authRepositoryProvider).requestLoginCode(widget.email);
+      await ref.read(sessionRepositoryProvider).requestLoginCode(widget.email);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('A new code has been sent.')),
