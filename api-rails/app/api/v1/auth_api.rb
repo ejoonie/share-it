@@ -3,6 +3,20 @@
 module V1
   class AuthAPI < Grape::API
     resource :auth do
+      # POST /api/v1/auth/check_email
+      desc '이메일로 신규 여부 및 패스워드 설정 여부를 확인'
+      params do
+        requires :email, type: String, regexp: /\A[^@\s]+@[^@\s]+\z/
+      end
+      post :check_email do
+        user = User.find_by(email: params[:email].strip.downcase)
+        if user.nil?
+          { is_new_user: true, has_password: false }
+        else
+          { is_new_user: false, has_password: user.password_digest.present? }
+        end
+      end
+
       # POST /api/v1/auth/request_login_code
       desc '이메일로 로그인 코드(OTP) 전송'
       params do

@@ -60,6 +60,10 @@ class User < ApplicationRecord
     terms_accepted_at.present?
   end
 
+  def accept_terms!
+    update!(terms_accepted_at: Time.current)
+  end
+
   private
 
   def generate_token
