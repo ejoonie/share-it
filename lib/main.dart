@@ -3,26 +3,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'api/api_client.dart';
-import 'providers/bootstrap_provider.dart';
-import 'repositories/bootstrap_repository.dart';
+import 'providers/session_provider.dart';
 import 'providers/core_providers.dart';
+import 'repositories/auth_repository.dart';
+import 'repositories/session_repository.dart';
 import 'storage/token_storage.dart';
-import 'utils/token_utils.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final tokenStorage = await TokenStorage.create();
-
-  // Retrieve or generate the guest token used to create the guest account.
-  var guestToken = tokenStorage.getGuestToken();
-  if (guestToken == null) {
-    guestToken = generateRandomHexToken(32);
-    await tokenStorage.saveGuestToken(guestToken);
-  }
-
   final apiClient = ApiClient(tokenStorage: tokenStorage);
-  final bootstrapRepository = BootstrapRepository(
+  final sessionRepository = SessionRepository(
+    apiClient: apiClient,
+    tokenStorage: tokenStorage,
+  );
+  final authRepository = AuthRepository(
     apiClient: apiClient,
     tokenStorage: tokenStorage,
   );
@@ -32,16 +28,16 @@ void main() async {
       overrides: [
         tokenStorageProvider.overrideWithValue(tokenStorage),
         apiClientProvider.overrideWithValue(apiClient),
-        bootstrapRepositoryProvider
-            .overrideWithValue(bootstrapRepository),
-        bootstrapNotifierProvider.overrideWith(
-          (ref) => BootstrapNotifier(
-            repository: ref.watch(bootstrapRepositoryProvider),
+        sessionRepositoryProvider.overrideWithValue(sessionRepository),
+        authRepositoryProvider.overrideWithValue(authRepository),
+        sessionNotifierProvider.overrideWith(
+          (ref) => SessionNotifier(
+            repository: ref.watch(sessionRepositoryProvider),
             tokenStorage: tokenStorage,
           ),
         ),
       ],
-      child: ShareItApp(guestToken: guestToken),
+      child: const ShareItApp(),
     ),
   );
 }
