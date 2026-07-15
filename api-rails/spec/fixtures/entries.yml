@@ -53,3 +53,17 @@ entry_in_topic_two:
   content:
   checked: false
   deleted_at:
+
+guest_entry:
+  topic: guest_topic
+  created_by: guest_user
+  updated_by: guest_user
+  occurred_at: "2026-01-10 09:00:00"
+  kind: "expense"
+  currency: "usd"
+  amount: 500
+  category: "food"
+  title: "Guest Lunch"
+  content:
+  checked: false
+  deleted_at:

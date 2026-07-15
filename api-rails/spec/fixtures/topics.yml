@@ -27,3 +27,13 @@ deleted:
     - create
     - edit
   deleted_at: "2026-01-01 00:00:00"
+
+guest_topic:
+  user: guest_user
+  title: "Guest Topic"
+  is_default: true
+  token: "44444444-4444-4444-4444-444444444444"
+  default_permissions:
+    - create
+    - edit
+  deleted_at:

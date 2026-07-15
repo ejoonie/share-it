@@ -15,3 +15,9 @@ user_three:
   nick_name: "User Three"
   is_guest: false
   token: "token_user_three"
+
+guest_user:
+  email: "guest_token_guest_user@guest.local"
+  nick_name: "Guest"
+  is_guest: true
+  token: "token_guest_user"
