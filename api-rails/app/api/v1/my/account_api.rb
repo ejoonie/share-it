@@ -42,10 +42,16 @@ module V1
           guest = User.find_by(token: params[:guest_token], is_guest: true)
           error!({ message: 'Guest data not found.' }, 404) unless guest
 
-          ActiveRecord::Base.transaction do
-            guest.topics.update_all(user_id: current_user.id)
-            guest.topic_follows.update_all(user_id: current_user.id)
-            guest.destroy!
+          begin
+            ActiveRecord::Base.transaction do
+              guest.topics.update_all(user_id: current_user.id)
+              guest.topic_follows.update_all(user_id: current_user.id)
+              Entry.where(created_by_id: guest.id).update_all(created_by_id: current_user.id)
+              Entry.where(updated_by_id: guest.id).update_all(updated_by_id: current_user.id)
+              guest.destroy!
+            end
+          rescue ActiveRecord::StatementInvalid, ActiveRecord::RecordNotDestroyed => e
+            error!({ message: 'Failed to merge guest data.' }, 500)
           end
 
           status 200
