@@ -52,6 +52,14 @@ module V1
           { message: 'Guest data merged successfully.' }
         end
 
+        # DELETE /api/v1/my/account
+        desc '회원탈퇴 — 계정 및 관련 데이터 전체 삭제'
+        delete do
+          current_user.destroy!
+          status 200
+          { message: 'Account deleted successfully.' }
+        end
+
         # POST /api/v1/my/account/change_password
         desc '비밀번호 변경 (이메일 코드 검증 후 신규 패스워드 설정)'
         params do

@@ -22,4 +22,9 @@ class TokenStorage {
   bool get hasLoggedInBefore => _prefs.getBool(_hasLoggedInKey) ?? false;
 
   Future<void> markLoggedIn() => _prefs.setBool(_hasLoggedInKey, true);
+
+  Future<void> clearAll() async {
+    await _prefs.remove(_tokenKey);
+    await _prefs.remove(_hasLoggedInKey);
+  }
 }
