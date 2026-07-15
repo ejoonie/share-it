@@ -55,7 +55,7 @@ module V1
         # DELETE /api/v1/my/account
         desc '회원탈퇴 — 계정 및 관련 데이터 전체 삭제'
         delete do
-          current_user.destroy!
+          current_user.delete_with_data!
           status 200
           { message: 'Account deleted successfully.' }
         end
