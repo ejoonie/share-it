@@ -1,0 +1,11 @@
+app_identifier("us.hapakristin.app")
+team_id(ENV["APPLE_DEVELOPER_TEAM_ID"])
+itc_team_id(ENV["APP_STORE_CONNECT_TEAM_ID"])
+
+for_platform :ios do
+  app_identifier("us.hapakristin.app")
+end
+
+for_platform :android do
+  package_name(ENV["ANDROID_PACKAGE_NAME"])
+end

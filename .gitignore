@@ -121,3 +121,5 @@ app.*.symbols
 .idea
 .DS_Store
 *.iml
+# fastlane
+fastlane/.env

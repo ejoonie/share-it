@@ -1,0 +1,97 @@
+require 'dotenv'
+Dotenv.load(File.join(__dir__, '.env'))
+
+ROOT = File.expand_path('..', __dir__)
+
+# ── 헬퍼 ──────────────────────────────────────────────────────────────────────
+
+def latest_ipa
+  Dir.glob("#{ROOT}/build/ios/ipa/*.ipa").max_by { |f| File.mtime(f) }
+end
+
+def latest_aab
+  Dir.glob("#{ROOT}/build/app/outputs/bundle/productionRelease/*.aab").max_by { |f| File.mtime(f) }
+end
+
+def app_store_api_key
+  app_store_connect_api_key(
+    key_id:        ENV['APP_STORE_CONNECT_API_KEY_KEY_ID'],
+    issuer_id:     ENV['APP_STORE_CONNECT_API_KEY_ISSUER_ID'],
+    key_filepath:  ENV['APP_STORE_CONNECT_API_KEY_KEY_FILEPATH'],
+    duration:      1200,
+    in_house:      false
+  )
+end
+
+def write_android_changelog(notes)
+  lang = ENV.fetch('PLAY_RELEASE_NOTES_LANGUAGE', 'en-US')
+  dir  = "#{ROOT}/fastlane/metadata/android/#{lang}/changelogs"
+  FileUtils.mkdir_p(dir)
+  File.write("#{dir}/default.txt", notes)
+end
+
+# ── 빌드 ──────────────────────────────────────────────────────────────────────
+
+lane :build_ios do
+  sh "cd #{ROOT} && flutter build ipa --release " \
+     "--flavor #{ENV.fetch('FLUTTER_FLAVOR', 'production')} " \
+     "-t #{ENV.fetch('FLUTTER_TARGET', 'lib/main_production.dart')}"
+end
+
+lane :build_android do
+  sh "cd #{ROOT} && flutter build appbundle --release " \
+     "--flavor #{ENV.fetch('FLUTTER_FLAVOR', 'production')} " \
+     "-t #{ENV.fetch('FLUTTER_TARGET', 'lib/main_production.dart')}"
+end
+
+# ── iOS ───────────────────────────────────────────────────────────────────────
+
+platform :ios do
+  lane :release do
+    notes = ENV.fetch('RELEASE_NOTES', 'Bug fixes and stability improvements')
+    key   = app_store_api_key
+
+    build_ios unless ENV['IOS_SKIP_BINARY_UPLOAD'] == 'true'
+
+    deliver(
+      api_key:                          key,
+      ipa:                              latest_ipa,
+      release_notes:                    { 'en-US' => notes },
+      skip_metadata:                    ENV.fetch('IOS_SKIP_METADATA', 'false') == 'true',
+      skip_binary_upload:               ENV.fetch('IOS_SKIP_BINARY_UPLOAD', 'false') == 'true',
+      skip_screenshots:                 true,
+      submit_for_review:                ENV.fetch('SUBMIT_FOR_REVIEW', 'true') == 'true',
+      automatic_release:                ENV.fetch('IOS_AUTOMATIC_RELEASE', 'true') == 'true',
+      precheck_include_in_app_purchases: false,
+      force:                            true
+    )
+  end
+
+  lane :testflight do
+    build_ios
+    upload_to_testflight(
+      api_key:                         app_store_api_key,
+      ipa:                             latest_ipa,
+      skip_waiting_for_build_processing: ENV.fetch('SKIP_WAITING_FOR_BUILD_PROCESSING', 'true') == 'true'
+    )
+  end
+end
+
+# ── Android ───────────────────────────────────────────────────────────────────
+
+platform :android do
+  lane :release do
+    notes = ENV.fetch('RELEASE_NOTES', 'Bug fixes and stability improvements')
+    write_android_changelog(notes)
+
+    build_android
+
+    upload_to_play_store(
+      package_name:   ENV.fetch('ANDROID_PACKAGE_NAME', 'us.hapakristin.app'),
+      json_key:       ENV['SUPPLY_JSON_KEY'],
+      aab:            latest_aab,
+      track:          ENV.fetch('PLAY_TRACK', 'production'),
+      release_status: ENV.fetch('PLAY_RELEASE_STATUS', 'completed')
+    )
+  end
+end
