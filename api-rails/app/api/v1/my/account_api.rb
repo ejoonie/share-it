@@ -33,6 +33,25 @@ module V1
           { message: 'Verification code sent to your email.' }
         end
 
+        # POST /api/v1/my/account/merge_guest
+        desc '게스트 계정의 토픽을 현재 계정으로 이전 후 게스트 계정 삭제'
+        params do
+          requires :guest_token, type: String
+        end
+        post :merge_guest do
+          guest = User.find_by(token: params[:guest_token], is_guest: true)
+          error!({ message: 'Guest data not found.' }, 404) unless guest
+
+          ActiveRecord::Base.transaction do
+            guest.topics.update_all(user_id: current_user.id)
+            guest.topic_follows.update_all(user_id: current_user.id)
+            guest.destroy!
+          end
+
+          status 200
+          { message: 'Guest data merged successfully.' }
+        end
+
         # POST /api/v1/my/account/change_password
         desc '비밀번호 변경 (이메일 코드 검증 후 신규 패스워드 설정)'
         params do

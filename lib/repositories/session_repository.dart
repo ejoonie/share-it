@@ -95,4 +95,12 @@ class SessionRepository {
       'password': password,
     });
   }
+
+  /// 게스트 토큰을 현재 계정으로 이전하고 게스트 계정을 삭제한다.
+  Future<void> mergeGuestData(String guestToken) async {
+    await _apiClient.post('/api/v1/my/account/merge_guest', {'guest_token': guestToken});
+  }
+
+  /// 현재 저장된 토큰을 반환한다.
+  String? getCurrentToken() => _tokenStorage.getToken();
 }

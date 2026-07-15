@@ -27,6 +27,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String _email = '';
   bool _isNewUser = false;
 
+  // 로그인 전 게스트 상태를 기억해둔다
+  String? _guestTokenBeforeLogin;
+  bool _wasGuest = false;
+
   // 각 단계의 위젯을 교체한다
   Widget _buildStep() {
     return switch (_step) {
@@ -47,12 +51,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _LoginStep.otp => _OtpStep(
           email: _email,
           isNewUser: _isNewUser,
-          onSuccess: _onLoginSuccess,
+          onSuccess: ({required bool isNewUser}) => _onLoginSuccess(isNewUser: isNewUser),
           onBack: _goBack,
         ),
       _LoginStep.password => _PasswordStep(
           email: _email,
-          onSuccess: _onLoginSuccess,
+          onSuccess: ({required bool isNewUser}) => _onLoginSuccess(isNewUser: isNewUser),
           onSwitchToOtp: _onChooseOtp,
           onBack: _goBack,
         ),
@@ -62,6 +66,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _onEmailNext(String email, {required bool isNewUser, required bool hasPassword}) async {
     _email = email;
     _isNewUser = isNewUser;
+
+    // 이메일 입력 시점에 현재 세션이 게스트인지 기록
+    final sessionData = ref.read(sessionNotifierProvider).data;
+    _wasGuest = sessionData?.user?.isGuest ?? false;
+    if (_wasGuest) {
+      _guestTokenBeforeLogin = ref.read(sessionRepositoryProvider).getCurrentToken();
+    }
 
     if (isNewUser) {
       setState(() => _step = _LoginStep.terms);
@@ -92,8 +103,59 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _step = _LoginStep.password);
   }
 
-  void _onLoginSuccess() {
-    Navigator.of(context).pop();
+  void _onLoginSuccess({required bool isNewUser}) {
+    _handleGuestMigration(isNewUser: isNewUser);
+  }
+
+  Future<void> _handleGuestMigration({required bool isNewUser}) async {
+    final guestToken = _guestTokenBeforeLogin;
+
+    if (!_wasGuest || guestToken == null) {
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+
+    if (isNewUser) {
+      // 신규 가입 → 게스트 데이터 자동 이전
+      try {
+        await ref.read(sessionRepositoryProvider).mergeGuestData(guestToken);
+      } catch (_) {
+        // 이전 실패는 조용히 무시 (계정은 이미 생성됨)
+      }
+      if (mounted) Navigator.of(context).pop();
+    } else {
+      // 기존 계정 로그인 → 사용자에게 이전 여부 물어본다
+      if (!mounted) return;
+      final move = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Move your data?'),
+          content: const Text(
+            'You have data from your guest session. Would you like to move it to your account?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('No, discard'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Yes, move it'),
+            ),
+          ],
+        ),
+      );
+
+      if (move == true) {
+        try {
+          await ref.read(sessionRepositoryProvider).mergeGuestData(guestToken);
+        } catch (_) {
+          // 조용히 무시
+        }
+      }
+
+      if (mounted) Navigator.of(context).pop();
+    }
   }
 
   void _goBack() {
@@ -407,7 +469,7 @@ class _MethodTile extends StatelessWidget {
 class _OtpStep extends ConsumerStatefulWidget {
   final String email;
   final bool isNewUser;
-  final VoidCallback onSuccess;
+  final void Function({required bool isNewUser}) onSuccess;
   final VoidCallback onBack;
 
   const _OtpStep({
@@ -442,8 +504,8 @@ class _OtpStepState extends ConsumerState<_OtpStep> {
     setState(() { _isLoading = true; _error = null; });
     try {
       final authRepo = ref.read(sessionRepositoryProvider);
-      await authRepo.verifyLoginCode(widget.email, code);
-      widget.onSuccess();
+      final result = await authRepo.verifyLoginCode(widget.email, code);
+      widget.onSuccess(isNewUser: result.isNewUser);
     } catch (e) {
       if (mounted) setState(() { _isLoading = false; _error = 'Invalid or expired code'; });
     }
@@ -518,7 +580,7 @@ class _OtpStepState extends ConsumerState<_OtpStep> {
 // ---------------------------------------------------------------------------
 class _PasswordStep extends ConsumerStatefulWidget {
   final String email;
-  final VoidCallback onSuccess;
+  final void Function({required bool isNewUser}) onSuccess;
   final VoidCallback onSwitchToOtp;
   final VoidCallback onBack;
 
@@ -554,8 +616,8 @@ class _PasswordStepState extends ConsumerState<_PasswordStep> {
     setState(() { _isLoading = true; _error = null; });
     try {
       final authRepo = ref.read(sessionRepositoryProvider);
-      await authRepo.loginWithPassword(widget.email, pw);
-      widget.onSuccess();
+      final result = await authRepo.loginWithPassword(widget.email, pw);
+      widget.onSuccess(isNewUser: result.isNewUser);
     } catch (e) {
       if (mounted) setState(() { _isLoading = false; _error = 'Incorrect password'; });
     }
