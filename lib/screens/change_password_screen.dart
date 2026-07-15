@@ -248,7 +248,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    await ref.read(sessionNotifierProvider.notifier).continueAsGuest();
+    await ref.read(sessionNotifierProvider.notifier).signOut();
     if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
   }
 

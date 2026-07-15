@@ -16,10 +16,10 @@ class SessionState {
     this.data,
   });
 
-  SessionState copyWith({SessionStatus? status, BootstrapResponse? data}) {
+  SessionState copyWith({SessionStatus? status, BootstrapResponse? data, bool clearData = false}) {
     return SessionState(
       status: status ?? this.status,
-      data: data ?? this.data,
+      data: clearData ? null : (data ?? this.data),
     );
   }
 }
@@ -35,11 +35,17 @@ class SessionNotifier extends StateNotifier<SessionState> {
         _tokenStorage = tokenStorage,
         super(const SessionState());
 
-  /// 앱 시작 시 호출. 토큰 없으면 게스트 로그인 후 데이터 로드.
+  /// 앱 시작 시 호출.
+  /// - 한 번이라도 로그인한 적 있으면 토큰 없을 때 게스트 생성 없이 unauthorized로 전환.
+  /// - 완전 신규 유저면 게스트 로그인 후 데이터 로드.
   Future<void> init() async {
     state = state.copyWith(status: SessionStatus.loading);
     try {
       if (_tokenStorage.getToken() == null) {
+        if (_tokenStorage.hasLoggedInBefore) {
+          state = state.copyWith(status: SessionStatus.unauthorized);
+          return;
+        }
         await _repository.guestLogin();
       }
       await _loadData();
@@ -56,6 +62,7 @@ class SessionNotifier extends StateNotifier<SessionState> {
   Future<void> reload() async {
     state = state.copyWith(status: SessionStatus.loading);
     try {
+      await _tokenStorage.markLoggedIn();
       await _loadData();
     } on ApiException catch (e) {
       if (e.statusCode == 401) {
@@ -66,10 +73,15 @@ class SessionNotifier extends StateNotifier<SessionState> {
     }
   }
 
-  /// 게스트로 계속하기 — 토큰 초기화 후 새 게스트 계정 생성.
+  /// 로그아웃 — 토큰 삭제 후 unauthorized 상태로 전환.
+  Future<void> signOut() async {
+    await _tokenStorage.clearToken();
+    state = state.copyWith(status: SessionStatus.unauthorized, clearData: true);
+  }
+
+  /// unauthorized 화면에서 게스트로 계속하기.
   Future<void> continueAsGuest() async {
     state = state.copyWith(status: SessionStatus.loading);
-    await _tokenStorage.clearToken();
     await _repository.guestLogin();
     await _loadData();
   }
