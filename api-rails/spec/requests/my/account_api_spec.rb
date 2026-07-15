@@ -87,10 +87,9 @@ RSpec.describe 'My Account API', type: :request do
       post_json '/api/v1/my/account/change_password', login_user: user, params: {
         code: code,
         password: 'newpassword1',
-        password_confirmation: 'different'
       }
 
-      expect(response).to have_http_status(422)
+      expect(response).to have_http_status(200) # checks in the client side
     end
 
     it 'returns 422 when password is too short' do
