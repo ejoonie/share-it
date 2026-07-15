@@ -79,6 +79,13 @@ class SessionNotifier extends StateNotifier<SessionState> {
     state = state.copyWith(status: SessionStatus.unauthorized, clearData: true);
   }
 
+  /// 회원탈퇴 — 서버 계정 삭제 후 로컬 상태 전체 초기화 (게스트 플래그 포함).
+  Future<void> deleteAccount() async {
+    await _repository.deleteAccount();
+    await _tokenStorage.clearAll();
+    state = state.copyWith(status: SessionStatus.unauthorized, clearData: true);
+  }
+
   /// unauthorized 화면에서 게스트로 계속하기.
   Future<void> continueAsGuest() async {
     state = state.copyWith(status: SessionStatus.loading);

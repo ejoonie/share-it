@@ -224,8 +224,52 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
             ),
           ),
         ),
+        Center(
+          child: TextButton(
+            onPressed: _deleteAccount,
+            child: Text(
+              'Delete Account',
+              style: TextStyle(color: Colors.red.shade400, fontSize: 13),
+            ),
+          ),
+        ),
       ],
     );
+  }
+
+  Future<void> _deleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: const Text(
+          'This will permanently delete your account and all your data. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _isLoading = true);
+    try {
+      await ref.read(sessionNotifierProvider.notifier).deleteAccount();
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+    } on Exception catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = _friendlyError(e);
+      });
+    }
   }
 
   Future<void> _signOut() async {

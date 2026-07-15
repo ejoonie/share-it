@@ -64,6 +64,17 @@ class User < ApplicationRecord
     update!(terms_accepted_at: Time.current)
   end
 
+  # 계정과 연관 데이터를 모두 삭제한다 (회원탈퇴).
+  def delete_with_data!
+    ActiveRecord::Base.transaction do
+      topic_ids = Topic.where(user_id: id).pluck(:id)
+      Entry.where(topic_id: topic_ids).delete_all if topic_ids.any?
+      Topic.where(user_id: id).delete_all
+      TopicFollow.where(user_id: id).delete_all
+      destroy!
+    end
+  end
+
   # 게스트 계정의 모든 데이터를 target_user로 이전하고 자신을 삭제한다.
   # 반드시 is_guest? == true 인 유저에서 호출해야 한다.
   def merge_into!(target_user)

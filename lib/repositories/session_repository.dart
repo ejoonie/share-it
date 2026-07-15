@@ -103,4 +103,9 @@ class SessionRepository {
 
   /// 현재 저장된 토큰을 반환한다.
   String? getCurrentToken() => _tokenStorage.getToken();
+
+  /// 계정 삭제.
+  Future<void> deleteAccount() async {
+    await _apiClient.delete('/api/v1/my/account');
+  }
 }
