@@ -214,8 +214,42 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                         fontSize: 16, fontWeight: FontWeight.w600)),
           ),
         ),
+        const SizedBox(height: 24),
+        Center(
+          child: TextButton(
+            onPressed: _signOut,
+            child: Text(
+              'Sign Out',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          ),
+        ),
       ],
     );
+  }
+
+  Future<void> _signOut() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text('Are you sure you want to sign out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await ref.read(sessionNotifierProvider.notifier).continueAsGuest();
+    if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   Widget _buildCodeStep() {
