@@ -64,6 +64,20 @@ class User < ApplicationRecord
     update!(terms_accepted_at: Time.current)
   end
 
+  # 게스트 계정의 모든 데이터를 target_user로 이전하고 자신을 삭제한다.
+  # 반드시 is_guest? == true 인 유저에서 호출해야 한다.
+  def merge_into!(target_user)
+    raise ArgumentError, 'Only guest accounts can be merged' unless is_guest?
+
+    ActiveRecord::Base.transaction do
+      topics.update_all(user_id: target_user.id)
+      topic_follows.update_all(user_id: target_user.id)
+      Entry.where(created_by_id: id).update_all(created_by_id: target_user.id)
+      Entry.where(updated_by_id: id).update_all(updated_by_id: target_user.id)
+      destroy!
+    end
+  end
+
   private
 
   def generate_token

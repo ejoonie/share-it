@@ -43,14 +43,8 @@ module V1
           error!({ message: 'Guest data not found.' }, 404) unless guest
 
           begin
-            ActiveRecord::Base.transaction do
-              guest.topics.update_all(user_id: current_user.id)
-              guest.topic_follows.update_all(user_id: current_user.id)
-              Entry.where(created_by_id: guest.id).update_all(created_by_id: current_user.id)
-              Entry.where(updated_by_id: guest.id).update_all(updated_by_id: current_user.id)
-              guest.destroy!
-            end
-          rescue ActiveRecord::StatementInvalid, ActiveRecord::RecordNotDestroyed => e
+            guest.merge_into!(current_user)
+          rescue ActiveRecord::StatementInvalid, ActiveRecord::RecordNotDestroyed
             error!({ message: 'Failed to merge guest data.' }, 500)
           end
 
