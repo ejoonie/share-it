@@ -49,8 +49,9 @@ module V1
 
         {
           bootstrap_created: bootstrap_created,
+          user: Entities::UserEntity.represent(current_user),
           topic: topic ? Entities::TopicEntity.represent(topic) : nil,
-          entries: Entities::EntryEntity.represent(entries)
+          entries: Entities::EntryEntity.represent(entries),
         }
       end
     end

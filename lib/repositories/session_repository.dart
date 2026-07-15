@@ -53,24 +53,54 @@ class SessionRepository {
   }
 
   /// OTP 검증 후 토큰 저장.
-  Future<UserModel> verifyLoginCode(String email, String code) async {
+  Future<({UserModel user, bool isNewUser})> verifyLoginCode(String email, String code) async {
     final json = await _apiClient.post('/api/v1/auth/verify_login_code', {
       'email': email,
       'code': code,
     });
     final user = UserModel.fromJson(json['user'] as Map<String, dynamic>);
     await _tokenStorage.saveToken(user.token);
-    return user;
+    return (user: user, isNewUser: json['is_new_user'] as bool);
   }
 
   /// 이메일 + 비밀번호 로그인 후 토큰 저장.
-  Future<UserModel> loginWithPassword(String email, String password) async {
+  Future<({UserModel user, bool isNewUser})> loginWithPassword(String email, String password) async {
     final json = await _apiClient.post('/api/v1/auth/login', {
       'email': email,
       'password': password,
     });
     final user = UserModel.fromJson(json['user'] as Map<String, dynamic>);
     await _tokenStorage.saveToken(user.token);
-    return user;
+    return (user: user, isNewUser: json['is_new_user'] as bool);
   }
+
+  // ---------------------------------------------------------------------------
+  // 계정 관리
+  // ---------------------------------------------------------------------------
+
+  /// 약관 동의.
+  Future<void> acceptTerms() async {
+    await _apiClient.post('/api/v1/my/account/accept_terms', {});
+  }
+
+  /// 비밀번호 변경 OTP 전송 (로그인된 상태에서 호출).
+  Future<void> requestPasswordChange() async {
+    await _apiClient.post('/api/v1/my/account/request_password_change', {});
+  }
+
+  /// OTP 코드와 새 비밀번호로 비밀번호 변경.
+  Future<void> changePassword({required String code, required String password}) async {
+    await _apiClient.post('/api/v1/my/account/change_password', {
+      'code': code,
+      'password': password,
+    });
+  }
+
+  /// 게스트 토큰을 현재 계정으로 이전하고 게스트 계정을 삭제한다.
+  Future<void> mergeGuestData(String guestToken) async {
+    await _apiClient.post('/api/v1/my/account/merge_guest', {'guest_token': guestToken});
+  }
+
+  /// 현재 저장된 토큰을 반환한다.
+  String? getCurrentToken() => _tokenStorage.getToken();
 }
