@@ -1,9 +1,9 @@
 services:
   db:
     image: postgres:16
+    env_file: .env.prod
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD environment variable must be set}
       POSTGRES_DB: sp_api_production
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -12,12 +12,12 @@ services:
     container_name: sp-api
     image: ruby:3.3
     working_dir: /app
+    env_file: .env.prod
     volumes:
       - ./:/app
     environment:
       RAILS_ENV: production
       RAILS_MAX_THREADS: "1"
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD environment variable must be set}@db:5432/sp_api_production
     command: bash -lc "bundle check || bundle install && bin/rails db:prepare && bundle exec puma -C config/puma.rb"
     depends_on:
       - db
