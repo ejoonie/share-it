@@ -2,7 +2,7 @@ name: Deploy API
 
 on:
   push:
-    branches: [master, first-deploy]
+    branches: [master]
     paths:
       - 'api-rails/**'
       - '.github/workflows/deploy-api.yml'
@@ -66,6 +66,7 @@ jobs:
             cat > .env.prod << 'EOF'
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
             DATABASE_URL=postgres://postgres:${{ secrets.POSTGRES_PASSWORD }}@db:5432/sp_api_production
+            SECRET_KEY_BASE=${{ secrets.SECRET_KEY_BASE }}
             EOF
 
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
