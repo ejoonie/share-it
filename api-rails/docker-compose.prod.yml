@@ -7,20 +7,17 @@ services:
       POSTGRES_DB: sp_api_production
     volumes:
       - pgdata:/var/lib/postgresql/data
+    restart: always
 
   sp-api:
     container_name: sp-api
-    image: ruby:3.3
-    working_dir: /app
+    image: ghcr.io/ejoonie/share-it-api:latest
     env_file: .env.prod
-    volumes:
-      - ./:/app
     environment:
       RAILS_ENV: production
-      RAILS_MAX_THREADS: "1"
-    command: bash -lc "bundle check || bundle install && bin/rails db:prepare && bundle exec puma -C config/puma.rb"
     depends_on:
       - db
+    restart: always
 
   nginx:
     image: nginx:1.27-alpine
