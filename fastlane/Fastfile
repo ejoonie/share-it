@@ -35,13 +35,15 @@ end
 lane :build_ios do
   sh "cd #{ROOT} && flutter build ipa --release " \
      "--flavor #{ENV.fetch('FLUTTER_FLAVOR', 'production')} " \
-     "-t #{ENV.fetch('FLUTTER_TARGET', 'lib/main_production.dart')}"
+     "-t #{ENV.fetch('FLUTTER_TARGET', 'lib/main.dart')} " \
+     "--dart-define=APP_ENV=prod"
 end
 
 lane :build_android do
   sh "cd #{ROOT} && flutter build appbundle --release " \
      "--flavor #{ENV.fetch('FLUTTER_FLAVOR', 'production')} " \
-     "-t #{ENV.fetch('FLUTTER_TARGET', 'lib/main_production.dart')}"
+     "-t #{ENV.fetch('FLUTTER_TARGET', 'lib/main.dart')} " \
+     "--dart-define=APP_ENV=prod"
 end
 
 # ── iOS ───────────────────────────────────────────────────────────────────────
