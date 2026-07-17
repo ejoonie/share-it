@@ -2,7 +2,7 @@ name: Deploy API
 
 on:
   push:
-    branches: [master]
+    branches: [master, first-deploy]
     paths:
       - 'api-rails/**'
       - '.github/workflows/deploy-api.yml'
