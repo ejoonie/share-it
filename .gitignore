@@ -120,4 +120,4 @@ app.*.symbols
 
 .idea
 .DS_Store
-*.iml
+*.iml!api-rails/Gemfile.lock
