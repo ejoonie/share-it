@@ -70,6 +70,8 @@
 		<false/>
 		<key>NSCameraUsageDescription</key>
 		<string>Scan a QR code to subscribe to another user's shared expense tracker.</string>
+		<key>NSUserNotificationsUsageDescription</key>
+		<string>Get notified when new expenses are added to your shared piggies.</string>
 		<key>ITSAppUsesNonExemptEncryption</key>
 		<false/>
 	</dict>

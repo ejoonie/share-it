@@ -2,6 +2,7 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'providers/core_providers.dart';
 import 'providers/expense_provider.dart';
@@ -146,16 +147,41 @@ class MainScreen extends ConsumerStatefulWidget {
   ConsumerState<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends ConsumerState<MainScreen> {
+class _MainScreenState extends ConsumerState<MainScreen>
+    with WidgetsBindingObserver {
   int _currentIndex = 0;
   final _appLinks = AppLinks();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initDeepLinks();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _syncNotificationPermission();
+    }
+  }
+
+  Future<void> _syncNotificationPermission() async {
+    final status = await Permission.notification.status;
+    final granted = status.isGranted;
+    try {
+      await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(granted);
+    } catch (_) {
+      // 네트워크 오류 등 무시 — 다음 resume 시 재시도됨
+    }
   }
 
   Future<void> _initDeepLinks() async {

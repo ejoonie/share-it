@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_07_14_000001) do
+ActiveRecord::Schema[7.2].define(version: 2026_07_20_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -73,6 +73,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_07_14_000001) do
     t.string "login_code"
     t.datetime "login_code_expires_at"
     t.datetime "terms_accepted_at"
+    t.boolean "notifications_enabled", default: false, null: false
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["token"], name: "index_users_on_token", unique: true
   end

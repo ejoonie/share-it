@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:app_settings/app_settings.dart';
 
 import '../models/topic_model.dart';
 import '../providers/core_providers.dart';
@@ -18,8 +20,8 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-// ConsumerStatefulWidget은 로컬 UI 상태(_currency, _notifications, _version)와
-// settingsRefreshProvider 리스닝을 위해 유지
+// ConsumerStatefulWidget is kept for local UI state (_currency, _notifications, _version)
+// and to listen to settingsRefreshProvider
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _currency = 'USD';
   bool _notifications = false;
@@ -37,6 +39,110 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         setState(() => _version = '${info.version} (${info.buildNumber})');
       }
     });
+    _syncNotificationStatus();
+  }
+
+  Future<void> _syncNotificationStatus() async {
+    final status = await Permission.notification.status;
+    if (!mounted) return;
+    final granted = status.isGranted;
+    if (granted != _notifications) {
+      setState(() => _notifications = granted);
+      await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(granted);
+    }
+  }
+
+  Future<void> _onNotificationToggle(bool value) async {
+    if (!value) {
+      // UI only — permissions can only be revoked from the system settings app
+      setState(() => _notifications = false);
+      await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(false);
+      return;
+    }
+
+    final status = await Permission.notification.status;
+
+    if (status.isGranted) {
+      setState(() => _notifications = true);
+      await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(true);
+      return;
+    }
+
+    if (status.isPermanentlyDenied) {
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Notification Permission Required'),
+          content: const Text('Notifications are blocked. Please enable them in your device settings.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Open Settings'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) {
+        await AppSettings.openAppSettings(type: AppSettingsType.notification);
+      }
+      return;
+    }
+
+    if (status.isDenied) {
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Enable Notifications'),
+          content: const Text('Get notified when new expenses are added to your shared piggies.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Not Now'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Allow'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
+    final result = await Permission.notification.request();
+    if (!mounted) return;
+
+    if (result.isGranted) {
+      setState(() => _notifications = true);
+      await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(true);
+    } else if (result.isPermanentlyDenied) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Notification Permission Required'),
+          content: const Text('Notifications are blocked. Please enable them in your device settings.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Open Settings'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) {
+        await AppSettings.openAppSettings(type: AppSettingsType.notification);
+      }
+    }
   }
 
   List<Widget> _buildAccountTiles(BuildContext context, WidgetRef ref) {
@@ -72,7 +178,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             context,
             MaterialPageRoute(builder: (_) => const LoginScreen()),
           );
-          // 로그인 성공 시 세션 리프레시
+          // Refresh session after successful login
           if (context.mounted) {
             ref.read(sessionNotifierProvider.notifier).reload();
           }
@@ -145,9 +251,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           SwitchListTile(
             secondary: const Icon(Icons.notifications_outlined),
             title: const Text('Notifications'),
-            subtitle: const Text('Receive expense reminders'),
+            subtitle: const Text('Get notified when expenses are added'),
             value: _notifications,
-            onChanged: (v) => setState(() => _notifications = v),
+            onChanged: _onNotificationToggle,
           ),
           const _SectionHeader(title: 'Share'),
           ListTile(

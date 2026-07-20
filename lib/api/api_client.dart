@@ -94,6 +94,19 @@ class ApiClient {
     return _handleResponse(response);
   }
 
+  Future<Map<String, dynamic>> put(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final response = await _client.put(
+      uri,
+      headers: _headers(),
+      body: jsonEncode(body),
+    );
+    return _handleResponse(response);
+  }
+
   Future<Map<String, dynamic>> delete(String path) async {
     final uri = Uri.parse('$baseUrl$path');
     final response = await _client.delete(
