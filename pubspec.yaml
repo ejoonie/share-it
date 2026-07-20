@@ -1,6 +1,6 @@
 name: share_it
 description: A household budget and expense tracking app.
-version: 1.0.0+1
+version: 1.0.0+3
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
