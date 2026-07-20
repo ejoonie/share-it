@@ -71,7 +71,7 @@
 		<key>NSCameraUsageDescription</key>
 		<string>Scan a QR code to subscribe to another user's shared expense tracker.</string>
 		<key>NSUserNotificationsUsageDescription</key>
-		<string>We'll send you expense reminders to help you track your spending.</string>
+		<string>Get notified when new expenses are added to your shared piggies.</string>
 		<key>ITSAppUsesNonExemptEncryption</key>
 		<false/>
 	</dict>

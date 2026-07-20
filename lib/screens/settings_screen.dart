@@ -20,8 +20,8 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-// ConsumerStatefulWidget은 로컬 UI 상태(_currency, _notifications, _version)와
-// settingsRefreshProvider 리스닝을 위해 유지
+// ConsumerStatefulWidget is kept for local UI state (_currency, _notifications, _version)
+// and to listen to settingsRefreshProvider
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _currency = 'USD';
   bool _notifications = false;
@@ -51,7 +51,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _onNotificationToggle(bool value) async {
     if (!value) {
-      // 끄는 건 UI만 업데이트 (권한은 설정앱에서만 철회 가능)
+      // UI only — permissions can only be revoked from the system settings app
       setState(() => _notifications = false);
       return;
     }
@@ -64,21 +64,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
 
     if (status.isPermanentlyDenied) {
-      // 이미 거부된 상태 → 설정앱으로 이동
       if (!mounted) return;
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text('알림 권한 필요'),
-          content: const Text('알림이 차단되어 있습니다. 설정에서 알림을 허용해 주세요.'),
+          title: const Text('Notification Permission Required'),
+          content: const Text('Notifications are blocked. Please enable them in your device settings.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('취소'),
+              child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('설정으로 이동'),
+              child: const Text('Open Settings'),
             ),
           ],
         ),
@@ -89,23 +88,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return;
     }
 
-    // 첫 요청 또는 denied(재요청 가능) 상태
     if (status.isDenied) {
-      // 첫 요청이면 동의 팝업 먼저 보여주기
       if (!mounted) return;
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text('알림 동의'),
-          content: const Text('지출 알림을 받으시겠습니까?'),
+          title: const Text('Enable Notifications'),
+          content: const Text('Get notified when new expenses are added to your shared piggies.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('아니요'),
+              child: const Text('Not Now'),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('허용'),
+              child: const Text('Allow'),
             ),
           ],
         ),
@@ -122,16 +119,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text('알림 권한 필요'),
-          content: const Text('알림이 차단되어 있습니다. 설정에서 알림을 허용해 주세요.'),
+          title: const Text('Notification Permission Required'),
+          content: const Text('Notifications are blocked. Please enable them in your device settings.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('취소'),
+              child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('설정으로 이동'),
+              child: const Text('Open Settings'),
             ),
           ],
         ),
@@ -175,7 +172,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             context,
             MaterialPageRoute(builder: (_) => const LoginScreen()),
           );
-          // 로그인 성공 시 세션 리프레시
+          // Refresh session after successful login
           if (context.mounted) {
             ref.read(sessionNotifierProvider.notifier).reload();
           }
@@ -248,7 +245,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           SwitchListTile(
             secondary: const Icon(Icons.notifications_outlined),
             title: const Text('Notifications'),
-            subtitle: const Text('Receive expense reminders'),
+            subtitle: const Text('Get notified when expenses are added'),
             value: _notifications,
             onChanged: _onNotificationToggle,
           ),
