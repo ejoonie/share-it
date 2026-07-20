@@ -108,4 +108,8 @@ class SessionRepository {
   Future<void> deleteAccount() async {
     await _apiClient.delete('/api/v1/my/account');
   }
+
+  Future<void> updateNotificationsEnabled(bool enabled) async {
+    await _apiClient.put('/api/v1/my/account/notifications', {'enabled': enabled});
+  }
 }

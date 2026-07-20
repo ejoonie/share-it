@@ -52,6 +52,17 @@ module V1
           { message: 'Guest data merged successfully.' }
         end
 
+        # PUT /api/v1/my/account/notifications
+        desc '알림 수신 설정 업데이트'
+        params do
+          requires :enabled, type: Boolean
+        end
+        put :notifications do
+          current_user.update!(notifications_enabled: params[:enabled])
+          status 200
+          { notifications_enabled: current_user.notifications_enabled }
+        end
+
         # DELETE /api/v1/my/account
         desc '회원탈퇴 — 계정 및 관련 데이터 전체 삭제'
         delete do

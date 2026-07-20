@@ -44,8 +44,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _syncNotificationStatus() async {
     final status = await Permission.notification.status;
-    if (mounted) {
-      setState(() => _notifications = status.isGranted);
+    if (!mounted) return;
+    final granted = status.isGranted;
+    if (granted != _notifications) {
+      setState(() => _notifications = granted);
+      await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(granted);
     }
   }
 
@@ -53,6 +56,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (!value) {
       // UI only — permissions can only be revoked from the system settings app
       setState(() => _notifications = false);
+      await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(false);
       return;
     }
 
@@ -60,6 +64,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (status.isGranted) {
       setState(() => _notifications = true);
+      await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(true);
       return;
     }
 
@@ -115,6 +120,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (result.isGranted) {
       setState(() => _notifications = true);
+      await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(true);
     } else if (result.isPermanentlyDenied) {
       final confirmed = await showDialog<bool>(
         context: context,
