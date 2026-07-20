@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:app_settings/app_settings.dart';
 
 import '../models/topic_model.dart';
 import '../providers/core_providers.dart';
@@ -37,6 +39,107 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         setState(() => _version = '${info.version} (${info.buildNumber})');
       }
     });
+    _syncNotificationStatus();
+  }
+
+  Future<void> _syncNotificationStatus() async {
+    final status = await Permission.notification.status;
+    if (mounted) {
+      setState(() => _notifications = status.isGranted);
+    }
+  }
+
+  Future<void> _onNotificationToggle(bool value) async {
+    if (!value) {
+      // 끄는 건 UI만 업데이트 (권한은 설정앱에서만 철회 가능)
+      setState(() => _notifications = false);
+      return;
+    }
+
+    final status = await Permission.notification.status;
+
+    if (status.isGranted) {
+      setState(() => _notifications = true);
+      return;
+    }
+
+    if (status.isPermanentlyDenied) {
+      // 이미 거부된 상태 → 설정앱으로 이동
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('알림 권한 필요'),
+          content: const Text('알림이 차단되어 있습니다. 설정에서 알림을 허용해 주세요.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('설정으로 이동'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) {
+        await AppSettings.openAppSettings(type: AppSettingsType.notification);
+      }
+      return;
+    }
+
+    // 첫 요청 또는 denied(재요청 가능) 상태
+    if (status.isDenied) {
+      // 첫 요청이면 동의 팝업 먼저 보여주기
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('알림 동의'),
+          content: const Text('지출 알림을 받으시겠습니까?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('아니요'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('허용'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
+    final result = await Permission.notification.request();
+    if (!mounted) return;
+
+    if (result.isGranted) {
+      setState(() => _notifications = true);
+    } else if (result.isPermanentlyDenied) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('알림 권한 필요'),
+          content: const Text('알림이 차단되어 있습니다. 설정에서 알림을 허용해 주세요.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('설정으로 이동'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) {
+        await AppSettings.openAppSettings(type: AppSettingsType.notification);
+      }
+    }
   }
 
   List<Widget> _buildAccountTiles(BuildContext context, WidgetRef ref) {
@@ -147,7 +250,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: const Text('Notifications'),
             subtitle: const Text('Receive expense reminders'),
             value: _notifications,
-            onChanged: (v) => setState(() => _notifications = v),
+            onChanged: _onNotificationToggle,
           ),
           const _SectionHeader(title: 'Share'),
           ListTile(
