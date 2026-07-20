@@ -123,3 +123,5 @@ app.*.symbols
 *.iml
 # fastlane
 fastlane/.env
+
+*.p8

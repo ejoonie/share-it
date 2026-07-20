@@ -5,7 +5,9 @@ PLATFORM="${1:-all}"   # ios | android | all | build | testflight
 cd "$(dirname "$0")/.."
 
 # ── 릴리즈 노트 ────────────────────────────────────────────────────────────────
-if [ -z "${RELEASE_NOTES:-}" ]; then
+if [ "$PLATFORM" = "testflight" ]; then
+  RELEASE_NOTES=""
+elif [ -z "${RELEASE_NOTES:-}" ]; then
   echo ""
   echo "📝  릴리즈 노트를 입력하세요 (스토어에 공개됩니다)."
   echo "    여러 줄 입력 가능 — 완료하면 빈 줄에서 Enter:"
