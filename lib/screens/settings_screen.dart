@@ -6,6 +6,7 @@ import 'package:app_settings/app_settings.dart';
 
 import '../models/topic_model.dart';
 import '../providers/core_providers.dart';
+import '../providers/notification_permission_provider.dart';
 import '../providers/session_provider.dart';
 import 'login_screen.dart';
 import 'change_password_screen.dart';
@@ -20,11 +21,10 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-// ConsumerStatefulWidget is kept for local UI state (_currency, _notifications, _version)
+// ConsumerStatefulWidget is kept for local UI state (_currency, _version)
 // and to listen to settingsRefreshProvider
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _currency = 'USD';
-  bool _notifications = false;
   String _version = '';
 
   final List<String> _currencies = ['USD'];
@@ -39,32 +39,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         setState(() => _version = '${info.version} (${info.buildNumber})');
       }
     });
-    _syncNotificationStatus();
-  }
-
-  Future<void> _syncNotificationStatus() async {
-    final status = await Permission.notification.status;
-    if (!mounted) return;
-    final granted = status.isGranted;
-    if (granted != _notifications) {
-      setState(() => _notifications = granted);
-      await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(granted);
-    }
   }
 
   Future<void> _onNotificationToggle(bool value) async {
     if (!value) {
-      // UI only — permissions can only be revoked from the system settings app
-      setState(() => _notifications = false);
-      await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(false);
+      await ref.read(notificationPermissionProvider.notifier).disable();
       return;
     }
 
     final status = await Permission.notification.status;
 
     if (status.isGranted) {
-      setState(() => _notifications = true);
-      await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(true);
+      // Already granted — provider state already true, nothing to do
       return;
     }
 
@@ -112,37 +98,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
       );
-      if (confirmed != true) return;
-    }
-
-    final result = await Permission.notification.request();
-    if (!mounted) return;
-
-    if (result.isGranted) {
-      setState(() => _notifications = true);
-      await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(true);
-    } else if (result.isPermanentlyDenied) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Notification Permission Required'),
-          content: const Text('Notifications are blocked. Please enable them in your device settings.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Open Settings'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed == true) {
-        await AppSettings.openAppSettings(type: AppSettingsType.notification);
+      if (confirmed != true) {
+        // Revert toggle — provider state is still false
+        ref.invalidate(notificationPermissionProvider);
+        return;
       }
     }
+
+    await ref.read(notificationPermissionProvider.notifier).request();
   }
 
   List<Widget> _buildAccountTiles(BuildContext context, WidgetRef ref) {
@@ -212,8 +175,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final success = await notifier.unsubscribe(sub.id);
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Failed to unsubscribe. Please try again.')),
+        const SnackBar(content: Text('Failed to unsubscribe. Please try again.')),
       );
     }
   }
@@ -226,6 +188,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
 
     final state = ref.watch(settingsNotifierProvider);
+    final notificationsEnabled =
+        ref.watch(notificationPermissionProvider).valueOrNull ?? false;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -252,7 +216,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             secondary: const Icon(Icons.notifications_outlined),
             title: const Text('Notifications'),
             subtitle: const Text('Get notified when expenses are added'),
-            value: _notifications,
+            value: notificationsEnabled,
             onChanged: _onNotificationToggle,
           ),
           const _SectionHeader(title: 'Share'),
@@ -336,9 +300,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       loading: () => [
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 16),
-          child: Center(
-            child: CircularProgressIndicator(),
-          ),
+          child: Center(child: CircularProgressIndicator()),
         ),
       ],
       error: (_, __) => [

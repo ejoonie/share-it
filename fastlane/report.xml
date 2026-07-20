@@ -5,22 +5,22 @@
     
     
       
-      <testcase classname="fastlane.lanes" name="0: Switch to ios build_ios lane" time="0.00011">
+      <testcase classname="fastlane.lanes" name="0: Switch to ios build_ios lane" time="0.000104">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="1: cd /Users/ejoonie/StudioProjects/share-it &amp;&amp; flutter build ipa --release -t lib/main.dart --dart-define=APP_ENV=prod" time="50.295309">
+      <testcase classname="fastlane.lanes" name="1: cd /Users/ejoonie/StudioProjects/share-it &amp;&amp; flutter build ipa --release -t lib/main.dart --dart-define=APP_ENV=prod" time="66.392145">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="2: app_store_connect_api_key" time="0.003368">
+      <testcase classname="fastlane.lanes" name="2: app_store_connect_api_key" time="0.003677">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="3: upload_to_testflight" time="66.443892">
+      <testcase classname="fastlane.lanes" name="3: upload_to_testflight" time="76.939355">
         
       </testcase>
     
