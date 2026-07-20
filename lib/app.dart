@@ -2,10 +2,10 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import 'providers/core_providers.dart';
 import 'providers/expense_provider.dart';
+import 'providers/notification_permission_provider.dart';
 import 'providers/session_provider.dart';
 import 'screens/bootstrap_debug_screen.dart';
 import 'screens/login_screen.dart';
@@ -175,13 +175,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
   }
 
   Future<void> _syncNotificationPermission() async {
-    final status = await Permission.notification.status;
-    final granted = status.isGranted;
-    try {
-      await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(granted);
-    } catch (_) {
-      // 네트워크 오류 등 무시 — 다음 resume 시 재시도됨
-    }
+    await ref.read(notificationPermissionProvider.notifier).sync();
   }
 
   Future<void> _initDeepLinks() async {
