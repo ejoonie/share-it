@@ -7,8 +7,8 @@ import '../providers/expense_provider.dart';
 import '../models/expense_model.dart';
 import '../widgets/expense_calendar.dart';
 import '../widgets/expense_list.dart';
-import '../widgets/expense_form.dart';
 import '../widgets/summary_drawer.dart';
+import 'amount_entry_screen.dart';
 
 class ExpenseScreen extends ConsumerStatefulWidget {
   const ExpenseScreen({super.key});
@@ -110,16 +110,14 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
   }
 
   void _showAddExpenseForm(int year, int month, int day) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => ExpenseForm(
-        initYear: year,
-        initMonth: month,
-        initDay: day,
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AmountEntryScreen(
+          initYear: year,
+          initMonth: month,
+          initDay: day,
+        ),
       ),
     );
   }

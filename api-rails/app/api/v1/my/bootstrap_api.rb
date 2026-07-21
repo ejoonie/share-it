@@ -26,9 +26,10 @@ module V1
               created_by: current_user,
               updated_by: current_user,
               kind: 'todo',
-              title: 'Review this month’s spending',
+              title: 'Sample: Review this month\’s spending',
               content: 'Check what changed and decide what to adjust together.',
-              checked: false
+              checked: false,
+              is_sample: true
             )
 
             entries << topic.entries.create!(
@@ -37,10 +38,11 @@ module V1
               kind: 'expense',
               currency: 'usd',
               amount: 4825,
-              title: 'Grocery Run 🛒',
+              title: 'Sample: Grocery Run 🛒',
               content: 'Shared expenses are easier when everyone can see the story.',
               checked: false,
               occurred_at: Time.current,
+              is_sample: true
             )
 
             bootstrap_created = true

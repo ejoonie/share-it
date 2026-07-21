@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'entry_repository.dart';
 import '../models/expense_model.dart';
 
@@ -37,6 +39,7 @@ class ExpenseRepository {
   }
 
   Future<ExpenseModel> addExpense(ExpenseModel expense) async {
+    debugPrint('[addExpense] 전송 occurredAt: ${expense.occurredAt} (local: ${expense.occurredAt.toLocal()}, utc: ${expense.occurredAt.toUtc()})');
     final entry = await _entryRepository.createEntry(
       occurredAt: expense.occurredAt,
       kind: expense.type.name,
@@ -45,10 +48,13 @@ class ExpenseRepository {
       title: expense.title.isEmpty ? null : expense.title,
       content: expense.content,
     );
-    return ExpenseModel.fromEntry(entry);
+    final saved = ExpenseModel.fromEntry(entry);
+    debugPrint('[addExpense] 서버 저장 occurredAt: ${saved.occurredAt} (local: ${saved.occurredAt.toLocal()}, utc: ${saved.occurredAt.toUtc()})');
+    return saved;
   }
 
   Future<ExpenseModel> updateExpense(ExpenseModel expense) async {
+    debugPrint('[updateExpense] 전송 occurredAt: ${expense.occurredAt} (local: ${expense.occurredAt.toLocal()}, utc: ${expense.occurredAt.toUtc()})');
     final entry = await _entryRepository.updateEntry(
       expense.id!,
       occurredAt: expense.occurredAt,
@@ -58,7 +64,9 @@ class ExpenseRepository {
       title: expense.title.isEmpty ? null : expense.title,
       content: expense.content,
     );
-    return ExpenseModel.fromEntry(entry);
+    final saved = ExpenseModel.fromEntry(entry);
+    debugPrint('[updateExpense] 서버 저장 occurredAt: ${saved.occurredAt} (local: ${saved.occurredAt.toLocal()}, utc: ${saved.occurredAt.toUtc()})');
+    return saved;
   }
 
   Future<void> deleteExpense(int id) async {
