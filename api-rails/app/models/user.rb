@@ -87,6 +87,9 @@ class User < ApplicationRecord
     ActiveRecord::Base.transaction do
       my_topic_ids = topics.pluck(:id)
 
+      # 샘플 entry 삭제 (이전 전에 제거)
+      Entry.where(topic_id: my_topic_ids, is_sample: true).delete_all if my_topic_ids.any?
+
       # 내 topic 소유권 이전
       topics.update_all(user_id: target_user.id)
 
@@ -102,9 +105,9 @@ class User < ApplicationRecord
       # 남은 topic_follow(남의 피기)는 무시하고 삭제
       topic_follows.reload.delete_all
 
-      # entry 이전
-      Entry.where(created_by_id: id).update_all(created_by_id: target_user.id)
-      Entry.where(updated_by_id: id).update_all(updated_by_id: target_user.id)
+      # entry 이전 (샘플 데이터 제외)
+      Entry.where(created_by_id: id, is_sample: false).update_all(created_by_id: target_user.id)
+      Entry.where(updated_by_id: id, is_sample: false).update_all(updated_by_id: target_user.id)
 
       destroy!
     end
