@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_07_20_000001) do
+ActiveRecord::Schema[7.2].define(version: 2026_07_21_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -29,6 +29,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_07_20_000001) do
     t.datetime "deleted_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "is_sample", default: false, null: false
     t.index ["created_by_id"], name: "index_entries_on_created_by_id"
     t.index ["deleted_at"], name: "index_entries_on_deleted_at"
     t.index ["topic_id"], name: "index_entries_on_topic_id"

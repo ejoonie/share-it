@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../providers/expense_provider.dart';
 import '../models/expense_model.dart';
+import 'category_field.dart';
 
 class ExpenseForm extends ConsumerStatefulWidget {
   final ExpenseModel? expense;
@@ -12,6 +13,8 @@ class ExpenseForm extends ConsumerStatefulWidget {
   final int initMonth;
   final int initDay;
   final String timezone;
+  final String? initialAmount;
+  final ExpenseType? initialType;
 
   const ExpenseForm({
     super.key,
@@ -20,6 +23,8 @@ class ExpenseForm extends ConsumerStatefulWidget {
     required this.initMonth,
     required this.initDay,
     this.timezone = 'America/New_York',
+    this.initialAmount,
+    this.initialType,
   });
 
   @override
@@ -32,19 +37,9 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
   late TextEditingController _amountController;
   late TextEditingController _contentController;
   late TextEditingController _categoryController;
+  final _noteFocusNode = FocusNode();
   late ExpenseType _type;
   late DateTime _selectedDateUtc;
-
-  final List<String> _categories = [
-    'Food',
-    'Transport',
-    'Shopping',
-    'Medical',
-    'Entertainment',
-    'Utilities',
-    'Housing',
-    'Other',
-  ];
 
   @override
   void initState() {
@@ -52,13 +47,12 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
     final e = widget.expense;
     _titleController = TextEditingController(text: e?.title ?? '');
     _amountController = TextEditingController(
-      text: e != null ? (e.amount / 100.0).toStringAsFixed(2) : '',
+      text: e != null ? (e.amount / 100.0).toStringAsFixed(2) : (widget.initialAmount ?? ''),
     );
     _contentController = TextEditingController(text: e?.content ?? '');
     _categoryController = TextEditingController(text: e?.category ?? '');
-    _type = e?.type ?? ExpenseType.expense;
-    _selectedDateUtc =
-        DateTime.utc(widget.initYear, widget.initMonth, widget.initDay);
+    _type = e?.type ?? widget.initialType ?? ExpenseType.expense;
+    _selectedDateUtc = DateTime.utc(widget.initYear, widget.initMonth, widget.initDay);
   }
 
   @override
@@ -67,69 +61,48 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
     _amountController.dispose();
     _contentController.dispose();
     _categoryController.dispose();
+    _noteFocusNode.dispose();
     super.dispose();
   }
 
   Future<void> _pickDate() async {
-    final pickedLocal = await showDatePicker(
+    final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDateUtc,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
-    ); // local 로 리턴함
-    if (pickedLocal != null) {
-      print('picked: $pickedLocal, utc: ${pickedLocal.toUtc()}, timezone: ${pickedLocal.timeZoneName}');
-      print('picked: ${pickedLocal.toIso8601String()}');
-      setState(() => _selectedDateUtc = pickedLocal.toUtc());
-    }
+    ); // local로 리턴함
+    if (picked != null) setState(() => _selectedDateUtc = picked.toUtc());
   }
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
-    final amountText = _amountController.text.replaceAll(',', '');
-    final amountDouble = double.tryParse(amountText) ?? 0.0;
-    final amountCents = (amountDouble * 100).round();
-
+    final amountCents = ((double.tryParse(_amountController.text.replaceAll(',', '')) ?? 0) * 100).round();
     final now = DateTime.now();
-    final localOccurredAt = DateTime(
-      _selectedDateUtc.year,
-      _selectedDateUtc.month,
-      _selectedDateUtc.day,
-      now.hour,
-      now.minute,
-      now.second,
+    final occurredAt = DateTime(
+      _selectedDateUtc.year, _selectedDateUtc.month, _selectedDateUtc.day,
+      now.hour, now.minute, now.second,
     ); // local
+
     if (widget.expense == null) {
-      ref.read(expenseNotifierProvider.notifier).addExpense(
-            ExpenseModel(
-              title: _titleController.text.trim(),
-              amount: amountCents,
-              content: _contentController.text.trim().isEmpty
-                  ? null
-                  : _contentController.text.trim(),
-              category: _categoryController.text.trim().isEmpty
-                  ? null
-                  : _categoryController.text.trim(),
-              type: _type,
-              occurredAt: localOccurredAt,
-            ),
-          );
+      ref.read(expenseNotifierProvider.notifier).addExpense(ExpenseModel(
+        title: _titleController.text.trim(),
+        amount: amountCents,
+        content: _contentController.text.trim().isEmpty ? null : _contentController.text.trim(),
+        category: _categoryController.text.trim().isEmpty ? null : _categoryController.text.trim(),
+        type: _type,
+        occurredAt: occurredAt,
+      ));
     } else {
-      ref.read(expenseNotifierProvider.notifier).updateExpense(
-            widget.expense!.copyWith(
-              title: _titleController.text.trim(),
-              amount: amountCents,
-              content: () => _contentController.text.trim().isEmpty
-                  ? null
-                  : _contentController.text.trim(),
-              category: () => _categoryController.text.trim().isEmpty
-                  ? null
-                  : _categoryController.text.trim(),
-              type: _type,
-              occurredAt: localOccurredAt,
-            ),
-          );
+      ref.read(expenseNotifierProvider.notifier).updateExpense(widget.expense!.copyWith(
+        title: _titleController.text.trim(),
+        amount: amountCents,
+        content: () => _contentController.text.trim().isEmpty ? null : _contentController.text.trim(),
+        category: () => _categoryController.text.trim().isEmpty ? null : _categoryController.text.trim(),
+        type: _type,
+        occurredAt: occurredAt,
+      ));
     }
 
     Navigator.pop(context);
@@ -139,24 +112,23 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
   Widget build(BuildContext context) {
     final isEditing = widget.expense != null;
     final dateFormatter = DateFormat('MMM dd, yyyy');
-    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final maxHeight = MediaQuery.of(context).size.height * 0.92;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomPadding),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 헤더 - 항상 고정
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 8, 0),
+            child: Row(
               children: [
                 Text(
                   isEditing ? 'Edit Transaction' : 'Add Transaction',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 IconButton(
@@ -165,162 +137,108 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            SegmentedButton<ExpenseType>(
-              segments: const [
-                ButtonSegment(
-                  value: ExpenseType.expense,
-                  label: Text('Expense'),
-                  icon: Icon(Icons.remove_circle_outline),
+          ),
+          // 폼 필드 - 스크롤 가능
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SegmentedButton<ExpenseType>(
+                      segments: const [
+                        ButtonSegment(
+                          value: ExpenseType.expense,
+                          label: Text('Expense'),
+                          icon: Icon(Icons.remove_circle_outline),
+                        ),
+                        ButtonSegment(
+                          value: ExpenseType.income,
+                          label: Text('Income'),
+                          icon: Icon(Icons.add_circle_outline),
+                        ),
+                      ],
+                      selected: {_type},
+                      onSelectionChanged: (s) => setState(() => _type = s.first),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _amountController,
+                      decoration: const InputDecoration(
+                        labelText: 'Amount (USD) *',
+                        prefixIcon: Icon(Icons.attach_money),
+                        hintText: '0.00',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                      ],
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Please enter an amount';
+                        final amount = double.tryParse(v);
+                        if (amount == null || amount <= 0) return 'Please enter a valid amount';
+                        return null;
+                      },
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const SizedBox(height: 12),
+                    InkWell(
+                      onTap: _pickDate,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Date',
+                          prefixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(dateFormatter.format(_selectedDateUtc)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _titleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Title',
+                        prefixIcon: Icon(Icons.title),
+                      ),
+                      validator: (_) => null,
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const SizedBox(height: 12),
+                    CategoryField(
+                      controller: _categoryController,
+                      onEditingComplete: () => _noteFocusNode.requestFocus(),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _contentController,
+                      focusNode: _noteFocusNode,
+                      decoration: const InputDecoration(
+                        labelText: 'Note',
+                        prefixIcon: Icon(Icons.notes),
+                      ),
+                      maxLines: 2,
+                      textInputAction: TextInputAction.done,
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                 ),
-                ButtonSegment(
-                  value: ExpenseType.income,
-                  label: Text('Income'),
-                  icon: Icon(Icons.add_circle_outline),
-                ),
-              ],
-              selected: {_type},
-              onSelectionChanged: (selection) =>
-                  setState(() => _type = selection.first),
-            ),
-            const SizedBox(height: 12),
-            InkWell(
-              onTap: _pickDate,
-              borderRadius: BorderRadius.circular(12),
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Date',
-                  prefixIcon: Icon(Icons.calendar_today),
-                ),
-                child: Text(dateFormatter.format(_selectedDateUtc)),
               ),
             ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Title *',
-                prefixIcon: Icon(Icons.title),
-              ),
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? 'Please enter a title'
-                  : null,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _amountController,
-              decoration: const InputDecoration(
-                labelText: 'Amount (USD) *',
-                prefixIcon: Icon(Icons.attach_money),
-                hintText: '0.00',
-              ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-              ],
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) {
-                  return 'Please enter an amount';
-                }
-                final amount = double.tryParse(v);
-                if (amount == null || amount <= 0) {
-                  return 'Please enter a valid amount';
-                }
-                return null;
-              },
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            Autocomplete<String>(
-              initialValue: TextEditingValue(text: _categoryController.text),
-              optionsBuilder: (value) {
-                if (value.text.isEmpty) return _categories;
-                return _categories.where(
-                  (c) => c.contains(value.text),
-                );
-              },
-              onSelected: (option) => _categoryController.text = option,
-              fieldViewBuilder:
-                  (context, controller, focusNode, onEditingComplete) {
-                return _CategoryField(
-                  autocompleteController: controller,
-                  categoryController: _categoryController,
-                  focusNode: focusNode,
-                  onEditingComplete: onEditingComplete,
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _contentController,
-              decoration: const InputDecoration(
-                labelText: 'Note',
-                prefixIcon: Icon(Icons.notes),
-              ),
-              maxLines: 2,
-              textInputAction: TextInputAction.done,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
+          ),
+          // Save 버튼 - 키보드 위에 고정
+          Padding(
+            padding: EdgeInsets.fromLTRB(20, 8, 20, 16 + bottomInset),
+            child: ElevatedButton(
               onPressed: _submit,
               child: Text(isEditing ? 'Save Changes' : 'Add'),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _CategoryField extends StatefulWidget {
-  final TextEditingController autocompleteController;
-  final TextEditingController categoryController;
-  final FocusNode focusNode;
-  final VoidCallback onEditingComplete;
-
-  const _CategoryField({
-    required this.autocompleteController,
-    required this.categoryController,
-    required this.focusNode,
-    required this.onEditingComplete,
-  });
-
-  @override
-  State<_CategoryField> createState() => _CategoryFieldState();
-}
-
-class _CategoryFieldState extends State<_CategoryField> {
-  late VoidCallback _listener;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.autocompleteController.text = widget.categoryController.text;
-    _listener = () {
-      widget.categoryController.text = widget.autocompleteController.text;
-    };
-    widget.autocompleteController.addListener(_listener);
-  }
-
-  @override
-  void dispose() {
-    widget.autocompleteController.removeListener(_listener);
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: widget.autocompleteController,
-      focusNode: widget.focusNode,
-      onEditingComplete: widget.onEditingComplete,
-      decoration: const InputDecoration(
-        labelText: 'Category',
-        prefixIcon: Icon(Icons.category_outlined),
-      ),
-      textInputAction: TextInputAction.next,
-    );
-  }
-}
