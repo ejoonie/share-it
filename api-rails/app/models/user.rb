@@ -77,6 +77,8 @@ class User < ApplicationRecord
 
   # 게스트 계정의 데이터를 target_user로 이전하고 자신을 삭제한다.
   # - 내 topic(피기): target_user로 소유권 이전
+  #   - target_user에 이미 default topic이 있으면, 게스트 topic의 entry를 그쪽으로 옮기고 게스트 topic 삭제
+  #   - target_user에 topic이 없으면 게스트 topic을 그대로 이전
   # - 내 topic에 대한 subscription: target_user로 이전 (충돌 시 target_user 것 유지)
   # - 남의 topic에 대한 subscription: 무시하고 삭제
   # - entry (created_by / updated_by): target_user로 이전
@@ -90,11 +92,23 @@ class User < ApplicationRecord
       # 샘플 entry 삭제 (이전 전에 제거)
       Entry.where(topic_id: my_topic_ids, is_sample: true).delete_all if my_topic_ids.any?
 
-      # 내 topic 소유권 이전
-      topics.update_all(user_id: target_user.id)
+      # target_user의 기존 default topic 확인
+      target_default_topic = target_user.topics.find_by(is_default: true) ||
+                             target_user.topics.order(created_at: :asc).first
 
-      # 내 topic에 대한 subscription 이전 (target_user가 이미 팔로우 중이면 스킵)
-      if my_topic_ids.any?
+      if target_default_topic && my_topic_ids.any?
+        # target_user에 이미 topic이 있으면: 게스트 entry를 target의 default topic으로 이동
+        Entry.where(topic_id: my_topic_ids, is_sample: false)
+             .update_all(topic_id: target_default_topic.id)
+        # 게스트 topic 삭제 (entry가 이미 이전되었으므로 빈 상태)
+        Topic.where(id: my_topic_ids).delete_all
+        # 게스트 topic에 대한 topic_follow 정리
+        TopicFollow.where(topic_id: my_topic_ids).delete_all
+      else
+        # target_user에 topic이 없으면: 게스트 topic 소유권 이전
+        topics.update_all(user_id: target_user.id)
+
+        # 내 topic에 대한 subscription 이전 (target_user가 이미 팔로우 중이면 스킵)
         topic_follows.where(topic_id: my_topic_ids).each do |tf|
           unless TopicFollow.exists?(user_id: target_user.id, topic_id: tf.topic_id)
             tf.update_columns(user_id: target_user.id)

@@ -14,7 +14,15 @@ RSpec.describe 'POST /api/v1/my/account/merge_guest', type: :request do
 
   # ── 정상 케이스 ──────────────────────────────────────────────────────────────
 
-  it '게스트 topics를 현재 계정으로 이전한다' do
+  it 'target_user에 topic이 없으면 게스트 topic을 이전한다' do
+    # target_user의 topic을 모두 제거해 "빈 계정" 상태로 만든다
+    user_topic_ids = Topic.where(user: user).pluck(:id)
+    if user_topic_ids.any?
+      Entry.unscoped.where(topic_id: user_topic_ids).delete_all
+      TopicFollow.where(topic_id: user_topic_ids).delete_all
+      Topic.where(id: user_topic_ids).delete_all
+    end
+
     guest_topic = topics(:guest_topic)
     expect(guest_topic.user_id).to eq(guest.id)
 
@@ -22,6 +30,20 @@ RSpec.describe 'POST /api/v1/my/account/merge_guest', type: :request do
 
     expect(response).to have_http_status(200)
     expect(guest_topic.reload.user_id).to eq(user.id)
+  end
+
+  it 'target_user에 topic이 있으면 게스트 entries를 그 topic으로 이동하고 게스트 topic을 삭제한다' do
+    guest_topic = topics(:guest_topic)
+    guest_entry = entries(:guest_entry)
+    target_topic = topics(:one) # user_one 소유 topic
+
+    merge(guest_token: guest.token)
+
+    expect(response).to have_http_status(200)
+    # 게스트 topic은 삭제됨
+    expect(Topic.exists?(guest_topic.id)).to be(false)
+    # 게스트 entry는 target topic으로 이동
+    expect(guest_entry.reload.topic_id).to eq(target_topic.id)
   end
 
   it '남의 topic에 대한 게스트 topic_follow는 삭제한다' do
