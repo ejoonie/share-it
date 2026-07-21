@@ -158,7 +158,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Title',
                       prefixIcon: Icon(Icons.title),
-                      hintText: 'Optional',
+                      hintText: 'Title',
                     ),
                     textInputAction: TextInputAction.next,
                   ),

@@ -39,7 +39,7 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
   late TextEditingController _categoryController;
   final _noteFocusNode = FocusNode();
   late ExpenseType _type;
-  late DateTime _selectedDateUtc;
+  late DateTime _selectedDate;
 
   @override
   void initState() {
@@ -52,7 +52,7 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
     _contentController = TextEditingController(text: e?.content ?? '');
     _categoryController = TextEditingController(text: e?.category ?? '');
     _type = e?.type ?? widget.initialType ?? ExpenseType.expense;
-    _selectedDateUtc = DateTime.utc(widget.initYear, widget.initMonth, widget.initDay);
+    _selectedDate = DateTime(widget.initYear, widget.initMonth, widget.initDay);
   }
 
   @override
@@ -68,11 +68,11 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDateUtc,
+      initialDate: _selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
-    ); // local로 리턴함
-    if (picked != null) setState(() => _selectedDateUtc = picked.toUtc());
+    );
+    if (picked != null) setState(() => _selectedDate = picked);
   }
 
   void _submit() {
@@ -81,9 +81,9 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
     final amountCents = ((double.tryParse(_amountController.text.replaceAll(',', '')) ?? 0) * 100).round();
     final now = DateTime.now();
     final occurredAt = DateTime(
-      _selectedDateUtc.year, _selectedDateUtc.month, _selectedDateUtc.day,
+      _selectedDate.year, _selectedDate.month, _selectedDate.day,
       now.hour, now.minute, now.second,
-    ); // local
+    );
 
     if (widget.expense == null) {
       ref.read(expenseNotifierProvider.notifier).addExpense(ExpenseModel(
@@ -193,7 +193,7 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
                           labelText: 'Date',
                           prefixIcon: Icon(Icons.calendar_today),
                         ),
-                        child: Text(dateFormatter.format(_selectedDateUtc)),
+                        child: Text(dateFormatter.format(_selectedDate)),
                       ),
                     ),
                     const SizedBox(height: 12),
