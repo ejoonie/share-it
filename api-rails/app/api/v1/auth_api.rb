@@ -88,6 +88,26 @@ module V1
           is_new_user: is_new_user
         }
       end
+      # POST /api/v1/auth/merge
+      desc '게스트 계정을 실제 계정으로 병합. 현재 유저(게스트)의 데이터를 target_user_token 계정으로 이전한다.'
+      params do
+        requires :guest_token,  type: String, desc: '게스트 계정 토큰'
+        requires :target_token, type: String, desc: '병합 대상 실제 계정 토큰'
+      end
+      post :merge do
+        guest_user  = User.find_by(token: params[:guest_token])
+        target_user = User.find_by(token: params[:target_token])
+
+        error!({ message: 'Guest user not found.' }, 404)  unless guest_user
+        error!({ message: 'Target user not found.' }, 404) unless target_user
+        error!({ message: 'Guest user is not a guest account.' }, 422) unless guest_user.is_guest?
+        error!({ message: 'Cannot merge into a guest account.' }, 422) if target_user.is_guest?
+
+        guest_user.merge_into!(target_user)
+
+        status 200
+        { message: 'Merge completed.', user: Entities::UserEntity.represent(target_user) }
+      end
     end
   end
 end

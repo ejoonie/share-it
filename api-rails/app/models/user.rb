@@ -75,16 +75,37 @@ class User < ApplicationRecord
     end
   end
 
-  # 게스트 계정의 모든 데이터를 target_user로 이전하고 자신을 삭제한다.
+  # 게스트 계정의 데이터를 target_user로 이전하고 자신을 삭제한다.
+  # - 내 topic(피기): target_user로 소유권 이전
+  # - 내 topic에 대한 subscription: target_user로 이전 (충돌 시 target_user 것 유지)
+  # - 남의 topic에 대한 subscription: 무시하고 삭제
+  # - entry (created_by / updated_by): target_user로 이전
   # 반드시 is_guest? == true 인 유저에서 호출해야 한다.
   def merge_into!(target_user)
     raise ArgumentError, 'Only guest accounts can be merged' unless is_guest?
 
     ActiveRecord::Base.transaction do
+      my_topic_ids = topics.pluck(:id)
+
+      # 내 topic 소유권 이전
       topics.update_all(user_id: target_user.id)
-      topic_follows.update_all(user_id: target_user.id)
+
+      # 내 topic에 대한 subscription 이전 (target_user가 이미 팔로우 중이면 스킵)
+      if my_topic_ids.any?
+        topic_follows.where(topic_id: my_topic_ids).each do |tf|
+          unless TopicFollow.exists?(user_id: target_user.id, topic_id: tf.topic_id)
+            tf.update_columns(user_id: target_user.id)
+          end
+        end
+      end
+
+      # 남은 topic_follow(남의 피기)는 무시하고 삭제
+      topic_follows.reload.delete_all
+
+      # entry 이전
       Entry.where(created_by_id: id).update_all(created_by_id: target_user.id)
       Entry.where(updated_by_id: id).update_all(updated_by_id: target_user.id)
+
       destroy!
     end
   end
