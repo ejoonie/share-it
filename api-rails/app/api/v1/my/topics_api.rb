@@ -36,9 +36,24 @@ module V1
         end
 
         # GET /api/v1/my/topics/subscribed
-        desc '내가 구독하는 토픽'
+        desc '내가 구독하는 토픽 (notifications_enabled 포함)'
         get :subscribed do
-          paginated_list(current_user.subscribed_topics, Entities::TopicEntity)
+          follows = current_user.topic_follows.includes(:topic)
+          paginated_list(follows, Entities::SubscriptionEntity)
+        end
+
+        # PATCH /api/v1/my/topics/subscribed/:id/notifications
+        desc '구독 토픽 알림 설정 변경'
+        params do
+          requires :notifications_enabled, type: Boolean
+        end
+        patch 'subscribed/:id/notifications' do
+          tf = current_user.topic_follows.find_by(topic_id: params[:id])
+          error!({ message: 'Subscription not found' }, 404) if tf.nil?
+
+          tf.update!(notifications_enabled: params[:notifications_enabled])
+          status 200
+          { notifications_enabled: tf.notifications_enabled }
         end
 
         # DELETE /api/v1/my/topics/subscribed/:id

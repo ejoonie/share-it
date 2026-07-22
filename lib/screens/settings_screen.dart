@@ -4,7 +4,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:app_settings/app_settings.dart';
 
-import '../models/topic_model.dart';
+import '../models/subscription_model.dart';
+import '../models/topic_model.dart'; // TopicModel: _buildMyPiggies에서 사용
 import '../providers/core_providers.dart';
 import '../providers/notification_permission_provider.dart';
 import '../providers/session_provider.dart';
@@ -150,12 +151,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ];
   }
 
-  Future<void> _confirmUnsubscribe(TopicModel sub) async {
+  Future<void> _confirmUnsubscribe(int topicId, String title) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Unsubscribe'),
-        content: Text('Unsubscribe from "${sub.title}"?'),
+        content: Text('Unsubscribe from "$title"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -172,7 +173,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (confirmed != true) return;
 
-    final success = await notifier.unsubscribe(sub.id);
+    final success = await notifier.unsubscribe(topicId);
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to unsubscribe. Please try again.')),
@@ -322,19 +323,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
             ]
-          : subs
-              .map(
-                (sub) => ListTile(
-                  leading: const Icon(Icons.people_outline),
-                  title: Text(sub.title),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.close, size: 18, color: Colors.grey),
-                    tooltip: 'Unsubscribe',
-                    onPressed: () => _confirmUnsubscribe(sub),
-                  ),
-                ),
-              )
-              .toList(),
+          : subs.map((sub) => _SubscriptionTile(
+                sub: sub,
+                onToggleNotification: (enabled) async {
+                  final success = await notifier.toggleNotification(sub.topic.id, enabled: enabled);
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(success
+                          ? (enabled ? 'Notifications enabled.' : 'Notifications muted.')
+                          : 'Failed to update notification setting.'),
+                    ),
+                  );
+                },
+                onUnsubscribe: () => _confirmUnsubscribe(sub.topic.id, sub.topic.title),
+              )).toList(),
+    );
+  }
+}
+
+class _SubscriptionTile extends StatelessWidget {
+  final SubscriptionModel sub;
+  final ValueChanged<bool> onToggleNotification;
+  final VoidCallback onUnsubscribe;
+
+  const _SubscriptionTile({
+    required this.sub,
+    required this.onToggleNotification,
+    required this.onUnsubscribe,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: const Icon(Icons.people_outline),
+      title: Text(sub.topic.title),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: Icon(
+              sub.notificationsEnabled ? Icons.notifications_outlined : Icons.notifications_off_outlined,
+              color: sub.notificationsEnabled ? null : Colors.grey,
+            ),
+            tooltip: sub.notificationsEnabled ? 'Mute notifications' : 'Unmute notifications',
+            onPressed: () => onToggleNotification(!sub.notificationsEnabled),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 18, color: Colors.grey),
+            tooltip: 'Unsubscribe',
+            onPressed: onUnsubscribe,
+          ),
+        ],
+      ),
     );
   }
 }

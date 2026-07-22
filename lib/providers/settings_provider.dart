@@ -1,11 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/subscription_model.dart';
 import '../models/topic_model.dart';
 import 'core_providers.dart';
 
 class SettingsState {
   final AsyncValue<List<TopicModel>> myPiggies;
-  final AsyncValue<List<TopicModel>> subscriptions;
+  final AsyncValue<List<SubscriptionModel>> subscriptions;
 
   const SettingsState({
     this.myPiggies = const AsyncValue.loading(),
@@ -14,7 +15,7 @@ class SettingsState {
 
   SettingsState copyWith({
     AsyncValue<List<TopicModel>>? myPiggies,
-    AsyncValue<List<TopicModel>>? subscriptions,
+    AsyncValue<List<SubscriptionModel>>? subscriptions,
   }) {
     return SettingsState(
       myPiggies: myPiggies ?? this.myPiggies,
@@ -68,7 +69,21 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       await _ref.read(subscriptionRepositoryProvider).unsubscribe(topicId);
       state = state.copyWith(
         subscriptions: state.subscriptions.whenData(
-          (list) => list.where((s) => s.id != topicId).toList(),
+          (list) => list.where((s) => s.topic.id != topicId).toList(),
+        ),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> toggleNotification(int topicId, {required bool enabled}) async {
+    try {
+      await _ref.read(subscriptionRepositoryProvider).updateNotifications(topicId, enabled: enabled);
+      state = state.copyWith(
+        subscriptions: state.subscriptions.whenData(
+          (list) => list.map((s) => s.topic.id == topicId ? s.copyWith(notificationsEnabled: enabled) : s).toList(),
         ),
       );
       return true;
