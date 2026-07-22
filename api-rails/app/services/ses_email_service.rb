@@ -10,7 +10,7 @@
 # Non-production behaviour:
 #   - Emails are only delivered to addresses listed in EMAIL_WHITELIST
 class SesEmailService
-  EMAIL_WHITELIST = %w[ejoonie@gmail.com].freeze
+  EMAIL_WHITELIST = %w[ejoonie@gmail.com ejoonie.a@gmail.com].freeze
 
   class << self
     def send_login_code(to:, code:)
