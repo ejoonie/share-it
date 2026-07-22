@@ -79,6 +79,8 @@ class EntryRepository {
   }
 
   Future<EntryModel> deleteEntry(int id) async {
+    // 어떤 topic/entry 를 삭제하는지 확인
+    // debugPrint('[deleteEntry] DELETE $_basePath/$id (topicId: $topicId, entryId: $id)');
     final json = await _apiClient.delete('$_basePath/$id');
     return EntryModel.fromJson(json);
   }

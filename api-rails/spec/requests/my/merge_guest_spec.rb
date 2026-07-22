@@ -46,13 +46,15 @@ RSpec.describe 'POST /api/v1/my/account/merge_guest', type: :request do
     expect(guest_entry.reload.topic_id).to eq(target_topic.id)
   end
 
-  it '남의 topic에 대한 게스트 topic_follow는 삭제한다' do
+  it '남의 topic에 대한 게스트 topic_follow는 target_user로 이전한다' do
     guest_follow = topic_follows(:guest_follow) # topic :one 은 user_one 소유 → 남의 subscription
     expect(guest_follow.user_id).to eq(guest.id)
 
     merge(guest_token: guest.token)
 
-    expect(TopicFollow.exists?(guest_follow.id)).to be(false)
+    # guest_follow 레코드가 target_user로 이전됐거나, target_user가 이미 팔로우 중이어서 스킵됨
+    transferred = TopicFollow.exists?(user_id: user.id, topic_id: guest_follow.topic_id)
+    expect(transferred).to be(true)
   end
 
   it '게스트가 작성한 entries의 created_by_id를 현재 계정으로 이전한다' do

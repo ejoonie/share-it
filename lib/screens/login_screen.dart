@@ -149,8 +149,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (move == true) {
         try {
           await ref.read(sessionRepositoryProvider).mergeGuestData(guestToken);
-        } catch (_) {
-          // 조용히 무시
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to move data: $e')),
+            );
+          }
         }
       }
 
