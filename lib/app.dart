@@ -1,4 +1,5 @@
 import 'package:app_links/app_links.dart';
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -39,9 +40,12 @@ class _SessionGateState extends ConsumerState<_SessionGate> {
   @override
   void initState() {
     super.initState();
-    // Kick off session init after the first frame so providers are ready.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(sessionNotifierProvider.notifier).init();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // iOS 14+: UIWindow가 준비된 첫 프레임에서 ATT 권한 요청
+      // runApp() 전에 호출하면 window가 없어 다이얼로그가 표시되지 않는다
+      await AppTrackingTransparency.requestTrackingAuthorization();
+      // ATT 요청 후 세션 초기화
+      if (mounted) ref.read(sessionNotifierProvider.notifier).init();
     });
   }
 
