@@ -1,3 +1,4 @@
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,6 +11,9 @@ import 'storage/token_storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // iOS 14+: ATT 권한 요청 (GA 등 광고/분석 추적 전에 반드시 호출)
+  await AppTrackingTransparency.requestTrackingAuthorization();
 
   final tokenStorage = await TokenStorage.create();
   final apiClient = ApiClient(tokenStorage: tokenStorage);
