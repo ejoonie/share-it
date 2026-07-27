@@ -124,4 +124,5 @@ app.*.symbols
 # fastlane
 fastlane/.env
 
-*.p8
+*.p8fastlane/report.xml
+fastlane/AuthKey_*.p8

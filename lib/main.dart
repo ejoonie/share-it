@@ -11,6 +11,10 @@ import 'storage/token_storage.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // iOS ATT 권한 요청은 UIWindow가 준비된 후 첫 프레임에서 한다.
+  // runApp() 전에 호출하면 window가 없어서 다이얼로그가 표시되지 않는다.
+  // → app.dart _SessionGate.initState의 addPostFrameCallback에서 요청한다.
+
   final tokenStorage = await TokenStorage.create();
   final apiClient = ApiClient(tokenStorage: tokenStorage);
   final sessionRepository = SessionRepository(

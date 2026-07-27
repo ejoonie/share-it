@@ -74,5 +74,7 @@
 		<string>Get notified when new expenses are added to your shared piggies.</string>
 		<key>ITSAppUsesNonExemptEncryption</key>
 		<false/>
+		<key>NSUserTrackingUsageDescription</key>
+		<string>This helps us improve the app experience and provide relevant content.</string>
 	</dict>
 </plist>
