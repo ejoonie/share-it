@@ -47,7 +47,7 @@ class _SessionGateState extends ConsumerState<_SessionGate> {
         final status = await AppTrackingTransparency.trackingAuthorizationStatus;
         debugPrint('[ATT] current status: $status');
         if (status == TrackingStatus.notDetermined) {
-          await Future.delayed(const Duration(milliseconds: 200)); // 다이얼로그가 production 에서 안뜰때가 있음
+          await Future.delayed(const Duration(milliseconds: 500)); // 다이얼로그가 production 에서 안뜰때가 있음
           final result = await AppTrackingTransparency.requestTrackingAuthorization();
           debugPrint('[ATT] requested, result: $result');
         }
