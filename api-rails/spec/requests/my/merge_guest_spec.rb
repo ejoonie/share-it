@@ -12,19 +12,10 @@ RSpec.describe 'POST /api/v1/my/account/merge_guest', type: :request do
               params: { guest_token: guest_token }
   end
 
-  # ── 정상 케이스 ──────────────────────────────────────────────────────────────
+  # ── topic 이전 ───────────────────────────────────────────────────────────────
 
-  it 'target_user에 topic이 없으면 게스트 topic을 이전한다' do
-    # target_user의 topic을 모두 제거해 "빈 계정" 상태로 만든다
-    user_topic_ids = Topic.where(user: user).pluck(:id)
-    if user_topic_ids.any?
-      Entry.unscoped.where(topic_id: user_topic_ids).delete_all
-      TopicFollow.where(topic_id: user_topic_ids).delete_all
-      Topic.where(id: user_topic_ids).delete_all
-    end
-
+  it '게스트 topic을 target_user로 이전한다' do
     guest_topic = topics(:guest_topic)
-    expect(guest_topic.user_id).to eq(guest.id)
 
     merge(guest_token: guest.token)
 
@@ -32,34 +23,44 @@ RSpec.describe 'POST /api/v1/my/account/merge_guest', type: :request do
     expect(guest_topic.reload.user_id).to eq(user.id)
   end
 
-  it 'target_user에 topic이 있으면 게스트 entries를 그 topic으로 이동하고 게스트 topic을 삭제한다' do
+  it 'target_user에 기존 topic이 있어도 게스트 topic이 추가된다' do
+    existing_topic_count = user.topics.count
+    expect(existing_topic_count).to be > 0 # user_one은 topic을 이미 가지고 있음
+
+    merge(guest_token: guest.token)
+
+    expect(user.topics.reload.count).to eq(existing_topic_count + 1)
+  end
+
+  it 'target_user에 기존 topic이 있으면 이전된 게스트 topic은 is_default가 false다' do
     guest_topic = topics(:guest_topic)
-    guest_entry = entries(:guest_entry)
-    target_topic = topics(:one) # user_one 소유 topic
+    expect(guest_topic.is_default).to be(true) # 게스트 topic은 원래 default
 
     merge(guest_token: guest.token)
 
-    expect(response).to have_http_status(200)
-    # 게스트 topic은 삭제됨
-    expect(Topic.exists?(guest_topic.id)).to be(false)
-    # 게스트 entry는 target topic으로 이동
-    expect(guest_entry.reload.topic_id).to eq(target_topic.id)
+    expect(guest_topic.reload.is_default).to be(false)
   end
 
-  it '남의 topic에 대한 게스트 topic_follow는 target_user로 이전한다' do
-    guest_follow = topic_follows(:guest_follow) # topic :one 은 user_one 소유 → 남의 subscription
-    expect(guest_follow.user_id).to eq(guest.id)
+  it 'target_user에 기존 topic이 없으면 이전된 게스트 topic의 is_default는 유지된다' do
+    # target_user의 topic을 모두 제거해 "빈 계정" 상태로 만든다
+    user_topic_ids = Topic.where(user: user).pluck(:id)
+    if user_topic_ids.any?
+      Entry.unscoped.where(topic_id: user_topic_ids).delete_all
+      TopicFollow.where(topic_id: user_topic_ids).delete_all
+      Topic.where(id: user_topic_ids).delete_all
+    end
+    guest_topic = topics(:guest_topic)
+    expect(guest_topic.is_default).to be(true)
 
     merge(guest_token: guest.token)
 
-    # guest_follow 레코드가 target_user로 이전됐거나, target_user가 이미 팔로우 중이어서 스킵됨
-    transferred = TopicFollow.exists?(user_id: user.id, topic_id: guest_follow.topic_id)
-    expect(transferred).to be(true)
+    expect(guest_topic.reload.is_default).to be(true)
   end
+
+  # ── entry 이전 ───────────────────────────────────────────────────────────────
 
   it '게스트가 작성한 entries의 created_by_id를 현재 계정으로 이전한다' do
     guest_entry = entries(:guest_entry)
-    expect(guest_entry.created_by_id).to eq(guest.id)
 
     merge(guest_token: guest.token)
 
@@ -68,12 +69,48 @@ RSpec.describe 'POST /api/v1/my/account/merge_guest', type: :request do
 
   it '게스트가 수정한 entries의 updated_by_id를 현재 계정으로 이전한다' do
     guest_entry = entries(:guest_entry)
-    expect(guest_entry.updated_by_id).to eq(guest.id)
 
     merge(guest_token: guest.token)
 
     expect(guest_entry.reload.updated_by_id).to eq(user.id)
   end
+
+  it '샘플 entry는 이전하지 않고 삭제한다' do
+    guest_topic = topics(:guest_topic)
+    sample_entry = guest_topic.entries.create!(
+      kind: 'expense', amount: 0, is_sample: true,
+      created_by: guest, updated_by: guest
+    )
+
+    merge(guest_token: guest.token)
+
+    expect(Entry.unscoped.exists?(sample_entry.id)).to be(false)
+  end
+
+  # ── follow 이전 ──────────────────────────────────────────────────────────────
+
+  it '내가 팔로우하던 남의 topic은 target_user로 이전한다' do
+    guest_follow = topic_follows(:guest_follow) # topic :one 은 user_one 소유 → 남의 subscription
+
+    merge(guest_token: guest.token)
+
+    # 이미 target_user가 팔로우 중이었으면 스킵, 아니면 이전됨
+    expect(TopicFollow.exists?(user_id: user.id, topic_id: guest_follow.topic_id)).to be(true)
+  end
+
+  it '나를 팔로우하던 구독은 topic과 함께 자연스럽게 유지된다' do
+    guest_topic = topics(:guest_topic)
+    # 다른 유저가 게스트 topic을 팔로우하고 있는 상황을 만든다
+    other_user = users(:user_two)
+    follower_tf = TopicFollow.create!(user: other_user, topic: guest_topic, followed_at: Time.current, permissions: ['create'])
+
+    merge(guest_token: guest.token)
+
+    # topic이 target_user로 이전되었으므로 팔로우도 유지됨
+    expect(TopicFollow.exists?(follower_tf.id)).to be(true)
+  end
+
+  # ── 완료 처리 ────────────────────────────────────────────────────────────────
 
   it '이전 후 게스트 계정을 삭제한다' do
     guest_id = guest.id

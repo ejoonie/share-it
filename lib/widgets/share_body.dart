@@ -139,9 +139,8 @@ class _ShareBodyState extends ConsumerState<ShareBody> {
     setState(() {
       _scannerOpen = !_scannerOpen;
       _handled = false;
-      if (_scannerOpen) {
-        _scannerController.start();
-      } else {
+      // start()는 MobileScanner 위젯의 autoStart가 처리하므로 stop()만 직접 호출
+      if (!_scannerOpen) {
         _scannerController.stop();
       }
     });

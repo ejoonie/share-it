@@ -68,19 +68,23 @@ class User < ApplicationRecord
   def delete_with_data!
     ActiveRecord::Base.transaction do
       topic_ids = Topic.where(user_id: id).pluck(:id)
-      Entry.where(topic_id: topic_ids).delete_all if topic_ids.any?
-      Topic.where(user_id: id).delete_all
+      if topic_ids.any?
+        # unscoped: soft-deleted entry도 포함해야 FK 위반 없이 topic을 삭제할 수 있다
+        Entry.unscoped.where(topic_id: topic_ids).delete_all
+        # 나를 팔로우하던 구독도 삭제
+        TopicFollow.where(topic_id: topic_ids).delete_all
+        Topic.where(user_id: id).delete_all
+      end
       TopicFollow.where(user_id: id).delete_all
       destroy!
     end
   end
 
   # 게스트 계정의 데이터를 target_user로 이전하고 자신을 삭제한다.
-  # - 내 topic(피기): target_user로 소유권 이전
-  #   - target_user에 이미 default topic이 있으면, 게스트 topic의 entry를 그쪽으로 옮기고 게스트 topic 삭제
-  #   - target_user에 topic이 없으면 게스트 topic을 그대로 이전
+  # - 내 topic: target_user로 소유권 이전 (기존 유저여도 topic을 추가로 가져감)
   # - 내가 팔로우하던 topic: target_user로 이전 (충돌 시 target_user 것 유지)
-  # - 나를 팔로우하던 구독: 모두 삭제
+  # - 나를 팔로우하던 구독: topic_id가 그대로이므로 자연스럽게 유지됨
+  # - 샘플 entry: 삭제
   # - entry (created_by / updated_by): target_user로 이전
   # 반드시 is_guest? == true 인 유저에서 호출해야 한다.
   def merge_into!(target_user)
@@ -89,40 +93,17 @@ class User < ApplicationRecord
     ActiveRecord::Base.transaction do
       my_topic_ids = topics.pluck(:id)
 
-      # 샘플 entry 삭제 (이전 전에 제거)
+      # 샘플 entry 삭제
       Entry.where(topic_id: my_topic_ids, is_sample: true).delete_all if my_topic_ids.any?
 
-      # target_user의 기존 default topic 확인
-      target_default_topic = target_user.topics.find_by(is_default: true) ||
-                             target_user.topics.order(created_at: :asc).first
+      # 게스트 topic 소유권 이전 (기존 유저에게 topic이 추가됨)
+      # target_user에 이미 topic이 있으면 is_default 충돌을 막기 위해 false로 설정
+      already_has_topics = target_user.topics.exists?
+      topics.update_all(user_id: target_user.id)
+      Topic.where(id: my_topic_ids).update_all(is_default: false) if already_has_topics && my_topic_ids.any?
 
-      if target_default_topic && my_topic_ids.any?
-        # target_user에 이미 topic이 있으면: 게스트 entry를 target의 default topic으로 이동
-        # unscoped: soft-deleted entry도 이동해야 FK 위반 없이 guest topic을 삭제할 수 있다
-        Entry.unscoped.where(topic_id: my_topic_ids, is_sample: false)
-             .update_all(topic_id: target_default_topic.id)
-        # 남은 sample entry(soft-delete 포함)는 하드 삭제
-        Entry.unscoped.where(topic_id: my_topic_ids).delete_all
-        # 게스트 topic 삭제 (entry가 이미 이전/삭제되었으므로 빈 상태) — 나를 팔로우하던 구독도 함께 삭제
-        TopicFollow.where(topic_id: my_topic_ids).delete_all
-        Topic.where(id: my_topic_ids).delete_all
-      else
-        # target_user에 topic이 없으면: 게스트 topic 소유권 이전
-        topics.update_all(user_id: target_user.id)
-
-        # 내가 내 topic을 팔로우하던 구독 → target_user로 이전 (이미 팔로우 중이면 스킵)
-        topic_follows.where(topic_id: my_topic_ids).each do |tf|
-          unless TopicFollow.exists?(user_id: target_user.id, topic_id: tf.topic_id)
-            tf.update_columns(user_id: target_user.id)
-          end
-        end
-
-        # 나를 팔로우하던 구독(다른 유저가 게스트 topic을 팔로우)은 삭제
-        TopicFollow.where(topic_id: my_topic_ids).where.not(user_id: id).delete_all
-      end
-
-      # 내가 팔로우하던 남의 topic → target_user로 이전 (이미 팔로우 중이면 스킵)
-      topic_follows.reload.each do |tf|
+      # 내가 팔로우하던 topic → target_user로 이전 (이미 팔로우 중이면 스킵)
+      topic_follows.each do |tf|
         unless TopicFollow.exists?(user_id: target_user.id, topic_id: tf.topic_id)
           tf.update_columns(user_id: target_user.id)
         end
