@@ -72,6 +72,8 @@
 		<string>Scan a QR code to subscribe to another user's shared expense tracker.</string>
 		<key>NSUserNotificationsUsageDescription</key>
 		<string>Get notified when new expenses are added to your shared piggies.</string>
+		<key>NSUserTrackingUsageDescription</key>
+		<string>This permission allows us to provide a better app experience. Your data will not be shared with third parties for advertising.</string>
 		<key>ITSAppUsesNonExemptEncryption</key>
 		<false/>
 	</dict>
