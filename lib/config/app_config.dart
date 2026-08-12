@@ -33,7 +33,7 @@ class AppConfig {
 
     return switch (environment) {
       // AppEnvironment.dev => 'http://localhost:3001',
-      AppEnvironment.dev => 'http://10.0.0.15:3001',
+      AppEnvironment.dev => 'http://10.0.0.202:3001',
       AppEnvironment.prod => 'https://api.sharablepiggy.com',
     };
   }
