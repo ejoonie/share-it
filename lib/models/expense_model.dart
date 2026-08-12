@@ -4,6 +4,7 @@ enum ExpenseType { income, expense }
 
 class ExpenseModel {
   final int? id;
+  final int? topicId;
   final String title;
   final int amount; // raw integer matching server (e.g. cents for USD)
   final String? content;
@@ -15,6 +16,7 @@ class ExpenseModel {
 
   const ExpenseModel({
     this.id,
+    this.topicId,
     required this.title,
     required this.amount,
     this.content,
@@ -32,6 +34,7 @@ class ExpenseModel {
 
   ExpenseModel copyWith({
     int? id,
+    int? topicId,
     String? title,
     int? amount,
     String? Function()? content,
@@ -43,6 +46,7 @@ class ExpenseModel {
   }) {
     return ExpenseModel(
       id: id ?? this.id,
+      topicId: topicId ?? this.topicId,
       title: title ?? this.title,
       amount: amount ?? this.amount,
       content: content != null ? content() : this.content,
@@ -60,6 +64,7 @@ class ExpenseModel {
         : ExpenseType.expense;
     return ExpenseModel(
       id: entry.id,
+      topicId: entry.topicId,
       title: entry.title ?? '',
       amount: entry.amount,
       content: entry.content,

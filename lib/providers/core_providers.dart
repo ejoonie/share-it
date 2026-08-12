@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
+import '../models/topic_model.dart';
 import '../repositories/entry_repository.dart';
 import '../repositories/topic_repository.dart';
 import '../storage/token_storage.dart';
@@ -44,5 +45,20 @@ final entryRepositoryProvider = Provider<EntryRepository?>((ref) {
     apiClient: ref.watch(apiClientProvider),
     topicId: topicId,
   );
+});
+
+/// 내가 소유하거나 구독하는 모든 토픽 (중복 제거). 달력 Filter의 토픽 목록으로 쓰인다.
+final myViewableTopicsProvider = FutureProvider<List<TopicModel>>((ref) async {
+  final owned = await ref.watch(topicRepositoryProvider).fetchOwned();
+  final subscriptions = await ref.watch(subscriptionRepositoryProvider).fetchAll();
+
+  final byId = <int, TopicModel>{};
+  for (final topic in owned) {
+    byId[topic.id] = topic;
+  }
+  for (final subscription in subscriptions) {
+    byId[subscription.topic.id] = subscription.topic;
+  }
+  return byId.values.toList();
 });
 

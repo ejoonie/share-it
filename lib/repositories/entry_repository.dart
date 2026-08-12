@@ -13,6 +13,8 @@ class EntryRepository {
   }) : _apiClient = apiClient;
 
   String get _basePath => '/api/v1/my/topics/$topicId/entries';
+  String _basePathFor(int? overrideTopicId) =>
+      '/api/v1/my/topics/${overrideTopicId ?? topicId}/entries';
 
   Future<List<EntryModel>> listEntries({
     Map<String, dynamic>? q,
@@ -22,6 +24,29 @@ class EntryRepository {
     final json = await _apiClient.get(
       _basePath,
       queryParams: {'page': page, 'limit': limit, ...?q},
+    );
+    final records = json['records'] as List<dynamic>;
+    return records
+        .map((e) => EntryModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// 내가 소유하거나 구독하는 모든 토픽의 엔트리를 조회한다 (GET /api/v1/my/entries).
+  /// [topicIds]가 null이거나 비어 있으면 접근 가능한 모든 토픽을 대상으로 한다.
+  Future<List<EntryModel>> listAllEntries({
+    List<int>? topicIds,
+    Map<String, dynamic>? q,
+    int page = 1,
+    int limit = 100,
+  }) async {
+    final json = await _apiClient.get(
+      '/api/v1/my/entries',
+      queryParams: {
+        'page': page,
+        'limit': limit,
+        if (topicIds != null && topicIds.isNotEmpty) 'topic_ids[]': topicIds,
+        ...?q,
+      },
     );
     final records = json['records'] as List<dynamic>;
     return records
@@ -63,6 +88,7 @@ class EntryRepository {
     String? title,
     String? content,
     bool? checked,
+    int? topicId,
   }) async {
     final body = <String, dynamic>{
       if (occurredAt != null) 'occurred_at': occurredAt.toUtc().toIso8601String(),
@@ -74,14 +100,12 @@ class EntryRepository {
       if (content != null) 'content': content,
       if (checked != null) 'checked': checked,
     };
-    final json = await _apiClient.patch('$_basePath/$id', body);
+    final json = await _apiClient.patch('${_basePathFor(topicId)}/$id', body);
     return EntryModel.fromJson(json);
   }
 
-  Future<EntryModel> deleteEntry(int id) async {
-    // 어떤 topic/entry 를 삭제하는지 확인
-    // debugPrint('[deleteEntry] DELETE $_basePath/$id (topicId: $topicId, entryId: $id)');
-    final json = await _apiClient.delete('$_basePath/$id');
+  Future<EntryModel> deleteEntry(int id, {int? topicId}) async {
+    final json = await _apiClient.delete('${_basePathFor(topicId)}/$id');
     return EntryModel.fromJson(json);
   }
 }

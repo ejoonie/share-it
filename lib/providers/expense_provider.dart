@@ -19,6 +19,8 @@ class ExpenseState {
   final List<ExpenseModel> selectedDateExpenses;
   final Map<DateTime, Map<String, int>> monthlySummary;
   final ExpenseType? activeFilter;
+  /// 조회 대상 토픽 ID. null이면 내가 소유/구독하는 모든 토픽(기본값).
+  final Set<int>? selectedTopicIds;
   final String searchQuery;
   final bool isLoading;
   final String? error;
@@ -32,6 +34,7 @@ class ExpenseState {
     required this.selectedDateExpenses,
     required this.monthlySummary,
     this.activeFilter,
+    this.selectedTopicIds,
     this.searchQuery = '',
     this.isLoading = false,
     this.error,
@@ -78,6 +81,7 @@ class ExpenseState {
     List<ExpenseModel>? selectedDateExpenses,
     Map<DateTime, Map<String, int>>? monthlySummary,
     ExpenseType? Function()? activeFilter,
+    Set<int>? Function()? selectedTopicIds,
     String? searchQuery,
     bool? isLoading,
     String? Function()? error,
@@ -91,6 +95,7 @@ class ExpenseState {
       selectedDateExpenses: selectedDateExpenses ?? this.selectedDateExpenses,
       monthlySummary: monthlySummary ?? this.monthlySummary,
       activeFilter: activeFilter != null ? activeFilter() : this.activeFilter,
+      selectedTopicIds: selectedTopicIds != null ? selectedTopicIds() : this.selectedTopicIds,
       searchQuery: searchQuery ?? this.searchQuery,
       isLoading: isLoading ?? this.isLoading,
       error: error != null ? error() : this.error,
@@ -125,9 +130,15 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
       final m = DateTime(month.year, month.month);
       final today = DateTime.now();
       final selectedDate = DateTime(today.year, today.month, today.day);
-      final monthly = await repo.getExpensesByMonth(m.year, m.month);
+      final topicIds = state.selectedTopicIds?.toList();
+      final monthly = await repo.getExpensesByMonth(m.year, m.month, topicIds: topicIds);
       final summary = repo.buildMonthlySummary(monthly);
-      final daily = await repo.getExpensesByDate(selectedDate.year, selectedDate.month, selectedDate.day);
+      final daily = await repo.getExpensesByDate(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+        topicIds: topicIds,
+      );
       state = state.copyWith(
         focusedMonth: m,
         selectedDate: selectedDate,
@@ -147,9 +158,15 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     try {
       final m = DateTime(month.year, month.month);
       final selectedDate = DateTime(m.year, m.month, 1);
-      final monthly = await repo.getExpensesByMonth(m.year, m.month);
+      final topicIds = state.selectedTopicIds?.toList();
+      final monthly = await repo.getExpensesByMonth(m.year, m.month, topicIds: topicIds);
       final summary = repo.buildMonthlySummary(monthly);
-      final daily = await repo.getExpensesByDate(selectedDate.year, selectedDate.month, selectedDate.day);
+      final daily = await repo.getExpensesByDate(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+        topicIds: topicIds,
+      );
       state = state.copyWith(
         focusedMonth: m,
         selectedDate: selectedDate,
@@ -167,7 +184,12 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     final repo = _repository;
     if (repo == null) return;
     try {
-      final daily = await repo.getExpensesByDate(year, month, day);
+      final daily = await repo.getExpensesByDate(
+        year,
+        month,
+        day,
+        topicIds: state.selectedTopicIds?.toList(),
+      );
       state = state.copyWith(
         selectedDate: date,
         selectedDateExpenses: daily,
@@ -199,11 +221,11 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     }
   }
 
-  Future<void> deleteExpense(int id) async {
+  Future<void> deleteExpense(int id, {int? topicId}) async {
     final repo = _repository;
     if (repo == null) return;
     try {
-      await repo.deleteExpense(id);
+      await repo.deleteExpense(id, topicId: topicId);
       await _refresh();
     } catch (e) {
       state = state.copyWith(error: () => e.toString());
@@ -218,15 +240,29 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     state = state.copyWith(activeFilter: () => type);
   }
 
+  /// 조회할 토픽을 변경한다. null 또는 빈 Set은 "전체(모든 소유/구독 토픽)"를 의미한다.
+  Future<void> filterByTopics(Set<int>? topicIds) async {
+    final normalized = (topicIds == null || topicIds.isEmpty) ? null : topicIds;
+    state = state.copyWith(selectedTopicIds: () => normalized);
+    await _refresh();
+  }
+
   Future<void> _refresh() async {
     final repo = _repository;
     if (repo == null) return;
+    final topicIds = state.selectedTopicIds?.toList();
     final monthly = await repo.getExpensesByMonth(
       state.focusedMonth.year,
       state.focusedMonth.month,
+      topicIds: topicIds,
     );
     final summary = repo.buildMonthlySummary(monthly);
-    final daily = await repo.getExpensesByDate(state.year, state.month, state.day);
+    final daily = await repo.getExpensesByDate(
+      state.year,
+      state.month,
+      state.day,
+      topicIds: topicIds,
+    );
     state = state.copyWith(
       monthlyExpenses: monthly,
       selectedDateExpenses: daily,
