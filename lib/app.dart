@@ -78,10 +78,7 @@ class _LoadingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(28),
-          child: Image.asset('assets/playstore.png', width: 120, height: 120),
-        ),
+        child: Image.asset('assets/playstore.png', width: 256, height: 256),
       ),
     );
   }
