@@ -36,6 +36,11 @@ class User < ApplicationRecord
     Topic.where(id: topic_follows.select(:topic_id))
   end
 
+  # 내가 소유하거나 구독하는 모든 토픽 (달력 등에서 "전체 보기"의 기본 범위)
+  def accessible_topics
+    Topic.where(id: topics.select(:id)).or(Topic.where(id: followed_topics.select(:id)))
+  end
+
   # Generates a 6-digit numeric OTP, persists it, and returns the plain code.
   def generate_login_code!
     code = rand(100_000..999_999).to_s

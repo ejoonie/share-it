@@ -1,6 +1,57 @@
 require "rails_helper"
 
 RSpec.describe "MyEntries API", type: :request do
+  # GET /api/v1/my/entries
+  describe "GET /api/v1/my/entries" do
+    it "lists entries from all topics the user owns" do
+      get_json "/api/v1/my/entries", login_user: users(:user_one)
+
+      expect(response).to have_http_status(200)
+      ids = json_response["records"].map { |e| e["id"] }
+      expect(ids).to include(entries(:entry_one).id, entries(:entry_two).id)
+      expect(ids).not_to include(entries(:entry_deleted).id, entries(:entry_in_topic_two).id)
+    end
+
+    it "includes entries from topics the user follows, in addition to owned topics" do
+      get_json "/api/v1/my/entries", login_user: users(:guest_user)
+
+      expect(response).to have_http_status(200)
+      ids = json_response["records"].map { |e| e["id"] }
+      # guest_user owns guest_topic and follows topics(:one)
+      expect(ids).to include(entries(:guest_entry).id, entries(:entry_one).id, entries(:entry_two).id)
+      expect(ids).not_to include(entries(:entry_in_topic_two).id)
+    end
+
+    it "filters to the given topic_ids, intersected with accessible topics" do
+      get_json "/api/v1/my/entries?topic_ids[]=#{topics(:one).id}", login_user: users(:guest_user)
+
+      expect(response).to have_http_status(200)
+      ids = json_response["records"].map { |e| e["id"] }
+      expect(ids).to include(entries(:entry_one).id, entries(:entry_two).id)
+      expect(ids).not_to include(entries(:guest_entry).id)
+    end
+
+    it "ignores topic_ids the user does not own or follow" do
+      get_json "/api/v1/my/entries?topic_ids[]=#{topics(:two).id}", login_user: users(:user_one)
+
+      expect(response).to have_http_status(200)
+      expect(json_response["records"]).to eq([])
+    end
+
+    it "supports ransack filters combined with topic scoping" do
+      get_json "/api/v1/my/entries?q[kind_eq]=income", login_user: users(:user_one)
+
+      expect(response).to have_http_status(200)
+      expect(json_response["records"]).to all(include("kind" => "income"))
+    end
+
+    it "returns 401 when not authenticated" do
+      get "/api/v1/my/entries"
+
+      expect(response).to have_http_status(401)
+    end
+  end
+
   # POST /api/v1/my/topics/:topic_id/entries
   describe "POST /api/v1/my/topics/:topic_id/entries" do
     it "creates an entry" do
