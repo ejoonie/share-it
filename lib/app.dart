@@ -76,8 +76,10 @@ class _LoadingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
+    return Scaffold(
+      body: Center(
+        child: Image.asset('assets/playstore.png', width: 256, height: 256),
+      ),
     );
   }
 }
