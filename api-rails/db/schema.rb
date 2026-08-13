@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_08_13_150000) do
+ActiveRecord::Schema[7.2].define(version: 2026_08_13_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -58,7 +58,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_08_13_150000) do
     t.datetime "deleted_at"
     t.bigint "user_id", null: false
     t.string "token", null: false
-    t.jsonb "default_permissions", default: ["create", "edit"], null: false
+    t.jsonb "default_permissions", default: ["create", "edit", "delete"], null: false
     t.index ["deleted_at"], name: "index_topics_on_deleted_at"
     t.index ["token"], name: "index_topics_on_token", unique: true
     t.index ["user_id"], name: "index_topics_on_user_id"

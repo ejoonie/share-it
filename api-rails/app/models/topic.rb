@@ -37,7 +37,7 @@ class Topic < ApplicationRecord
   end
 
   def set_default_permissions
-    self.default_permissions ||= %w[create edit]
+    self.default_permissions ||= %w[create edit delete]
   end
 
   # 토픽 생성자는 항상 자신의 토픽을 구독한 상태로 시작한다.

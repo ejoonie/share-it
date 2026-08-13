@@ -34,7 +34,7 @@ RSpec.describe Topic, type: :model do
       topic = Topic.create!(user: users(:user_one), title: "Generated Defaults Topic", is_default: false)
 
       expect(topic.token).to match(/\A[0-9a-f\-]{36}\z/)
-      expect(topic.default_permissions).to eq(%w[create edit])
+      expect(topic.default_permissions).to eq(%w[create edit delete])
     end
   end
 

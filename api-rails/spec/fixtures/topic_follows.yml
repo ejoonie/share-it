@@ -1,16 +1,38 @@
 guest_follow:
   user: guest_user
   topic: one
+  permissions:
+    - edit
 
-# 토픽 생성자는 항상 자신의 토픽을 구독한 상태로 시작한다 (Topic#follow_by_owner).
+# create 권한만 있고 edit/delete는 없는 팔로워 (권한 체크 negative 케이스용).
+user_three_create_only:
+  user: user_three
+  topic: one
+  permissions:
+    - create
+
+# 토픽 생성자는 항상 자신의 토픽을 구독한 상태로 시작하며, delete 권한도 항상 갖는다
+# (Topic#follow_by_owner + AddDeletePermissionToOwnerTopicFollows 마이그레이션).
 user_one_owns_one:
   user: user_one
   topic: one
+  permissions:
+    - create
+    - edit
+    - delete
 
 user_two_owns_two:
   user: user_two
   topic: two
+  permissions:
+    - create
+    - edit
+    - delete
 
 guest_owns_guest_topic:
   user: guest_user
   topic: guest_topic
+  permissions:
+    - create
+    - edit
+    - delete
