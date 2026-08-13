@@ -17,37 +17,6 @@ module V1
         end
       end
 
-      resource :entries do
-        # GET /api/v1/my/entries
-        desc '내가 소유하거나 구독하는 모든 토픽의 엔트리 목록 (topic_ids로 필터링 가능, 기본은 전체)'
-        params do
-          optional :topic_ids, type: Array[Integer], default: []
-          optional :q, type: Hash, default: {} do
-            optional :kind_eq, type: String
-            optional :currency_eq, type: String
-            optional :amount_eq, type: Integer
-            optional :amount_gteq, type: Integer
-            optional :amount_lteq, type: Integer
-            optional :category_eq, type: String
-            optional :title_cont, type: String
-            optional :content_cont, type: String
-            optional :checked_eq, type: Boolean
-            optional :occurred_at_gteq, type: DateTime
-            optional :occurred_at_lteq, type: DateTime
-            optional :created_at_gteq, type: DateTime
-            optional :created_at_lteq, type: DateTime
-            optional :s, type: String
-          end
-        end
-        get do
-          accessible_topic_ids = current_user.accessible_topics.pluck(:id)
-          requested_ids = params[:topic_ids]
-          scoped_ids = requested_ids.present? ? (accessible_topic_ids & requested_ids) : accessible_topic_ids
-
-          paginated_list(Entry.where(topic_id: scoped_ids), Entities::EntryEntity)
-        end
-      end
-
       resource :topics do
         route_param :topic_id do
           resource :entries do

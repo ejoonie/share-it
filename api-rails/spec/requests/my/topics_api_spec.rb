@@ -66,10 +66,10 @@ RSpec.describe "MyTopics API", type: :request do
     end
 
     it "cannot unfollow another user's subscription" do
-      topic = topics(:two)
-      users(:user_one).follow(topic)
+      # topics(:one) is owned (and thus followed) by user_one; user_two has no
+      # relationship to it at all, so trying to unfollow it should 404.
+      topic = topics(:one)
 
-      # user_two tries to unfollow user_one's subscription
       delete_json "/api/v1/my/topics/subscribed/#{topic.id}", login_user: users(:user_two)
 
       expect(response).to have_http_status(404)

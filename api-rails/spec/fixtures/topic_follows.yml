@@ -1,3 +1,16 @@
 guest_follow:
   user: guest_user
   topic: one
+
+# 토픽 생성자는 항상 자신의 토픽을 구독한 상태로 시작한다 (Topic#follow_by_owner).
+user_one_owns_one:
+  user: user_one
+  topic: one
+
+user_two_owns_two:
+  user: user_two
+  topic: two
+
+guest_owns_guest_topic:
+  user: guest_user
+  topic: guest_topic

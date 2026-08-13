@@ -31,8 +31,8 @@ class EntryRepository {
         .toList();
   }
 
-  /// 내가 소유하거나 구독하는 모든 토픽의 엔트리를 조회한다 (GET /api/v1/my/entries).
-  /// [topicIds]가 null이거나 비어 있으면 접근 가능한 모든 토픽을 대상으로 한다.
+  /// 내가 구독하는 모든 토픽의 엔트리를 조회한다 (GET /api/v1/entries).
+  /// [topicIds]가 null이거나 비어 있으면 구독 중인 모든 토픽을 대상으로 한다.
   Future<List<EntryModel>> listAllEntries({
     List<int>? topicIds,
     Map<String, dynamic>? q,
@@ -40,11 +40,11 @@ class EntryRepository {
     int limit = 100,
   }) async {
     final json = await _apiClient.get(
-      '/api/v1/my/entries',
+      '/api/v1/entries',
       queryParams: {
         'page': page,
         'limit': limit,
-        if (topicIds != null && topicIds.isNotEmpty) 'topic_ids[]': topicIds,
+        if (topicIds != null && topicIds.isNotEmpty) 'q[topic_id_in][]': topicIds,
         ...?q,
       },
     );
