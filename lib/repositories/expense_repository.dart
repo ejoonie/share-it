@@ -78,15 +78,14 @@ class ExpenseRepository {
       category: expense.category,
       title: expense.title.isEmpty ? null : expense.title,
       content: expense.content,
-      topicId: expense.topicId,
     );
     final saved = ExpenseModel.fromEntry(entry);
     debugPrint('[updateExpense] 서버 저장 occurredAt: ${saved.occurredAt} (local: ${saved.occurredAt.toLocal()}, utc: ${saved.occurredAt.toUtc()})');
     return saved;
   }
 
-  Future<void> deleteExpense(int id, {int? topicId}) async {
-    await _entryRepository.deleteEntry(id, topicId: topicId);
+  Future<void> deleteExpense(int id) async {
+    await _entryRepository.deleteEntry(id);
   }
 
   Map<DateTime, Map<String, int>> buildMonthlySummary(List<ExpenseModel> expenses) {

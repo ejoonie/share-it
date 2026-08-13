@@ -119,7 +119,7 @@ class _ExpenseListTile extends ConsumerWidget {
             onPressed: () {
               ref
                   .read(expenseNotifierProvider.notifier)
-                  .deleteExpense(expense.id!, topicId: expense.topicId);
+                  .deleteExpense(expense.id!);
               Navigator.pop(ctx);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),

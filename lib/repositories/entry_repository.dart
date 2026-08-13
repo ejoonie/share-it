@@ -13,8 +13,6 @@ class EntryRepository {
   }) : _apiClient = apiClient;
 
   String get _basePath => '/api/v1/my/topics/$topicId/entries';
-  String _basePathFor(int? overrideTopicId) =>
-      '/api/v1/my/topics/${overrideTopicId ?? topicId}/entries';
 
   Future<List<EntryModel>> listEntries({
     Map<String, dynamic>? q,
@@ -54,7 +52,11 @@ class EntryRepository {
         .toList();
   }
 
+  /// 구독 중인 토픽에 엔트리를 생성한다 (POST /api/v1/entries).
+  /// [topicId]를 생략하면 이 리포지토리가 바인딩된 토픽에 생성한다.
+  /// 서버에서 해당 토픽 follow의 create 권한을 확인한다.
   Future<EntryModel> createEntry({
+    int? topicId,
     DateTime? occurredAt,
     String? kind,
     String? currency,
@@ -65,6 +67,7 @@ class EntryRepository {
     bool? checked,
   }) async {
     final body = <String, dynamic>{
+      'topic_id': topicId ?? this.topicId,
       if (occurredAt != null) 'occurred_at': occurredAt.toUtc().toIso8601String(),
       if (kind != null) 'kind': kind,
       if (currency != null) 'currency': currency,
@@ -74,10 +77,13 @@ class EntryRepository {
       if (content != null) 'content': content,
       if (checked != null) 'checked': checked,
     };
-    final json = await _apiClient.post(_basePath, body);
+    final json = await _apiClient.post('/api/v1/entries', body);
     return EntryModel.fromJson(json);
   }
 
+  /// 엔트리를 수정한다 (PATCH /api/v1/entries/:id).
+  /// 어느 토픽에 속하든 서버가 entry로부터 토픽을 찾아 follow의 edit 권한을 확인하므로,
+  /// 호출하는 쪽에서 topicId를 알 필요가 없다.
   Future<EntryModel> updateEntry(
     int id, {
     DateTime? occurredAt,
@@ -88,7 +94,6 @@ class EntryRepository {
     String? title,
     String? content,
     bool? checked,
-    int? topicId,
   }) async {
     final body = <String, dynamic>{
       if (occurredAt != null) 'occurred_at': occurredAt.toUtc().toIso8601String(),
@@ -100,12 +105,13 @@ class EntryRepository {
       if (content != null) 'content': content,
       if (checked != null) 'checked': checked,
     };
-    final json = await _apiClient.patch('${_basePathFor(topicId)}/$id', body);
+    final json = await _apiClient.patch('/api/v1/entries/$id', body);
     return EntryModel.fromJson(json);
   }
 
-  Future<EntryModel> deleteEntry(int id, {int? topicId}) async {
-    final json = await _apiClient.delete('${_basePathFor(topicId)}/$id');
+  /// 엔트리를 삭제한다 (DELETE /api/v1/entries/:id). 서버가 follow의 delete 권한을 확인한다.
+  Future<EntryModel> deleteEntry(int id) async {
+    final json = await _apiClient.delete('/api/v1/entries/$id');
     return EntryModel.fromJson(json);
   }
 }
