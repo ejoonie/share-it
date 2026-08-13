@@ -61,6 +61,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
   void _showFilterDialog() {
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -72,77 +73,83 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
           final topicsAsync = ref.watch(myViewableTopicsProvider);
 
           return SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Filter',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  _FilterTile(
-                    label: 'All',
-                    selected: current == null,
-                    onTap: () {
-                      ref
-                          .read(expenseNotifierProvider.notifier)
-                          .filterExpenses(null);
-                      Navigator.pop(context);
-                    },
-                  ),
-                  _FilterTile(
-                    label: 'Expense',
-                    selected: current == ExpenseType.expense,
-                    onTap: () {
-                      ref
-                          .read(expenseNotifierProvider.notifier)
-                          .filterExpenses(ExpenseType.expense);
-                      Navigator.pop(context);
-                    },
-                  ),
-                  _FilterTile(
-                    label: 'Income',
-                    selected: current == ExpenseType.income,
-                    onTap: () {
-                      ref
-                          .read(expenseNotifierProvider.notifier)
-                          .filterExpenses(ExpenseType.income);
-                      Navigator.pop(context);
-                    },
-                  ),
-                  const Divider(height: 32),
-                  Text(
-                    'Topics',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey.shade600,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.8,
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Filter',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
-                  ),
-                  topicsAsync.when(
-                    data: (topics) => _TopicFilterList(
-                      topics: topics,
-                      selectedTopicIds: selectedTopicIds,
-                      onChanged: (next) => ref
-                          .read(expenseNotifierProvider.notifier)
-                          .filterByTopics(next),
+                    const SizedBox(height: 12),
+                    _FilterTile(
+                      label: 'All',
+                      selected: current == null,
+                      onTap: () {
+                        ref
+                            .read(expenseNotifierProvider.notifier)
+                            .filterExpenses(null);
+                        Navigator.pop(context);
+                      },
                     ),
-                    loading: () => const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      child: Center(child: CircularProgressIndicator()),
+                    _FilterTile(
+                      label: 'Expense',
+                      selected: current == ExpenseType.expense,
+                      onTap: () {
+                        ref
+                            .read(expenseNotifierProvider.notifier)
+                            .filterExpenses(ExpenseType.expense);
+                        Navigator.pop(context);
+                      },
                     ),
-                    error: (e, _) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Text(
-                        'Failed to load topics',
-                        style: TextStyle(color: Colors.red.shade400),
+                    _FilterTile(
+                      label: 'Income',
+                      selected: current == ExpenseType.income,
+                      onTap: () {
+                        ref
+                            .read(expenseNotifierProvider.notifier)
+                            .filterExpenses(ExpenseType.income);
+                        Navigator.pop(context);
+                      },
+                    ),
+                    const Divider(height: 32),
+                    Text(
+                      'Topics',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade600,
                       ),
                     ),
-                  ),
-                ],
+                    topicsAsync.when(
+                      data: (topics) => _TopicFilterList(
+                        topics: topics,
+                        selectedTopicIds: selectedTopicIds,
+                        onChanged: (next) => ref
+                            .read(expenseNotifierProvider.notifier)
+                            .filterByTopics(next),
+                      ),
+                      loading: () => const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                      error: (e, _) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Text(
+                          'Failed to load topics',
+                          style: TextStyle(color: Colors.red.shade400),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
@@ -194,8 +201,9 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                   filled: false,
                   contentPadding: EdgeInsets.zero,
                 ),
-                onChanged: (q) =>
-                    ref.read(expenseNotifierProvider.notifier).searchExpenses(q),
+                onChanged: (q) => ref
+                    .read(expenseNotifierProvider.notifier)
+                    .searchExpenses(q),
               )
             : Row(
                 mainAxisSize: MainAxisSize.min,
@@ -229,9 +237,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                 _isSearching = !_isSearching;
                 if (!_isSearching) {
                   _searchController.clear();
-                  ref
-                      .read(expenseNotifierProvider.notifier)
-                      .searchExpenses('');
+                  ref.read(expenseNotifierProvider.notifier).searchExpenses('');
                 }
               });
             },
@@ -265,7 +271,8 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddExpenseForm(state.year, state.month, state.day),
+        onPressed: () =>
+            _showAddExpenseForm(state.year, state.month, state.day),
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         shape: const CircleBorder(),
@@ -313,7 +320,8 @@ class _MonthlySummaryBar extends StatelessWidget {
                 amountColor: AppTheme.incomeColor,
               ),
             ),
-            Container(width: 1, height: 32, color: Colors.grey.shade300), // 가운데 버티컬 바
+            Container(
+                width: 1, height: 32, color: Colors.grey.shade300), // 가운데 버티컬 바
             Expanded(
               child: _SummaryCard(
                 label: 'Expense',
@@ -405,9 +413,8 @@ class _FilterTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       title: Text(label),
-      trailing: selected
-          ? const Icon(Icons.check, color: Color(0xFF4CAF50))
-          : null,
+      trailing:
+          selected ? const Icon(Icons.check, color: Color(0xFF4CAF50)) : null,
       onTap: onTap,
     );
   }
@@ -438,7 +445,8 @@ class _TopicFilterList extends StatelessWidget {
 
     return Column(
       children: topics.map((topic) {
-        final isSelected = selectedTopicIds == null || selectedTopicIds!.contains(topic.id);
+        final isSelected =
+            selectedTopicIds == null || selectedTopicIds!.contains(topic.id);
         return CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
