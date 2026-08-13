@@ -7,15 +7,18 @@ import '../providers/expense_provider.dart';
 import '../models/expense_model.dart';
 import 'expense_form.dart';
 
-class ExpenseList extends StatelessWidget {
+class ExpenseList extends ConsumerWidget {
   final ExpenseState state;
 
   const ExpenseList({super.key, required this.state});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final items = state.filteredSelectedDateExpenses;
     final formatter = DateFormat('yyyy-MM-dd');
+
+    Future<void> onRefresh() =>
+        ref.read(expenseNotifierProvider.notifier).refresh();
 
     return Column(
       children: [
@@ -47,35 +50,52 @@ class ExpenseList extends StatelessWidget {
         // ),
         if (items.isEmpty)
           Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.receipt_long_outlined,
-                    size: 48,
-                    color: Colors.grey.shade400,
+            child: RefreshIndicator(
+              onRefresh: onRefresh,
+              child: LayoutBuilder(
+                builder: (context, constraints) => SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints:
+                        BoxConstraints(minHeight: constraints.maxHeight),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.receipt_long_outlined,
+                            size: 48,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${formatter.format(DateTime(state.year, state.month, state.day))}\nNo transactions',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey.shade500),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${formatter.format(DateTime(state.year, state.month, state.day))}\nNo transactions',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey.shade500),
-                  ),
-                ],
+                ),
               ),
             ),
           )
         else
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 4),
-              itemBuilder: (context, index) {
-                final item = items[index];
-                return _ExpenseListTile(expense: item);
-              },
+            child: RefreshIndicator(
+              onRefresh: onRefresh,
+              child: ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 4),
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  return _ExpenseListTile(expense: item);
+                },
+              ),
             ),
           ),
       ],
@@ -133,9 +153,11 @@ class _ExpenseListTile extends ConsumerWidget {
   Text? _buildSubTitle(BuildContext context) {
     final debug = expense.occurredAt.toIso8601String();
     if (expense.content != null && expense.content!.isNotEmpty) {
-      return Text('${expense.content!}\n${debug}', style: const TextStyle(fontSize: 10));
+      return Text('${expense.content!}\n${debug}',
+          style: const TextStyle(fontSize: 10));
     } else if (expense.category != null) {
-      return Text('${expense.category!}\n${debug}', style: const TextStyle(fontSize: 10));
+      return Text('${expense.category!}\n${debug}',
+          style: const TextStyle(fontSize: 10));
     } else {
       return Text('${debug}', style: const TextStyle(fontSize: 10));
     }
@@ -144,8 +166,7 @@ class _ExpenseListTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isIncome = expense.isIncome;
-    final amountColor =
-        isIncome ? AppTheme.incomeColor : AppTheme.expenseColor;
+    final amountColor = isIncome ? AppTheme.incomeColor : AppTheme.expenseColor;
     final amountPrefix = isIncome ? '+' : '';
     final formatter = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
 
@@ -158,7 +179,9 @@ class _ExpenseListTile extends ConsumerWidget {
               ? AppTheme.incomeColor.withOpacity(0.1)
               : AppTheme.expenseColor.withOpacity(0.1),
           child: Icon(
-            isIncome ? Icons.account_balance_wallet_outlined : Icons.receipt_long_outlined,
+            isIncome
+                ? Icons.account_balance_wallet_outlined
+                : Icons.receipt_long_outlined,
             color: amountColor,
             size: 20,
           ),

@@ -19,6 +19,7 @@ class ExpenseState {
   final List<ExpenseModel> selectedDateExpenses;
   final Map<DateTime, Map<String, int>> monthlySummary;
   final ExpenseType? activeFilter;
+
   /// 조회 대상 토픽 ID. null이면 내가 소유/구독하는 모든 토픽(기본값).
   final Set<int>? selectedTopicIds;
   final String searchQuery;
@@ -95,7 +96,8 @@ class ExpenseState {
       selectedDateExpenses: selectedDateExpenses ?? this.selectedDateExpenses,
       monthlySummary: monthlySummary ?? this.monthlySummary,
       activeFilter: activeFilter != null ? activeFilter() : this.activeFilter,
-      selectedTopicIds: selectedTopicIds != null ? selectedTopicIds() : this.selectedTopicIds,
+      selectedTopicIds:
+          selectedTopicIds != null ? selectedTopicIds() : this.selectedTopicIds,
       searchQuery: searchQuery ?? this.searchQuery,
       isLoading: isLoading ?? this.isLoading,
       error: error != null ? error() : this.error,
@@ -131,7 +133,8 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
       final today = DateTime.now();
       final selectedDate = DateTime(today.year, today.month, today.day);
       final topicIds = state.selectedTopicIds?.toList();
-      final monthly = await repo.getExpensesByMonth(m.year, m.month, topicIds: topicIds);
+      final monthly =
+          await repo.getExpensesByMonth(m.year, m.month, topicIds: topicIds);
       final summary = repo.buildMonthlySummary(monthly);
       final daily = await repo.getExpensesByDate(
         selectedDate.year,
@@ -159,7 +162,8 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
       final m = DateTime(month.year, month.month);
       final selectedDate = DateTime(m.year, m.month, 1);
       final topicIds = state.selectedTopicIds?.toList();
-      final monthly = await repo.getExpensesByMonth(m.year, m.month, topicIds: topicIds);
+      final monthly =
+          await repo.getExpensesByMonth(m.year, m.month, topicIds: topicIds);
       final summary = repo.buildMonthlySummary(monthly);
       final daily = await repo.getExpensesByDate(
         selectedDate.year,
@@ -204,7 +208,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     if (repo == null) return;
     try {
       await repo.addExpense(expense);
-      await _refresh();
+      await refresh();
     } catch (e) {
       state = state.copyWith(error: () => e.toString());
     }
@@ -215,7 +219,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     if (repo == null) return;
     try {
       await repo.updateExpense(expense);
-      await _refresh();
+      await refresh();
     } catch (e) {
       state = state.copyWith(error: () => e.toString());
     }
@@ -226,7 +230,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     if (repo == null) return;
     try {
       await repo.deleteExpense(id);
-      await _refresh();
+      await refresh();
     } catch (e) {
       state = state.copyWith(error: () => e.toString());
     }
@@ -244,30 +248,37 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
   Future<void> filterByTopics(Set<int>? topicIds) async {
     final normalized = (topicIds == null || topicIds.isEmpty) ? null : topicIds;
     state = state.copyWith(selectedTopicIds: () => normalized);
-    await _refresh();
+    await refresh();
   }
 
-  Future<void> _refresh() async {
+  /// 현재 월/선택된 날짜의 데이터를 다시 불러온다. 전체 화면 로딩 스피너를 띄우지 않으므로
+  /// pull-to-refresh처럼 기존 화면을 유지한 채 갱신하는 용도로도 쓸 수 있다.
+  Future<void> refresh() async {
     final repo = _repository;
     if (repo == null) return;
-    final topicIds = state.selectedTopicIds?.toList();
-    final monthly = await repo.getExpensesByMonth(
-      state.focusedMonth.year,
-      state.focusedMonth.month,
-      topicIds: topicIds,
-    );
-    final summary = repo.buildMonthlySummary(monthly);
-    final daily = await repo.getExpensesByDate(
-      state.year,
-      state.month,
-      state.day,
-      topicIds: topicIds,
-    );
-    state = state.copyWith(
-      monthlyExpenses: monthly,
-      selectedDateExpenses: daily,
-      monthlySummary: summary,
-    );
+    try {
+      final topicIds = state.selectedTopicIds?.toList();
+      final monthly = await repo.getExpensesByMonth(
+        state.focusedMonth.year,
+        state.focusedMonth.month,
+        topicIds: topicIds,
+      );
+      final summary = repo.buildMonthlySummary(monthly);
+      final daily = await repo.getExpensesByDate(
+        state.year,
+        state.month,
+        state.day,
+        topicIds: topicIds,
+      );
+      state = state.copyWith(
+        monthlyExpenses: monthly,
+        selectedDateExpenses: daily,
+        monthlySummary: summary,
+        error: () => null,
+      );
+    } catch (e) {
+      state = state.copyWith(error: () => e.toString());
+    }
   }
 }
 
