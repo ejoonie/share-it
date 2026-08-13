@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../models/expense_model.dart';
+import '../models/topic_model.dart';
+import '../providers/core_providers.dart';
 import '../providers/expense_provider.dart';
 import '../widgets/category_field.dart';
+import '../widgets/topic_picker.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   final int initYear;
@@ -12,6 +15,7 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
   final int initDay;
   final String initialAmount;
   final ExpenseType initialType;
+  final int? initialTopicId;
 
   const AddExpenseScreen({
     super.key,
@@ -20,6 +24,7 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
     required this.initDay,
     required this.initialAmount,
     required this.initialType,
+    this.initialTopicId,
   });
 
   @override
@@ -36,6 +41,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   late ExpenseType _type;
   late DateTime _selectedDate;
+  int? _selectedTopicId;
 
   @override
   void initState() {
@@ -43,6 +49,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     _amountController.text = widget.initialAmount;
     _type = widget.initialType;
     _selectedDate = DateTime(widget.initYear, widget.initMonth, widget.initDay);
+    _selectedTopicId = widget.initialTopicId;
   }
 
   @override
@@ -65,14 +72,26 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     if (picked != null) setState(() => _selectedDate = picked);
   }
 
+  Future<void> _pickTopic(List<TopicModel> topics) async {
+    final picked = await showTopicPickerSheet(
+      context,
+      topics: topics,
+      selectedTopicId: _selectedTopicId,
+    );
+    if (picked != null) setState(() => _selectedTopicId = picked.id);
+  }
+
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
     final amountCents = ((double.tryParse(_amountController.text) ?? 0) * 100).round();
     final now = DateTime.now();
+    final topics = ref.read(myViewableTopicsProvider).valueOrNull ?? const [];
+    final topicId = _selectedTopicId ?? resolveDefaultTopicId(topics);
 
     ref.read(expenseNotifierProvider.notifier).addExpense(
       ExpenseModel(
+        topicId: topicId,
         title: _titleController.text.trim(),
         amount: amountCents,
         content: _contentController.text.trim().isEmpty ? null : _contentController.text.trim(),
@@ -95,6 +114,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   Widget build(BuildContext context) {
     final dateFormatter = DateFormat('MMM dd, yyyy');
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final topicsAsync = ref.watch(myViewableTopicsProvider);
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -109,6 +129,26 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                 children: [
+                  topicsAsync.when(
+                    data: (topics) {
+                      final effectiveId = _selectedTopicId ?? resolveDefaultTopicId(topics);
+                      final selected = findTopicById(topics, effectiveId);
+                      return InkWell(
+                        onTap: () => _pickTopic(topics),
+                        borderRadius: BorderRadius.circular(12),
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Topic',
+                            prefixIcon: Icon(Icons.folder_outlined),
+                          ),
+                          child: Text(selected?.title ?? 'No topic'),
+                        ),
+                      );
+                    },
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  ),
+                  const SizedBox(height: 12),
                   SegmentedButton<ExpenseType>(
                     segments: const [
                       ButtonSegment(

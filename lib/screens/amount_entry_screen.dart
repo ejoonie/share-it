@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/expense_model.dart';
+import '../models/topic_model.dart';
+import '../providers/core_providers.dart';
 import '../theme/app_theme.dart';
 import '../utils/arithmetic_parser.dart';
+import '../widgets/topic_picker.dart';
 import 'add_expense_screen.dart';
 
-class AmountEntryScreen extends StatefulWidget {
+class AmountEntryScreen extends ConsumerStatefulWidget {
   final int initYear;
   final int initMonth;
   final int initDay;
@@ -19,18 +23,28 @@ class AmountEntryScreen extends StatefulWidget {
   });
 
   @override
-  State<AmountEntryScreen> createState() => _AmountEntryScreenState();
+  ConsumerState<AmountEntryScreen> createState() => _AmountEntryScreenState();
 }
 
-class _AmountEntryScreenState extends State<AmountEntryScreen> {
+class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
   String _input = '';
   int _cursor = 0;
   late DateTime _selectedDate;
+  int? _selectedTopicId;
 
   @override
   void initState() {
     super.initState();
     _selectedDate = DateTime(widget.initYear, widget.initMonth, widget.initDay);
+  }
+
+  Future<void> _pickTopic(List<TopicModel> topics, int? currentId) async {
+    final picked = await showTopicPickerSheet(
+      context,
+      topics: topics,
+      selectedTopicId: currentId,
+    );
+    if (picked != null) setState(() => _selectedTopicId = picked.id);
   }
 
   Future<void> _pickDate() async {
@@ -102,6 +116,8 @@ class _AmountEntryScreenState extends State<AmountEntryScreen> {
   void _submit(ExpenseType type) {
     if (_finalAmount <= 0) return;
     final amountStr = _finalAmount.toStringAsFixed(2);
+    final topics = ref.read(myViewableTopicsProvider).valueOrNull ?? const [];
+    final topicId = _selectedTopicId ?? resolveDefaultTopicId(topics);
     Navigator.push<void>(
       context,
       MaterialPageRoute(
@@ -111,6 +127,7 @@ class _AmountEntryScreenState extends State<AmountEntryScreen> {
           initDay: _selectedDate.day,
           initialAmount: amountStr,
           initialType: type,
+          initialTopicId: topicId,
         ),
       ),
     );
@@ -134,6 +151,7 @@ class _AmountEntryScreenState extends State<AmountEntryScreen> {
   @override
   Widget build(BuildContext context) {
     final evaluated = _evaluated;
+    final topicsAsync = ref.watch(myViewableTopicsProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -273,7 +291,23 @@ class _AmountEntryScreenState extends State<AmountEntryScreen> {
                     tooltip: 'Paste',
                     onTap: _onPaste,
                   ),
-                  const Spacer(),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: topicsAsync.when(
+                        data: (topics) {
+                          final effectiveId = _selectedTopicId ?? resolveDefaultTopicId(topics);
+                          final selected = findTopicById(topics, effectiveId);
+                          return TopicSelectorChip(
+                            label: selected?.title ?? 'No topic',
+                            onTap: () => _pickTopic(topics, effectiveId),
+                          );
+                        },
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
                   _SmallIconButton(
                     icon: Icons.first_page,
                     tooltip: 'Move to start',

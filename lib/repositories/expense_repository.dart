@@ -56,6 +56,7 @@ class ExpenseRepository {
   Future<ExpenseModel> addExpense(ExpenseModel expense) async {
     debugPrint('[addExpense] 전송 occurredAt: ${expense.occurredAt} (local: ${expense.occurredAt.toLocal()}, utc: ${expense.occurredAt.toUtc()})');
     final entry = await _entryRepository.createEntry(
+      topicId: expense.topicId,
       occurredAt: expense.occurredAt,
       kind: expense.type.name,
       amount: expense.amount,
