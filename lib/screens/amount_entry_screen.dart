@@ -115,8 +115,10 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
 
   void _submit(ExpenseType type) {
     if (_finalAmount <= 0) return;
+    final topicsValue = ref.read(myViewableTopicsProvider);
+    if (!topicsValue.hasValue) return;
     final amountStr = _finalAmount.toStringAsFixed(2);
-    final topics = ref.read(myViewableTopicsProvider).valueOrNull ?? const [];
+    final topics = topicsValue.value ?? const [];
     final topicId = _selectedTopicId ?? resolveDefaultTopicId(topics);
     Navigator.push<void>(
       context,
@@ -266,7 +268,9 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
                     child: _ActionButton(
                       label: 'Income',
                       color: AppTheme.primaryColor,
-                      onTap: () => _submit(ExpenseType.income),
+                      onTap: topicsAsync.hasValue
+                          ? () => _submit(ExpenseType.income)
+                          : null,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -274,7 +278,9 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
                     child: _ActionButton(
                       label: 'Expense',
                       color: const Color(0xFFEF5FA7),
-                      onTap: () => _submit(ExpenseType.expense),
+                      onTap: topicsAsync.hasValue
+                          ? () => _submit(ExpenseType.expense)
+                          : null,
                     ),
                   ),
                 ],
@@ -303,8 +309,25 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
                             onTap: () => _pickTopic(topics, effectiveId),
                           );
                         },
-                        loading: () => const SizedBox.shrink(),
-                        error: (_, __) => const SizedBox.shrink(),
+                        loading: () => const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          child: SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                        error: (_, __) => InkWell(
+                          onTap: () => ref.refresh(myViewableTopicsProvider),
+                          borderRadius: BorderRadius.circular(8),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            child: Text(
+                              'Failed to load topics. Tap to retry.',
+                              style: TextStyle(fontSize: 12, color: Colors.red),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -351,7 +374,7 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
 class _ActionButton extends StatelessWidget {
   final String label;
   final Color color;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _ActionButton({
     required this.label,
@@ -361,12 +384,13 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final enabled = onTap != null;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         height: 56,
         decoration: BoxDecoration(
-          color: color,
+          color: enabled ? color : color.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(14),
         ),
         alignment: Alignment.center,

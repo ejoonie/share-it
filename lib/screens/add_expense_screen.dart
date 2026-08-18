@@ -83,10 +83,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
+    // 토픽 목록이 아직 로딩/에러 상태면 어느 토픽에 저장할지 확정할 수 없으므로
+    // 제출을 막는다 (버튼도 비활성화되지만, 방어적으로 한 번 더 확인).
+    final topicsValue = ref.read(myViewableTopicsProvider);
+    if (!topicsValue.hasValue) return;
 
     final amountCents = ((double.tryParse(_amountController.text) ?? 0) * 100).round();
     final now = DateTime.now();
-    final topics = ref.read(myViewableTopicsProvider).valueOrNull ?? const [];
+    final topics = topicsValue.value ?? const [];
     final topicId = _selectedTopicId ?? resolveDefaultTopicId(topics);
 
     ref.read(expenseNotifierProvider.notifier).addExpense(
@@ -145,8 +149,30 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         ),
                       );
                     },
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, __) => const SizedBox.shrink(),
+                    loading: () => const InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Topic',
+                        prefixIcon: Icon(Icons.folder_outlined),
+                      ),
+                      child: SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                    error: (_, __) => InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Topic',
+                        prefixIcon: Icon(Icons.folder_outlined),
+                      ),
+                      child: InkWell(
+                        onTap: () => ref.refresh(myViewableTopicsProvider),
+                        child: const Text(
+                          'Failed to load topics. Tap to retry.',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   SegmentedButton<ExpenseType>(
@@ -227,7 +253,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _submit,
+                  onPressed: topicsAsync.hasValue ? _submit : null,
                   child: const Text('Add'),
                 ),
               ),
