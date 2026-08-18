@@ -67,6 +67,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   Future<bool> unsubscribe(int topicId) async {
     try {
       await _ref.read(subscriptionRepositoryProvider).unsubscribe(topicId);
+      // Filter/Add Expense 등에서 쓰는 토픽 목록 캐시를 무효화한다.
+      _ref.invalidate(myViewableTopicsProvider);
       state = state.copyWith(
         subscriptions: state.subscriptions.whenData(
           (list) => list.where((s) => s.topic.id != topicId).toList(),

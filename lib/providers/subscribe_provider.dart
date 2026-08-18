@@ -49,6 +49,9 @@ class SubscribeNotifier extends StateNotifier<SubscribeState> {
     );
     try {
       await _ref.read(subscriptionRepositoryProvider).subscribe(topicToken);
+      // Filter/Add Expense 등에서 쓰는 토픽 목록 캐시를 무효화해
+      // 재시작 없이도 방금 구독한 토픽이 바로 보이게 한다.
+      _ref.invalidate(myViewableTopicsProvider);
       state = SubscribeState(
         topic: state.topic,
         subscribeResult: const AsyncValue.data(null),
