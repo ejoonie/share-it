@@ -262,6 +262,14 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     await refresh();
   }
 
+  /// 새로 구독한 토픽을 현재 필터에 포함시킨다. 전체 선택(null) 상태라면
+  /// 이미 모든 토픽이 보이는 중이므로 그대로 둔다.
+  Future<void> includeTopicInSelection(int topicId) async {
+    final current = state.selectedTopicIds;
+    if (current == null || current.contains(topicId)) return;
+    await filterByTopics({...current, topicId});
+  }
+
   /// 현재 월/선택된 날짜의 데이터를 다시 불러온다. 전체 화면 로딩 스피너를 띄우지 않으므로
   /// pull-to-refresh처럼 기존 화면을 유지한 채 갱신하는 용도로도 쓸 수 있다.
   Future<void> refresh() async {
