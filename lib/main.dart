@@ -7,6 +7,7 @@ import 'providers/session_provider.dart';
 import 'providers/core_providers.dart';
 import 'repositories/session_repository.dart';
 import 'storage/token_storage.dart';
+import 'storage/topic_filter_storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +17,7 @@ void main() async {
   // → app.dart _SessionGate.initState의 addPostFrameCallback에서 요청한다.
 
   final tokenStorage = await TokenStorage.create();
+  final topicFilterStorage = await TopicFilterStorage.create();
   final apiClient = ApiClient(tokenStorage: tokenStorage);
   final sessionRepository = SessionRepository(
     apiClient: apiClient,
@@ -26,6 +28,7 @@ void main() async {
     ProviderScope(
       overrides: [
         tokenStorageProvider.overrideWithValue(tokenStorage),
+        topicFilterStorageProvider.overrideWithValue(topicFilterStorage),
         apiClientProvider.overrideWithValue(apiClient),
         sessionRepositoryProvider.overrideWithValue(sessionRepository),
         sessionNotifierProvider.overrideWith(

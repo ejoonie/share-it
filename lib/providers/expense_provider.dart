@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core_providers.dart';
 import '../models/expense_model.dart';
 import '../repositories/expense_repository.dart';
+import '../storage/topic_filter_storage.dart';
 
 final expenseRepositoryProvider = Provider<ExpenseRepository?>((ref) {
   final entryRepo = ref.watch(entryRepositoryProvider);
@@ -20,7 +21,8 @@ class ExpenseState {
   final Map<DateTime, Map<String, int>> monthlySummary;
   final ExpenseType? activeFilter;
 
-  /// 조회 대상 토픽 ID. null이면 내가 소유/구독하는 모든 토픽(기본값).
+  /// 조회 대상 토픽 ID. null이면 필터 없음(전체 조회) — Filter UI의 체크박스도 모두 비어 있다.
+  /// "전체 선택"을 명시적으로 누르면 모든 토픽 ID가 채워진 Set이 되어 체크박스가 전부 체크된다.
   final Set<int>? selectedTopicIds;
   final String searchQuery;
   final bool isLoading;
@@ -117,8 +119,14 @@ class ExpenseState {
 /// After that, tapping the Expenses tab calls [load] explicitly to refresh.
 class ExpenseNotifier extends StateNotifier<ExpenseState> {
   final ExpenseRepository? _repository;
+  final TopicFilterStorage _topicFilterStorage;
 
-  ExpenseNotifier(this._repository) : super(ExpenseState.initial()) {
+  ExpenseNotifier(this._repository, this._topicFilterStorage)
+      : super(
+          ExpenseState.initial().copyWith(
+            selectedTopicIds: () => _topicFilterStorage.getSelectedTopicIds(),
+          ),
+        ) {
     if (_repository != null) load();
   }
 
@@ -244,10 +252,12 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     state = state.copyWith(activeFilter: () => type);
   }
 
-  /// 조회할 토픽을 변경한다. null 또는 빈 Set은 "전체(모든 소유/구독 토픽)"를 의미한다.
+  /// 조회할 토픽을 변경한다. null 또는 빈 Set은 "선택 안 함(필터 없음, 전체 조회)"을 의미한다.
+  /// 선택 상태는 로컬에 저장되어 다음 실행에도 유지된다.
   Future<void> filterByTopics(Set<int>? topicIds) async {
     final normalized = (topicIds == null || topicIds.isEmpty) ? null : topicIds;
     state = state.copyWith(selectedTopicIds: () => normalized);
+    await _topicFilterStorage.saveSelectedTopicIds(normalized);
     await refresh();
   }
 
@@ -284,5 +294,8 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
 
 final expenseNotifierProvider =
     StateNotifierProvider<ExpenseNotifier, ExpenseState>(
-  (ref) => ExpenseNotifier(ref.watch(expenseRepositoryProvider)),
+  (ref) => ExpenseNotifier(
+    ref.watch(expenseRepositoryProvider),
+    ref.watch(topicFilterStorageProvider),
+  ),
 );

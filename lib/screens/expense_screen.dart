@@ -120,13 +120,35 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                       },
                     ),
                     const Divider(height: 32),
-                    Text(
-                      'Topics',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey.shade600,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Topics',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        topicsAsync.maybeWhen(
+                          data: (topics) => TextButton(
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: topics.isEmpty
+                                ? null
+                                : () => ref
+                                    .read(expenseNotifierProvider.notifier)
+                                    .filterByTopics(
+                                        topics.map((t) => t.id).toSet()),
+                            child: const Text('Select All'),
+                          ),
+                          orElse: () => const SizedBox.shrink(),
+                        ),
+                      ],
                     ),
                     topicsAsync.when(
                       data: (topics) => _TopicFilterList(
@@ -420,7 +442,8 @@ class _FilterTile extends StatelessWidget {
   }
 }
 
-/// 토픽 멀티 선택 체크박스 목록. [selectedTopicIds]가 null이면 전체 선택(기본값)으로 취급한다.
+/// 토픽 멀티 선택 체크박스 목록. [selectedTopicIds]가 null이면 아무것도 선택하지 않은
+/// 상태(필터 없음, 전체 조회)로 취급해 체크박스를 모두 비워 둔다.
 class _TopicFilterList extends StatelessWidget {
   final List<TopicModel> topics;
   final Set<int>? selectedTopicIds;
@@ -441,25 +464,24 @@ class _TopicFilterList extends StatelessWidget {
       );
     }
 
-    final allIds = topics.map((t) => t.id).toSet();
-
     return Column(
       children: topics.map((topic) {
         final isSelected =
-            selectedTopicIds == null || selectedTopicIds!.contains(topic.id);
+            selectedTopicIds != null && selectedTopicIds!.contains(topic.id);
         return CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
           title: Text(topic.title),
           value: isSelected,
           onChanged: (checked) {
-            final next = (selectedTopicIds ?? allIds).toSet();
+            // null(선택 없음)에서 시작하면 빈 Set에서부터 쌓아 올린다.
+            final next = (selectedTopicIds ?? <int>{}).toSet();
             if (checked == true) {
               next.add(topic.id);
             } else {
               next.remove(topic.id);
             }
-            onChanged(next.length == allIds.length ? null : next);
+            onChanged(next);
           },
         );
       }).toList(),
