@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../models/topic_model.dart';
 
-/// 토픽 목록에서 "기본" 토픽을 고른다. is_default인 토픽 중 첫 번째,
-/// 없으면 목록의 첫 번째 토픽. 목록이 비어 있으면 null.
-int? resolveDefaultTopicId(List<TopicModel> topics) {
+/// 토픽 목록에서 "기본" 토픽을 고른다.
+/// 1) [lastUsedTopicId]가 지정되어 있고 목록에 있으면 그 토픽.
+/// 2) 없으면 is_default인 토픽 중 첫 번째.
+/// 3) 그것도 없으면 목록의 첫 번째 토픽.
+/// 목록이 비어 있으면 null.
+int? resolveDefaultTopicId(List<TopicModel> topics, {int? lastUsedTopicId}) {
   if (topics.isEmpty) return null;
+  if (lastUsedTopicId != null && topics.any((t) => t.id == lastUsedTopicId)) {
+    return lastUsedTopicId;
+  }
   for (final topic in topics) {
     if (topic.isDefault) return topic.id;
   }

@@ -4,6 +4,7 @@ import '../api/api_client.dart';
 import '../models/topic_model.dart';
 import '../repositories/entry_repository.dart';
 import '../repositories/topic_repository.dart';
+import '../storage/last_used_topic_storage.dart';
 import '../storage/token_storage.dart';
 import '../storage/topic_filter_storage.dart';
 import '../repositories/subscription_repository.dart';
@@ -17,6 +18,11 @@ final tokenStorageProvider = Provider<TokenStorage>((ref) {
 /// Must be overridden in main() with a real [TopicFilterStorage] instance.
 final topicFilterStorageProvider = Provider<TopicFilterStorage>((ref) {
   throw UnimplementedError('topicFilterStorageProvider must be overridden');
+});
+
+/// Must be overridden in main() with a real [LastUsedTopicStorage] instance.
+final lastUsedTopicStorageProvider = Provider<LastUsedTopicStorage>((ref) {
+  throw UnimplementedError('lastUsedTopicStorageProvider must be overridden');
 });
 
 final apiClientProvider = Provider<ApiClient>((ref) {

@@ -6,6 +6,7 @@ import 'api/api_client.dart';
 import 'providers/session_provider.dart';
 import 'providers/core_providers.dart';
 import 'repositories/session_repository.dart';
+import 'storage/last_used_topic_storage.dart';
 import 'storage/token_storage.dart';
 import 'storage/topic_filter_storage.dart';
 
@@ -18,6 +19,7 @@ void main() async {
 
   final tokenStorage = await TokenStorage.create();
   final topicFilterStorage = await TopicFilterStorage.create();
+  final lastUsedTopicStorage = await LastUsedTopicStorage.create();
   final apiClient = ApiClient(tokenStorage: tokenStorage);
   final sessionRepository = SessionRepository(
     apiClient: apiClient,
@@ -29,6 +31,7 @@ void main() async {
       overrides: [
         tokenStorageProvider.overrideWithValue(tokenStorage),
         topicFilterStorageProvider.overrideWithValue(topicFilterStorage),
+        lastUsedTopicStorageProvider.overrideWithValue(lastUsedTopicStorage),
         apiClientProvider.overrideWithValue(apiClient),
         sessionRepositoryProvider.overrideWithValue(sessionRepository),
         sessionNotifierProvider.overrideWith(

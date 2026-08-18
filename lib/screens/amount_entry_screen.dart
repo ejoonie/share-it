@@ -119,7 +119,11 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
     if (!topicsValue.hasValue) return;
     final amountStr = _finalAmount.toStringAsFixed(2);
     final topics = topicsValue.value ?? const [];
-    final topicId = _selectedTopicId ?? resolveDefaultTopicId(topics);
+    final topicId = _selectedTopicId ??
+        resolveDefaultTopicId(
+          topics,
+          lastUsedTopicId: ref.read(lastUsedTopicStorageProvider).getLastUsedTopicId(),
+        );
     Navigator.push<void>(
       context,
       MaterialPageRoute(
@@ -302,7 +306,13 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
                       alignment: Alignment.centerLeft,
                       child: topicsAsync.when(
                         data: (topics) {
-                          final effectiveId = _selectedTopicId ?? resolveDefaultTopicId(topics);
+                          final effectiveId = _selectedTopicId ??
+                              resolveDefaultTopicId(
+                                topics,
+                                lastUsedTopicId: ref
+                                    .read(lastUsedTopicStorageProvider)
+                                    .getLastUsedTopicId(),
+                              );
                           final selected = findTopicById(topics, effectiveId);
                           return TopicSelectorChip(
                             label: selected?.title ?? 'No topic',

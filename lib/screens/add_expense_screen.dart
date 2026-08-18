@@ -91,7 +91,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final amountCents = ((double.tryParse(_amountController.text) ?? 0) * 100).round();
     final now = DateTime.now();
     final topics = topicsValue.value ?? const [];
-    final topicId = _selectedTopicId ?? resolveDefaultTopicId(topics);
+    final lastUsedTopicId = ref.read(lastUsedTopicStorageProvider).getLastUsedTopicId();
+    final topicId = _selectedTopicId ??
+        resolveDefaultTopicId(topics, lastUsedTopicId: lastUsedTopicId);
+    if (topicId != null) {
+      ref.read(lastUsedTopicStorageProvider).saveLastUsedTopicId(topicId);
+    }
 
     ref.read(expenseNotifierProvider.notifier).addExpense(
       ExpenseModel(
@@ -135,7 +140,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 children: [
                   topicsAsync.when(
                     data: (topics) {
-                      final effectiveId = _selectedTopicId ?? resolveDefaultTopicId(topics);
+                      final effectiveId = _selectedTopicId ??
+                          resolveDefaultTopicId(
+                            topics,
+                            lastUsedTopicId: ref
+                                .read(lastUsedTopicStorageProvider)
+                                .getLastUsedTopicId(),
+                          );
                       final selected = findTopicById(topics, effectiveId);
                       return InkWell(
                         onTap: () => _pickTopic(topics),
