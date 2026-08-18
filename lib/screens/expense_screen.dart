@@ -132,20 +132,28 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                           ),
                         ),
                         topicsAsync.maybeWhen(
-                          data: (topics) => TextButton(
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            onPressed: topics.isEmpty
-                                ? null
-                                : () => ref
-                                    .read(expenseNotifierProvider.notifier)
-                                    .filterByTopics(
-                                        topics.map((t) => t.id).toSet()),
-                            child: const Text('Select All'),
-                          ),
+                          data: (topics) {
+                            if (topics.isEmpty) return const SizedBox.shrink();
+                            final allSelected = selectedTopicIds == null ||
+                                topics.every(
+                                    (t) => selectedTopicIds!.contains(t.id));
+                            return TextButton(
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: () => ref
+                                  .read(expenseNotifierProvider.notifier)
+                                  .filterByTopics(
+                                    allSelected
+                                        ? <int>{}
+                                        : topics.map((t) => t.id).toSet(),
+                                  ),
+                              child: Text(
+                                  allSelected ? 'Unselect All' : 'Select All'),
+                            );
+                          },
                           orElse: () => const SizedBox.shrink(),
                         ),
                       ],
@@ -442,8 +450,8 @@ class _FilterTile extends StatelessWidget {
   }
 }
 
-/// 토픽 멀티 선택 체크박스 목록. [selectedTopicIds]가 null이면 아무것도 선택하지 않은
-/// 상태(필터 없음, 전체 조회)로 취급해 체크박스를 모두 비워 둔다.
+/// 토픽 멀티 선택 체크박스 목록. [selectedTopicIds]가 null이면 기본값(전체 선택)으로
+/// 취급해 체크박스를 모두 채워 둔다. 빈 Set은 전체 선택 해제(체크박스 모두 빈 상태)다.
 class _TopicFilterList extends StatelessWidget {
   final List<TopicModel> topics;
   final Set<int>? selectedTopicIds;
@@ -464,18 +472,20 @@ class _TopicFilterList extends StatelessWidget {
       );
     }
 
+    final allIds = topics.map((t) => t.id).toSet();
+
     return Column(
       children: topics.map((topic) {
         final isSelected =
-            selectedTopicIds != null && selectedTopicIds!.contains(topic.id);
+            selectedTopicIds == null || selectedTopicIds!.contains(topic.id);
         return CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
           title: Text(topic.title),
           value: isSelected,
           onChanged: (checked) {
-            // null(선택 없음)에서 시작하면 빈 Set에서부터 쌓아 올린다.
-            final next = (selectedTopicIds ?? <int>{}).toSet();
+            // null(기본값=전체 선택)에서 시작하면 전체 Set에서부터 하나씩 제외해 나간다.
+            final next = (selectedTopicIds ?? allIds).toSet();
             if (checked == true) {
               next.add(topic.id);
             } else {

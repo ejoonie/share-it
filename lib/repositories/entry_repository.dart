@@ -30,19 +30,23 @@ class EntryRepository {
   }
 
   /// 내가 구독하는 모든 토픽의 엔트리를 조회한다 (GET /api/v1/entries).
-  /// [topicIds]가 null이거나 비어 있으면 구독 중인 모든 토픽을 대상으로 한다.
+  /// [topicIds]가 null이면 구독 중인 모든 토픽을 대상으로 한다.
+  /// [topicIds]가 명시적으로 빈 목록이면(전체 선택 해제) 서버 호출 없이 빈 결과를 반환한다.
   Future<List<EntryModel>> listAllEntries({
     List<int>? topicIds,
     Map<String, dynamic>? q,
     int page = 1,
     int limit = 100,
   }) async {
+    if (topicIds != null && topicIds.isEmpty) return const [];
+
     final json = await _apiClient.get(
       '/api/v1/entries',
       queryParams: {
         'page': page,
         'limit': limit,
-        if (topicIds != null && topicIds.isNotEmpty) 'q[topic_id_in][]': topicIds,
+        if (topicIds != null && topicIds.isNotEmpty)
+          'q[topic_id_in][]': topicIds,
         ...?q,
       },
     );
@@ -68,7 +72,8 @@ class EntryRepository {
   }) async {
     final body = <String, dynamic>{
       'topic_id': topicId ?? this.topicId,
-      if (occurredAt != null) 'occurred_at': occurredAt.toUtc().toIso8601String(),
+      if (occurredAt != null)
+        'occurred_at': occurredAt.toUtc().toIso8601String(),
       if (kind != null) 'kind': kind,
       if (currency != null) 'currency': currency,
       if (amount != null) 'amount': amount,
@@ -96,7 +101,8 @@ class EntryRepository {
     bool? checked,
   }) async {
     final body = <String, dynamic>{
-      if (occurredAt != null) 'occurred_at': occurredAt.toUtc().toIso8601String(),
+      if (occurredAt != null)
+        'occurred_at': occurredAt.toUtc().toIso8601String(),
       if (kind != null) 'kind': kind,
       if (currency != null) 'currency': currency,
       if (amount != null) 'amount': amount,

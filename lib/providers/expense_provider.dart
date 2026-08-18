@@ -21,8 +21,10 @@ class ExpenseState {
   final Map<DateTime, Map<String, int>> monthlySummary;
   final ExpenseType? activeFilter;
 
-  /// 조회 대상 토픽 ID. null이면 필터 없음(전체 조회) — Filter UI의 체크박스도 모두 비어 있다.
-  /// "전체 선택"을 명시적으로 누르면 모든 토픽 ID가 채워진 Set이 되어 체크박스가 전부 체크된다.
+  /// 조회 대상 토픽 ID.
+  /// - null: 기본값. 전체 토픽 조회, Filter UI 체크박스도 모두 체크된 것으로 표시.
+  /// - 빈 Set: 전체 선택 해제. 조회 결과 0건, 체크박스도 모두 비어 있음.
+  /// - 그 외: 선택된 토픽만 조회.
   final Set<int>? selectedTopicIds;
   final String searchQuery;
   final bool isLoading;
@@ -252,12 +254,11 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     state = state.copyWith(activeFilter: () => type);
   }
 
-  /// 조회할 토픽을 변경한다. null 또는 빈 Set은 "선택 안 함(필터 없음, 전체 조회)"을 의미한다.
-  /// 선택 상태는 로컬에 저장되어 다음 실행에도 유지된다.
+  /// 조회할 토픽을 변경한다. null은 "전체(기본값)", 빈 Set은 "전체 선택 해제(0건)"을
+  /// 의미하며 둘은 서로 다른 상태다. 선택 상태는 로컬에 저장되어 다음 실행에도 유지된다.
   Future<void> filterByTopics(Set<int>? topicIds) async {
-    final normalized = (topicIds == null || topicIds.isEmpty) ? null : topicIds;
-    state = state.copyWith(selectedTopicIds: () => normalized);
-    await _topicFilterStorage.saveSelectedTopicIds(normalized);
+    state = state.copyWith(selectedTopicIds: () => topicIds);
+    await _topicFilterStorage.saveSelectedTopicIds(topicIds);
     await refresh();
   }
 
