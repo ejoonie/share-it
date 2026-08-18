@@ -131,7 +131,7 @@ class _ExpenseListTile extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Confirm Delete'),
-        content: Text('Delete "${expense.title}"?'),
+        content: Text('Delete "${expense.title.isEmpty ? 'No title' : expense.title}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -196,7 +196,7 @@ class _ExpenseListTile extends ConsumerWidget {
           ),
         ),
         title: Text(
-          expense.title,
+          expense.title.isEmpty ? 'No title' : expense.title,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: _buildSubTitle(context, topicName),
