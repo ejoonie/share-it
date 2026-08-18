@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../theme/app_theme.dart';
+import '../providers/core_providers.dart';
 import '../providers/expense_provider.dart';
 import '../models/expense_model.dart';
 import 'expense_form.dart';
+import 'topic_picker.dart';
 
 class ExpenseList extends ConsumerWidget {
   final ExpenseState state;
@@ -150,16 +152,21 @@ class _ExpenseListTile extends ConsumerWidget {
     );
   }
 
-  Text? _buildSubTitle(BuildContext context) {
-    final debug = expense.occurredAt.toIso8601String();
+  Text? _buildSubTitle(BuildContext context, String? topicName) {
+    // final debug = expense.occurredAt.toIso8601String();
     if (expense.content != null && expense.content!.isNotEmpty) {
-      return Text('${expense.content!}\n${debug}',
+      // return Text('${expense.content!}\n${debug}',
+      //     style: const TextStyle(fontSize: 10));
+      return Text('${expense.content!}\n${topicName ?? ''}',
           style: const TextStyle(fontSize: 10));
     } else if (expense.category != null) {
-      return Text('${expense.category!}\n${debug}',
+      // return Text('${expense.category!}\n${debug}',
+      //     style: const TextStyle(fontSize: 10));
+      return Text('${expense.category!}\n${topicName ?? ''}',
           style: const TextStyle(fontSize: 10));
     } else {
-      return Text('${debug}', style: const TextStyle(fontSize: 10));
+      // return Text('${debug}', style: const TextStyle(fontSize: 10));
+      return Text(topicName ?? '', style: const TextStyle(fontSize: 10));
     }
   }
 
@@ -169,6 +176,8 @@ class _ExpenseListTile extends ConsumerWidget {
     final amountColor = isIncome ? AppTheme.incomeColor : AppTheme.expenseColor;
     final amountPrefix = isIncome ? '+' : '';
     final formatter = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
+    final topics = ref.watch(myViewableTopicsProvider).valueOrNull ?? const [];
+    final topicName = findTopicById(topics, expense.topicId)?.title;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -190,7 +199,7 @@ class _ExpenseListTile extends ConsumerWidget {
           expense.title,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        subtitle: _buildSubTitle(context),
+        subtitle: _buildSubTitle(context, topicName),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
