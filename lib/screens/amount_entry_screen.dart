@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/expense_model.dart';
+import '../models/topic_model.dart';
+import '../providers/core_providers.dart';
 import '../theme/app_theme.dart';
 import '../utils/arithmetic_parser.dart';
+import '../widgets/topic_picker.dart';
 import 'add_expense_screen.dart';
 
-class AmountEntryScreen extends StatefulWidget {
+class AmountEntryScreen extends ConsumerStatefulWidget {
   final int initYear;
   final int initMonth;
   final int initDay;
@@ -19,18 +23,28 @@ class AmountEntryScreen extends StatefulWidget {
   });
 
   @override
-  State<AmountEntryScreen> createState() => _AmountEntryScreenState();
+  ConsumerState<AmountEntryScreen> createState() => _AmountEntryScreenState();
 }
 
-class _AmountEntryScreenState extends State<AmountEntryScreen> {
+class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
   String _input = '';
   int _cursor = 0;
   late DateTime _selectedDate;
+  int? _selectedTopicId;
 
   @override
   void initState() {
     super.initState();
     _selectedDate = DateTime(widget.initYear, widget.initMonth, widget.initDay);
+  }
+
+  Future<void> _pickTopic(List<TopicModel> topics, int? currentId) async {
+    final picked = await showTopicPickerSheet(
+      context,
+      topics: topics,
+      selectedTopicId: currentId,
+    );
+    if (picked != null) setState(() => _selectedTopicId = picked.id);
   }
 
   Future<void> _pickDate() async {
@@ -101,7 +115,15 @@ class _AmountEntryScreenState extends State<AmountEntryScreen> {
 
   void _submit(ExpenseType type) {
     if (_finalAmount <= 0) return;
+    final topicsValue = ref.read(myViewableTopicsProvider);
+    if (!topicsValue.hasValue) return;
     final amountStr = _finalAmount.toStringAsFixed(2);
+    final topics = topicsValue.value ?? const [];
+    final topicId = _selectedTopicId ??
+        resolveDefaultTopicId(
+          topics,
+          lastUsedTopicId: ref.read(lastUsedTopicStorageProvider).getLastUsedTopicId(),
+        );
     Navigator.push<void>(
       context,
       MaterialPageRoute(
@@ -111,6 +133,7 @@ class _AmountEntryScreenState extends State<AmountEntryScreen> {
           initDay: _selectedDate.day,
           initialAmount: amountStr,
           initialType: type,
+          initialTopicId: topicId,
         ),
       ),
     );
@@ -134,6 +157,7 @@ class _AmountEntryScreenState extends State<AmountEntryScreen> {
   @override
   Widget build(BuildContext context) {
     final evaluated = _evaluated;
+    final topicsAsync = ref.watch(myViewableTopicsProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -248,7 +272,9 @@ class _AmountEntryScreenState extends State<AmountEntryScreen> {
                     child: _ActionButton(
                       label: 'Income',
                       color: AppTheme.primaryColor,
-                      onTap: () => _submit(ExpenseType.income),
+                      onTap: topicsAsync.hasValue
+                          ? () => _submit(ExpenseType.income)
+                          : null,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -256,7 +282,9 @@ class _AmountEntryScreenState extends State<AmountEntryScreen> {
                     child: _ActionButton(
                       label: 'Expense',
                       color: const Color(0xFFEF5FA7),
-                      onTap: () => _submit(ExpenseType.expense),
+                      onTap: topicsAsync.hasValue
+                          ? () => _submit(ExpenseType.expense)
+                          : null,
                     ),
                   ),
                 ],
@@ -273,7 +301,46 @@ class _AmountEntryScreenState extends State<AmountEntryScreen> {
                     tooltip: 'Paste',
                     onTap: _onPaste,
                   ),
-                  const Spacer(),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: topicsAsync.when(
+                        data: (topics) {
+                          final effectiveId = _selectedTopicId ??
+                              resolveDefaultTopicId(
+                                topics,
+                                lastUsedTopicId: ref
+                                    .read(lastUsedTopicStorageProvider)
+                                    .getLastUsedTopicId(),
+                              );
+                          final selected = findTopicById(topics, effectiveId);
+                          return TopicSelectorChip(
+                            label: selected?.title ?? 'No topic',
+                            onTap: () => _pickTopic(topics, effectiveId),
+                          );
+                        },
+                        loading: () => const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          child: SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                        error: (_, __) => InkWell(
+                          onTap: () => ref.refresh(myViewableTopicsProvider),
+                          borderRadius: BorderRadius.circular(8),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            child: Text(
+                              'Failed to load topics. Tap to retry.',
+                              style: TextStyle(fontSize: 12, color: Colors.red),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                   _SmallIconButton(
                     icon: Icons.first_page,
                     tooltip: 'Move to start',
@@ -317,7 +384,7 @@ class _AmountEntryScreenState extends State<AmountEntryScreen> {
 class _ActionButton extends StatelessWidget {
   final String label;
   final Color color;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _ActionButton({
     required this.label,
@@ -327,12 +394,13 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final enabled = onTap != null;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         height: 56,
         decoration: BoxDecoration(
-          color: color,
+          color: enabled ? color : color.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(14),
         ),
         alignment: Alignment.center,

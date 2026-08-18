@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core_providers.dart';
 import '../models/expense_model.dart';
+import '../models/topic_filter.dart';
 import '../repositories/expense_repository.dart';
+import '../storage/topic_filter_storage.dart';
 
 final expenseRepositoryProvider = Provider<ExpenseRepository?>((ref) {
   final entryRepo = ref.watch(entryRepositoryProvider);
@@ -19,6 +21,7 @@ class ExpenseState {
   final List<ExpenseModel> selectedDateExpenses;
   final Map<DateTime, Map<String, int>> monthlySummary;
   final ExpenseType? activeFilter;
+  final TopicFilter topicFilter;
   final String searchQuery;
   final bool isLoading;
   final String? error;
@@ -32,6 +35,7 @@ class ExpenseState {
     required this.selectedDateExpenses,
     required this.monthlySummary,
     this.activeFilter,
+    this.topicFilter = const TopicFilterAll(),
     this.searchQuery = '',
     this.isLoading = false,
     this.error,
@@ -78,6 +82,7 @@ class ExpenseState {
     List<ExpenseModel>? selectedDateExpenses,
     Map<DateTime, Map<String, int>>? monthlySummary,
     ExpenseType? Function()? activeFilter,
+    TopicFilter? topicFilter,
     String? searchQuery,
     bool? isLoading,
     String? Function()? error,
@@ -91,6 +96,7 @@ class ExpenseState {
       selectedDateExpenses: selectedDateExpenses ?? this.selectedDateExpenses,
       monthlySummary: monthlySummary ?? this.monthlySummary,
       activeFilter: activeFilter != null ? activeFilter() : this.activeFilter,
+      topicFilter: topicFilter ?? this.topicFilter,
       searchQuery: searchQuery ?? this.searchQuery,
       isLoading: isLoading ?? this.isLoading,
       error: error != null ? error() : this.error,
@@ -110,8 +116,14 @@ class ExpenseState {
 /// After that, tapping the Expenses tab calls [load] explicitly to refresh.
 class ExpenseNotifier extends StateNotifier<ExpenseState> {
   final ExpenseRepository? _repository;
+  final TopicFilterStorage _topicFilterStorage;
 
-  ExpenseNotifier(this._repository) : super(ExpenseState.initial()) {
+  ExpenseNotifier(this._repository, this._topicFilterStorage)
+      : super(
+          ExpenseState.initial().copyWith(
+            topicFilter: _topicFilterStorage.getFilter(),
+          ),
+        ) {
     if (_repository != null) load();
   }
 
@@ -125,9 +137,16 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
       final m = DateTime(month.year, month.month);
       final today = DateTime.now();
       final selectedDate = DateTime(today.year, today.month, today.day);
-      final monthly = await repo.getExpensesByMonth(m.year, m.month);
+      final topicIds = state.topicFilter.queryTopicIds;
+      final monthly =
+          await repo.getExpensesByMonth(m.year, m.month, topicIds: topicIds);
       final summary = repo.buildMonthlySummary(monthly);
-      final daily = await repo.getExpensesByDate(selectedDate.year, selectedDate.month, selectedDate.day);
+      final daily = await repo.getExpensesByDate(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+        topicIds: topicIds,
+      );
       state = state.copyWith(
         focusedMonth: m,
         selectedDate: selectedDate,
@@ -147,9 +166,16 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     try {
       final m = DateTime(month.year, month.month);
       final selectedDate = DateTime(m.year, m.month, 1);
-      final monthly = await repo.getExpensesByMonth(m.year, m.month);
+      final topicIds = state.topicFilter.queryTopicIds;
+      final monthly =
+          await repo.getExpensesByMonth(m.year, m.month, topicIds: topicIds);
       final summary = repo.buildMonthlySummary(monthly);
-      final daily = await repo.getExpensesByDate(selectedDate.year, selectedDate.month, selectedDate.day);
+      final daily = await repo.getExpensesByDate(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+        topicIds: topicIds,
+      );
       state = state.copyWith(
         focusedMonth: m,
         selectedDate: selectedDate,
@@ -167,7 +193,12 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     final repo = _repository;
     if (repo == null) return;
     try {
-      final daily = await repo.getExpensesByDate(year, month, day);
+      final daily = await repo.getExpensesByDate(
+        year,
+        month,
+        day,
+        topicIds: state.topicFilter.queryTopicIds,
+      );
       state = state.copyWith(
         selectedDate: date,
         selectedDateExpenses: daily,
@@ -182,7 +213,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     if (repo == null) return;
     try {
       await repo.addExpense(expense);
-      await _refresh();
+      await refresh();
     } catch (e) {
       state = state.copyWith(error: () => e.toString());
     }
@@ -193,7 +224,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     if (repo == null) return;
     try {
       await repo.updateExpense(expense);
-      await _refresh();
+      await refresh();
     } catch (e) {
       state = state.copyWith(error: () => e.toString());
     }
@@ -204,7 +235,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     if (repo == null) return;
     try {
       await repo.deleteExpense(id);
-      await _refresh();
+      await refresh();
     } catch (e) {
       state = state.copyWith(error: () => e.toString());
     }
@@ -218,24 +249,56 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     state = state.copyWith(activeFilter: () => type);
   }
 
-  Future<void> _refresh() async {
+  /// 조회할 토픽 범위를 바꾼다. 선택 상태는 로컬에 저장되어 다음 실행에도 유지된다.
+  Future<void> filterByTopics(TopicFilter filter) async {
+    state = state.copyWith(topicFilter: filter);
+    await _topicFilterStorage.saveFilter(filter);
+    await refresh();
+  }
+
+  /// 새로 구독한 토픽을 현재 필터에 포함시킨다. 전체 선택(all) 상태라면
+  /// 이미 모든 토픽이 보이는 중이므로 그대로 둔다.
+  Future<void> includeTopicInSelection(int topicId) async {
+    final current = state.topicFilter;
+    if (current.isSelected(topicId)) return;
+    await filterByTopics(current.includingTopic(topicId));
+  }
+
+  /// 현재 월/선택된 날짜의 데이터를 다시 불러온다. 전체 화면 로딩 스피너를 띄우지 않으므로
+  /// pull-to-refresh처럼 기존 화면을 유지한 채 갱신하는 용도로도 쓸 수 있다.
+  Future<void> refresh() async {
     final repo = _repository;
     if (repo == null) return;
-    final monthly = await repo.getExpensesByMonth(
-      state.focusedMonth.year,
-      state.focusedMonth.month,
-    );
-    final summary = repo.buildMonthlySummary(monthly);
-    final daily = await repo.getExpensesByDate(state.year, state.month, state.day);
-    state = state.copyWith(
-      monthlyExpenses: monthly,
-      selectedDateExpenses: daily,
-      monthlySummary: summary,
-    );
+    try {
+      final topicIds = state.topicFilter.queryTopicIds;
+      final monthly = await repo.getExpensesByMonth(
+        state.focusedMonth.year,
+        state.focusedMonth.month,
+        topicIds: topicIds,
+      );
+      final summary = repo.buildMonthlySummary(monthly);
+      final daily = await repo.getExpensesByDate(
+        state.year,
+        state.month,
+        state.day,
+        topicIds: topicIds,
+      );
+      state = state.copyWith(
+        monthlyExpenses: monthly,
+        selectedDateExpenses: daily,
+        monthlySummary: summary,
+        error: () => null,
+      );
+    } catch (e) {
+      state = state.copyWith(error: () => e.toString());
+    }
   }
 }
 
 final expenseNotifierProvider =
     StateNotifierProvider<ExpenseNotifier, ExpenseState>(
-  (ref) => ExpenseNotifier(ref.watch(expenseRepositoryProvider)),
+  (ref) => ExpenseNotifier(
+    ref.watch(expenseRepositoryProvider),
+    ref.watch(topicFilterStorageProvider),
+  ),
 );

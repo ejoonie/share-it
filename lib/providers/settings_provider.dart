@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/subscription_model.dart';
 import '../models/topic_model.dart';
 import 'core_providers.dart';
+import 'topic_list_events.dart';
 
 class SettingsState {
   final AsyncValue<List<TopicModel>> myPiggies;
@@ -67,6 +68,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   Future<bool> unsubscribe(int topicId) async {
     try {
       await _ref.read(subscriptionRepositoryProvider).unsubscribe(topicId);
+      await notifyTopicListChanged(_ref);
       state = state.copyWith(
         subscriptions: state.subscriptions.whenData(
           (list) => list.where((s) => s.topic.id != topicId).toList(),

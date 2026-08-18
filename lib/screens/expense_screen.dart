@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../theme/app_theme.dart';
+import '../providers/core_providers.dart';
 import '../providers/expense_provider.dart';
 import '../models/expense_model.dart';
+import '../models/topic_filter.dart';
+import '../models/topic_model.dart';
 import '../widgets/expense_calendar.dart';
 import '../widgets/expense_list.dart';
 import '../widgets/summary_drawer.dart';
@@ -56,55 +59,132 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
     }
   }
 
-  void _showFilterDialog(ExpenseType? current) {
+  void _showFilterDialog() {
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Filter',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      builder: (_) => Consumer(
+        builder: (context, ref, _) {
+          final state = ref.watch(expenseNotifierProvider);
+          final current = state.activeFilter;
+          final topicFilter = state.topicFilter;
+          final topicsAsync = ref.watch(myViewableTopicsProvider);
+
+          return SafeArea(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.8,
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Filter',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    _FilterTile(
+                      label: 'All',
+                      selected: current == null,
+                      onTap: () {
+                        ref
+                            .read(expenseNotifierProvider.notifier)
+                            .filterExpenses(null);
+                        Navigator.pop(context);
+                      },
+                    ),
+                    _FilterTile(
+                      label: 'Expense',
+                      selected: current == ExpenseType.expense,
+                      onTap: () {
+                        ref
+                            .read(expenseNotifierProvider.notifier)
+                            .filterExpenses(ExpenseType.expense);
+                        Navigator.pop(context);
+                      },
+                    ),
+                    _FilterTile(
+                      label: 'Income',
+                      selected: current == ExpenseType.income,
+                      onTap: () {
+                        ref
+                            .read(expenseNotifierProvider.notifier)
+                            .filterExpenses(ExpenseType.income);
+                        Navigator.pop(context);
+                      },
+                    ),
+                    const Divider(height: 32),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Topics',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        topicsAsync.maybeWhen(
+                          data: (topics) {
+                            if (topics.isEmpty) return const SizedBox.shrink();
+                            final allSelected = topics
+                                .every((t) => topicFilter.isSelected(t.id));
+                            return TextButton(
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: () => ref
+                                  .read(expenseNotifierProvider.notifier)
+                                  .filterByTopics(
+                                    allSelected
+                                        ? const TopicFilterNone()
+                                        : TopicFilterSelected(
+                                            topics.map((t) => t.id).toSet()),
+                                  ),
+                              child: Text(
+                                  allSelected ? 'Unselect All' : 'Select All'),
+                            );
+                          },
+                          orElse: () => const SizedBox.shrink(),
+                        ),
+                      ],
+                    ),
+                    topicsAsync.when(
+                      data: (topics) => _TopicFilterList(
+                        topics: topics,
+                        topicFilter: topicFilter,
+                        onChanged: (next) => ref
+                            .read(expenseNotifierProvider.notifier)
+                            .filterByTopics(next),
+                      ),
+                      loading: () => const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                      error: (e, _) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Text(
+                          'Failed to load topics',
+                          style: TextStyle(color: Colors.red.shade400),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 12),
-            _FilterTile(
-              label: 'All',
-              selected: current == null,
-              onTap: () {
-                ref
-                    .read(expenseNotifierProvider.notifier)
-                    .filterExpenses(null);
-                Navigator.pop(context);
-              },
-            ),
-            _FilterTile(
-              label: 'Expense',
-              selected: current == ExpenseType.expense,
-              onTap: () {
-                ref
-                    .read(expenseNotifierProvider.notifier)
-                    .filterExpenses(ExpenseType.expense);
-                Navigator.pop(context);
-              },
-            ),
-            _FilterTile(
-              label: 'Income',
-              selected: current == ExpenseType.income,
-              onTap: () {
-                ref
-                    .read(expenseNotifierProvider.notifier)
-                    .filterExpenses(ExpenseType.income);
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -152,8 +232,9 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                   filled: false,
                   contentPadding: EdgeInsets.zero,
                 ),
-                onChanged: (q) =>
-                    ref.read(expenseNotifierProvider.notifier).searchExpenses(q),
+                onChanged: (q) => ref
+                    .read(expenseNotifierProvider.notifier)
+                    .searchExpenses(q),
               )
             : Row(
                 mainAxisSize: MainAxisSize.min,
@@ -187,16 +268,14 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                 _isSearching = !_isSearching;
                 if (!_isSearching) {
                   _searchController.clear();
-                  ref
-                      .read(expenseNotifierProvider.notifier)
-                      .searchExpenses('');
+                  ref.read(expenseNotifierProvider.notifier).searchExpenses('');
                 }
               });
             },
           ),
           IconButton(
             icon: const Icon(Icons.tune_outlined),
-            onPressed: () => _showFilterDialog(state.activeFilter),
+            onPressed: _showFilterDialog,
           ),
         ],
         bottom: const PreferredSize(
@@ -223,7 +302,8 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddExpenseForm(state.year, state.month, state.day),
+        onPressed: () =>
+            _showAddExpenseForm(state.year, state.month, state.day),
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         shape: const CircleBorder(),
@@ -271,7 +351,8 @@ class _MonthlySummaryBar extends StatelessWidget {
                 amountColor: AppTheme.incomeColor,
               ),
             ),
-            Container(width: 1, height: 32, color: Colors.grey.shade300), // 가운데 버티컬 바
+            Container(
+                width: 1, height: 32, color: Colors.grey.shade300), // 가운데 버티컬 바
             Expanded(
               child: _SummaryCard(
                 label: 'Expense',
@@ -363,10 +444,61 @@ class _FilterTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       title: Text(label),
-      trailing: selected
-          ? const Icon(Icons.check, color: Color(0xFF4CAF50))
-          : null,
+      trailing:
+          selected ? const Icon(Icons.check, color: Color(0xFF4CAF50)) : null,
       onTap: onTap,
+    );
+  }
+}
+
+/// 토픽 멀티 선택 체크박스 목록. [topicFilter]가 [TopicFilterAll]이면 기본값(전체
+/// 선택)으로 취급해 체크박스를 모두 채워 둔다.
+class _TopicFilterList extends StatelessWidget {
+  final List<TopicModel> topics;
+  final TopicFilter topicFilter;
+  final ValueChanged<TopicFilter> onChanged;
+
+  const _TopicFilterList({
+    required this.topics,
+    required this.topicFilter,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (topics.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Text('No topics', style: TextStyle(color: Colors.black45)),
+      );
+    }
+
+    final allIds = topics.map((t) => t.id).toSet();
+
+    return Column(
+      children: topics.map((topic) {
+        final isSelected = topicFilter.isSelected(topic.id);
+        return CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: Text(topic.title),
+          value: isSelected,
+          onChanged: (checked) {
+            // 기본값(전체 선택)에서 시작하면 전체 Set에서부터 하나씩 제외해 나간다.
+            final next = switch (topicFilter) {
+              TopicFilterAll() => allIds.toSet(),
+              TopicFilterNone() => <int>{},
+              TopicFilterSelected(:final topicIds) => topicIds.toSet(),
+            };
+            if (checked == true) {
+              next.add(topic.id);
+            } else {
+              next.remove(topic.id);
+            }
+            onChanged(TopicFilterSelected(next));
+          },
+        );
+      }).toList(),
     );
   }
 }

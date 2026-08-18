@@ -34,7 +34,32 @@ RSpec.describe Topic, type: :model do
       topic = Topic.create!(user: users(:user_one), title: "Generated Defaults Topic", is_default: false)
 
       expect(topic.token).to match(/\A[0-9a-f\-]{36}\z/)
-      expect(topic.default_permissions).to eq(%w[create edit])
+      expect(topic.default_permissions).to eq(%w[create edit delete])
+    end
+  end
+
+  describe "#follow_by_owner" do
+    it "creates a TopicFollow for the owner on create" do
+      user = users(:user_one)
+
+      topic = nil
+      expect {
+        topic = user.topics.create!(title: "Owner Follow Topic", is_default: false)
+      }.to change(TopicFollow, :count).by(1)
+
+      follow = TopicFollow.find_by(user: user, topic: topic)
+      expect(follow).not_to be_nil
+      expect(follow.permissions).to eq(topic.default_permissions)
+      expect(user.followed_topics).to include(topic)
+    end
+
+    it "does not create a duplicate follow when the owner already follows it" do
+      user = users(:user_one)
+      topic = user.topics.create!(title: "Idempotent Topic", is_default: false)
+
+      expect {
+        user.follow(topic)
+      }.not_to change(TopicFollow, :count)
     end
   end
 

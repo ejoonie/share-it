@@ -1,15 +1,28 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
+import '../models/topic_model.dart';
 import '../repositories/entry_repository.dart';
 import '../repositories/topic_repository.dart';
+import '../storage/last_used_topic_storage.dart';
 import '../storage/token_storage.dart';
+import '../storage/topic_filter_storage.dart';
 import '../repositories/subscription_repository.dart';
 import 'session_provider.dart';
 
 /// Must be overridden in main() with a real [TokenStorage] instance.
 final tokenStorageProvider = Provider<TokenStorage>((ref) {
   throw UnimplementedError('tokenStorageProvider must be overridden');
+});
+
+/// Must be overridden in main() with a real [TopicFilterStorage] instance.
+final topicFilterStorageProvider = Provider<TopicFilterStorage>((ref) {
+  throw UnimplementedError('topicFilterStorageProvider must be overridden');
+});
+
+/// Must be overridden in main() with a real [LastUsedTopicStorage] instance.
+final lastUsedTopicStorageProvider = Provider<LastUsedTopicStorage>((ref) {
+  throw UnimplementedError('lastUsedTopicStorageProvider must be overridden');
 });
 
 final apiClientProvider = Provider<ApiClient>((ref) {
@@ -33,8 +46,8 @@ final selectedTopicIdProvider = StateProvider<int?>((ref) => null);
 /// 실제로 사용 중인 토픽 ID.
 /// 선택값이 있으면 우선, 없으면 세션 로드 시 내려온 기본 토픽을 사용한다.
 final currentTopicIdProvider = Provider<int?>((ref) {
-  return ref.watch(selectedTopicIdProvider)
-      ?? ref.watch(sessionNotifierProvider).data?.topic?.id;
+  return ref.watch(selectedTopicIdProvider) ??
+      ref.watch(sessionNotifierProvider).data?.topic?.id;
 });
 
 final entryRepositoryProvider = Provider<EntryRepository?>((ref) {
@@ -46,3 +59,18 @@ final entryRepositoryProvider = Provider<EntryRepository?>((ref) {
   );
 });
 
+/// 내가 소유하거나 구독하는 모든 토픽 (중복 제거). 달력 Filter의 토픽 목록으로 쓰인다.
+final myViewableTopicsProvider = FutureProvider<List<TopicModel>>((ref) async {
+  final owned = await ref.watch(topicRepositoryProvider).fetchOwned();
+  final subscriptions =
+      await ref.watch(subscriptionRepositoryProvider).fetchAll();
+
+  final byId = <int, TopicModel>{};
+  for (final topic in owned) {
+    byId[topic.id] = topic;
+  }
+  for (final subscription in subscriptions) {
+    byId[subscription.topic.id] = subscription.topic;
+  }
+  return byId.values.toList();
+});

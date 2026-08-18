@@ -29,7 +29,38 @@ class EntryRepository {
         .toList();
   }
 
+  /// 내가 구독하는 모든 토픽의 엔트리를 조회한다 (GET /api/v1/entries).
+  /// [topicIds]가 null이면 구독 중인 모든 토픽을 대상으로 한다.
+  /// [topicIds]가 명시적으로 빈 목록이면(전체 선택 해제) 서버 호출 없이 빈 결과를 반환한다.
+  Future<List<EntryModel>> listAllEntries({
+    List<int>? topicIds,
+    Map<String, dynamic>? q,
+    int page = 1,
+    int limit = 100,
+  }) async {
+    if (topicIds != null && topicIds.isEmpty) return const [];
+
+    final json = await _apiClient.get(
+      '/api/v1/entries',
+      queryParams: {
+        'page': page,
+        'limit': limit,
+        if (topicIds != null && topicIds.isNotEmpty)
+          'q[topic_id_in][]': topicIds,
+        ...?q,
+      },
+    );
+    final records = json['records'] as List<dynamic>;
+    return records
+        .map((e) => EntryModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// 구독 중인 토픽에 엔트리를 생성한다 (POST /api/v1/entries).
+  /// [topicId]를 생략하면 이 리포지토리가 바인딩된 토픽에 생성한다.
+  /// 서버에서 해당 토픽 follow의 create 권한을 확인한다.
   Future<EntryModel> createEntry({
+    int? topicId,
     DateTime? occurredAt,
     String? kind,
     String? currency,
@@ -40,7 +71,9 @@ class EntryRepository {
     bool? checked,
   }) async {
     final body = <String, dynamic>{
-      if (occurredAt != null) 'occurred_at': occurredAt.toUtc().toIso8601String(),
+      'topic_id': topicId ?? this.topicId,
+      if (occurredAt != null)
+        'occurred_at': occurredAt.toUtc().toIso8601String(),
       if (kind != null) 'kind': kind,
       if (currency != null) 'currency': currency,
       if (amount != null) 'amount': amount,
@@ -49,10 +82,13 @@ class EntryRepository {
       if (content != null) 'content': content,
       if (checked != null) 'checked': checked,
     };
-    final json = await _apiClient.post(_basePath, body);
+    final json = await _apiClient.post('/api/v1/entries', body);
     return EntryModel.fromJson(json);
   }
 
+  /// 엔트리를 수정한다 (PATCH /api/v1/entries/:id).
+  /// 어느 토픽에 속하든 서버가 entry로부터 토픽을 찾아 follow의 edit 권한을 확인하므로,
+  /// 호출하는 쪽에서 topicId를 알 필요가 없다.
   Future<EntryModel> updateEntry(
     int id, {
     DateTime? occurredAt,
@@ -65,7 +101,8 @@ class EntryRepository {
     bool? checked,
   }) async {
     final body = <String, dynamic>{
-      if (occurredAt != null) 'occurred_at': occurredAt.toUtc().toIso8601String(),
+      if (occurredAt != null)
+        'occurred_at': occurredAt.toUtc().toIso8601String(),
       if (kind != null) 'kind': kind,
       if (currency != null) 'currency': currency,
       if (amount != null) 'amount': amount,
@@ -74,14 +111,13 @@ class EntryRepository {
       if (content != null) 'content': content,
       if (checked != null) 'checked': checked,
     };
-    final json = await _apiClient.patch('$_basePath/$id', body);
+    final json = await _apiClient.patch('/api/v1/entries/$id', body);
     return EntryModel.fromJson(json);
   }
 
+  /// 엔트리를 삭제한다 (DELETE /api/v1/entries/:id). 서버가 follow의 delete 권한을 확인한다.
   Future<EntryModel> deleteEntry(int id) async {
-    // 어떤 topic/entry 를 삭제하는지 확인
-    // debugPrint('[deleteEntry] DELETE $_basePath/$id (topicId: $topicId, entryId: $id)');
-    final json = await _apiClient.delete('$_basePath/$id');
+    final json = await _apiClient.delete('/api/v1/entries/$id');
     return EntryModel.fromJson(json);
   }
 }

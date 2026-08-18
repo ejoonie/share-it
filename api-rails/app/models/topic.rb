@@ -1,6 +1,7 @@
 class Topic < ApplicationRecord
   before_validation :generate_token, on: :create
   before_validation :set_default_permissions, on: :create
+  after_create :follow_by_owner
 
   default_scope { where(deleted_at: nil) }
 
@@ -36,6 +37,11 @@ class Topic < ApplicationRecord
   end
 
   def set_default_permissions
-    self.default_permissions ||= %w[create edit]
+    self.default_permissions ||= %w[create edit delete]
+  end
+
+  # 토픽 생성자는 항상 자신의 토픽을 구독한 상태로 시작한다.
+  def follow_by_owner
+    user.follow(self)
   end
 end

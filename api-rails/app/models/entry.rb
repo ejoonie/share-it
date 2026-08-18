@@ -10,7 +10,7 @@ class Entry < ApplicationRecord
   validates :checked, inclusion: { in: [true, false] }
 
   def self.ransackable_attributes(_auth_object = nil)
-    %w[kind currency amount category title content checked occurred_at created_at updated_at]
+    %w[topic_id kind currency amount category title content checked occurred_at created_at updated_at]
   end
 
   def self.ransackable_associations(_auth_object = nil)

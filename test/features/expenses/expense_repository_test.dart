@@ -7,6 +7,7 @@ import 'package:share_it/repositories/expense_repository.dart';
 // stub EntryRepository that returns a fixed list of entries
 class _StubEntryRepository extends EntryRepository {
   final List<EntryModel> _entries;
+  List<int>? lastTopicIds;
 
   _StubEntryRepository(this._entries)
       : super(
@@ -16,6 +17,17 @@ class _StubEntryRepository extends EntryRepository {
 
   @override
   Future<List<EntryModel>> listEntries({Map<String, dynamic>? q, int page = 1, int limit = 100}) async => _entries;
+
+  @override
+  Future<List<EntryModel>> listAllEntries({
+    List<int>? topicIds,
+    Map<String, dynamic>? q,
+    int page = 1,
+    int limit = 100,
+  }) async {
+    lastTopicIds = topicIds;
+    return _entries;
+  }
 }
 
 EntryModel _makeEntry({
@@ -166,5 +178,32 @@ void main() {
 
     // UTC 날짜로 조회 시 빈 결과 검증은 서버사이드(ransack) 필터링 동작이므로
     // 통합 테스트에서 확인한다.
+  });
+
+  // ---------------------------------------------------------------------------
+  // 토픽별 멀티 필터링 (이슈 #112)
+  // ---------------------------------------------------------------------------
+  group('ExpenseRepository - topicIds 필터 전달 (이슈 #112)', () {
+    test('topicIds가 주어지면 EntryRepository.listAllEntries로 그대로 전달된다', () async {
+      final stub = _StubEntryRepository([]);
+      final repo = ExpenseRepository(entryRepository: stub);
+
+      await repo.getExpensesByMonth(2026, 1, topicIds: [1, 2]);
+      expect(stub.lastTopicIds, [1, 2]);
+
+      await repo.getExpensesByDate(2026, 1, 15, topicIds: [3]);
+      expect(stub.lastTopicIds, [3]);
+
+      await repo.getAllExpenses(topicIds: [4, 5]);
+      expect(stub.lastTopicIds, [4, 5]);
+    });
+
+    test('topicIds를 생략하면 null로 전달되어 접근 가능한 모든 토픽을 조회한다', () async {
+      final stub = _StubEntryRepository([]);
+      final repo = ExpenseRepository(entryRepository: stub);
+
+      await repo.getExpensesByMonth(2026, 1);
+      expect(stub.lastTopicIds, isNull);
+    });
   });
 }

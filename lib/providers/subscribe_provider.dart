@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/topic_model.dart';
 import 'core_providers.dart';
+import 'topic_list_events.dart';
 
 class SubscribeState {
   final AsyncValue<TopicModel> topic;
@@ -49,6 +50,10 @@ class SubscribeNotifier extends StateNotifier<SubscribeState> {
     );
     try {
       await _ref.read(subscriptionRepositoryProvider).subscribe(topicToken);
+      await notifyTopicListChanged(
+        _ref,
+        justSubscribedTopicId: state.topic.value?.id,
+      );
       state = SubscribeState(
         topic: state.topic,
         subscribeResult: const AsyncValue.data(null),
