@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../providers/core_providers.dart';
 import '../providers/expense_provider.dart';
 import '../models/expense_model.dart';
+import '../models/topic_filter.dart';
 import '../models/topic_model.dart';
 import '../widgets/expense_calendar.dart';
 import '../widgets/expense_list.dart';
@@ -69,7 +70,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
         builder: (context, ref, _) {
           final state = ref.watch(expenseNotifierProvider);
           final current = state.activeFilter;
-          final selectedTopicIds = state.selectedTopicIds;
+          final topicFilter = state.topicFilter;
           final topicsAsync = ref.watch(myViewableTopicsProvider);
 
           return SafeArea(
@@ -134,9 +135,8 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                         topicsAsync.maybeWhen(
                           data: (topics) {
                             if (topics.isEmpty) return const SizedBox.shrink();
-                            final allSelected = selectedTopicIds == null ||
-                                topics.every(
-                                    (t) => selectedTopicIds!.contains(t.id));
+                            final allSelected = topics
+                                .every((t) => topicFilter.isSelected(t.id));
                             return TextButton(
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
@@ -147,8 +147,9 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                                   .read(expenseNotifierProvider.notifier)
                                   .filterByTopics(
                                     allSelected
-                                        ? <int>{}
-                                        : topics.map((t) => t.id).toSet(),
+                                        ? const TopicFilterNone()
+                                        : TopicFilterSelected(
+                                            topics.map((t) => t.id).toSet()),
                                   ),
                               child: Text(
                                   allSelected ? 'Unselect All' : 'Select All'),
@@ -161,7 +162,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                     topicsAsync.when(
                       data: (topics) => _TopicFilterList(
                         topics: topics,
-                        selectedTopicIds: selectedTopicIds,
+                        topicFilter: topicFilter,
                         onChanged: (next) => ref
                             .read(expenseNotifierProvider.notifier)
                             .filterByTopics(next),
@@ -450,16 +451,16 @@ class _FilterTile extends StatelessWidget {
   }
 }
 
-/// 토픽 멀티 선택 체크박스 목록. [selectedTopicIds]가 null이면 기본값(전체 선택)으로
-/// 취급해 체크박스를 모두 채워 둔다. 빈 Set은 전체 선택 해제(체크박스 모두 빈 상태)다.
+/// 토픽 멀티 선택 체크박스 목록. [topicFilter]가 [TopicFilterAll]이면 기본값(전체
+/// 선택)으로 취급해 체크박스를 모두 채워 둔다.
 class _TopicFilterList extends StatelessWidget {
   final List<TopicModel> topics;
-  final Set<int>? selectedTopicIds;
-  final ValueChanged<Set<int>?> onChanged;
+  final TopicFilter topicFilter;
+  final ValueChanged<TopicFilter> onChanged;
 
   const _TopicFilterList({
     required this.topics,
-    required this.selectedTopicIds,
+    required this.topicFilter,
     required this.onChanged,
   });
 
@@ -476,22 +477,25 @@ class _TopicFilterList extends StatelessWidget {
 
     return Column(
       children: topics.map((topic) {
-        final isSelected =
-            selectedTopicIds == null || selectedTopicIds!.contains(topic.id);
+        final isSelected = topicFilter.isSelected(topic.id);
         return CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
           title: Text(topic.title),
           value: isSelected,
           onChanged: (checked) {
-            // null(기본값=전체 선택)에서 시작하면 전체 Set에서부터 하나씩 제외해 나간다.
-            final next = (selectedTopicIds ?? allIds).toSet();
+            // 기본값(전체 선택)에서 시작하면 전체 Set에서부터 하나씩 제외해 나간다.
+            final next = switch (topicFilter) {
+              TopicFilterAll() => allIds.toSet(),
+              TopicFilterNone() => <int>{},
+              TopicFilterSelected(:final topicIds) => topicIds.toSet(),
+            };
             if (checked == true) {
               next.add(topic.id);
             } else {
               next.remove(topic.id);
             }
-            onChanged(next);
+            onChanged(TopicFilterSelected(next));
           },
         );
       }).toList(),

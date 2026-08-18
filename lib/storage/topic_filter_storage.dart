@@ -1,9 +1,11 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// 달력 Filter에서 선택한 토픽 목록을 로컬에 저장한다.
-/// 값이 저장되어 있지 않으면(키 없음) "아무것도 선택 안 함" 상태를 의미하며,
-/// 이 경우 필터는 적용되지 않고(전체 토픽 조회) UI 체크박스도 비어 있다.
+import '../models/topic_filter.dart';
+
+/// 달력 Filter에서 선택한 토픽 범위를 로컬에 저장한다.
+/// 아무것도 저장돼 있지 않으면 [TopicFilterAll](기본값)로 취급한다.
 class TopicFilterStorage {
+  static const String _modeKey = 'topic_filter_mode';
   static const String _selectedTopicIdsKey = 'selected_topic_ids';
 
   final SharedPreferences _prefs;
@@ -15,20 +17,32 @@ class TopicFilterStorage {
     return TopicFilterStorage(prefs);
   }
 
-  Set<int>? getSelectedTopicIds() {
-    final stored = _prefs.getStringList(_selectedTopicIdsKey);
-    if (stored == null) return null;
-    return stored.map(int.parse).toSet();
+  TopicFilter getFilter() {
+    switch (_prefs.getString(_modeKey)) {
+      case 'none':
+        return const TopicFilterNone();
+      case 'selected':
+        final stored = _prefs.getStringList(_selectedTopicIdsKey) ?? const [];
+        return TopicFilterSelected(stored.map(int.parse).toSet());
+      default:
+        return const TopicFilterAll();
+    }
   }
 
-  Future<void> saveSelectedTopicIds(Set<int>? topicIds) async {
-    if (topicIds == null) {
-      await _prefs.remove(_selectedTopicIdsKey);
-    } else {
-      await _prefs.setStringList(
-        _selectedTopicIdsKey,
-        topicIds.map((id) => id.toString()).toList(),
-      );
+  Future<void> saveFilter(TopicFilter filter) async {
+    switch (filter) {
+      case TopicFilterAll():
+        await _prefs.remove(_modeKey);
+        await _prefs.remove(_selectedTopicIdsKey);
+      case TopicFilterNone():
+        await _prefs.setString(_modeKey, 'none');
+        await _prefs.remove(_selectedTopicIdsKey);
+      case TopicFilterSelected(:final topicIds):
+        await _prefs.setString(_modeKey, 'selected');
+        await _prefs.setStringList(
+          _selectedTopicIdsKey,
+          topicIds.map((id) => id.toString()).toList(),
+        );
     }
   }
 }

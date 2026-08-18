@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core_providers.dart';
 import '../models/expense_model.dart';
+import '../models/topic_filter.dart';
 import '../repositories/expense_repository.dart';
 import '../storage/topic_filter_storage.dart';
 
@@ -20,12 +21,7 @@ class ExpenseState {
   final List<ExpenseModel> selectedDateExpenses;
   final Map<DateTime, Map<String, int>> monthlySummary;
   final ExpenseType? activeFilter;
-
-  /// 조회 대상 토픽 ID.
-  /// - null: 기본값. 전체 토픽 조회, Filter UI 체크박스도 모두 체크된 것으로 표시.
-  /// - 빈 Set: 전체 선택 해제. 조회 결과 0건, 체크박스도 모두 비어 있음.
-  /// - 그 외: 선택된 토픽만 조회.
-  final Set<int>? selectedTopicIds;
+  final TopicFilter topicFilter;
   final String searchQuery;
   final bool isLoading;
   final String? error;
@@ -39,7 +35,7 @@ class ExpenseState {
     required this.selectedDateExpenses,
     required this.monthlySummary,
     this.activeFilter,
-    this.selectedTopicIds,
+    this.topicFilter = const TopicFilterAll(),
     this.searchQuery = '',
     this.isLoading = false,
     this.error,
@@ -86,7 +82,7 @@ class ExpenseState {
     List<ExpenseModel>? selectedDateExpenses,
     Map<DateTime, Map<String, int>>? monthlySummary,
     ExpenseType? Function()? activeFilter,
-    Set<int>? Function()? selectedTopicIds,
+    TopicFilter? topicFilter,
     String? searchQuery,
     bool? isLoading,
     String? Function()? error,
@@ -100,8 +96,7 @@ class ExpenseState {
       selectedDateExpenses: selectedDateExpenses ?? this.selectedDateExpenses,
       monthlySummary: monthlySummary ?? this.monthlySummary,
       activeFilter: activeFilter != null ? activeFilter() : this.activeFilter,
-      selectedTopicIds:
-          selectedTopicIds != null ? selectedTopicIds() : this.selectedTopicIds,
+      topicFilter: topicFilter ?? this.topicFilter,
       searchQuery: searchQuery ?? this.searchQuery,
       isLoading: isLoading ?? this.isLoading,
       error: error != null ? error() : this.error,
@@ -126,7 +121,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
   ExpenseNotifier(this._repository, this._topicFilterStorage)
       : super(
           ExpenseState.initial().copyWith(
-            selectedTopicIds: () => _topicFilterStorage.getSelectedTopicIds(),
+            topicFilter: _topicFilterStorage.getFilter(),
           ),
         ) {
     if (_repository != null) load();
@@ -142,7 +137,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
       final m = DateTime(month.year, month.month);
       final today = DateTime.now();
       final selectedDate = DateTime(today.year, today.month, today.day);
-      final topicIds = state.selectedTopicIds?.toList();
+      final topicIds = state.topicFilter.queryTopicIds;
       final monthly =
           await repo.getExpensesByMonth(m.year, m.month, topicIds: topicIds);
       final summary = repo.buildMonthlySummary(monthly);
@@ -171,7 +166,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     try {
       final m = DateTime(month.year, month.month);
       final selectedDate = DateTime(m.year, m.month, 1);
-      final topicIds = state.selectedTopicIds?.toList();
+      final topicIds = state.topicFilter.queryTopicIds;
       final monthly =
           await repo.getExpensesByMonth(m.year, m.month, topicIds: topicIds);
       final summary = repo.buildMonthlySummary(monthly);
@@ -202,7 +197,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
         year,
         month,
         day,
-        topicIds: state.selectedTopicIds?.toList(),
+        topicIds: state.topicFilter.queryTopicIds,
       );
       state = state.copyWith(
         selectedDate: date,
@@ -254,20 +249,19 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     state = state.copyWith(activeFilter: () => type);
   }
 
-  /// 조회할 토픽을 변경한다. null은 "전체(기본값)", 빈 Set은 "전체 선택 해제(0건)"을
-  /// 의미하며 둘은 서로 다른 상태다. 선택 상태는 로컬에 저장되어 다음 실행에도 유지된다.
-  Future<void> filterByTopics(Set<int>? topicIds) async {
-    state = state.copyWith(selectedTopicIds: () => topicIds);
-    await _topicFilterStorage.saveSelectedTopicIds(topicIds);
+  /// 조회할 토픽 범위를 바꾼다. 선택 상태는 로컬에 저장되어 다음 실행에도 유지된다.
+  Future<void> filterByTopics(TopicFilter filter) async {
+    state = state.copyWith(topicFilter: filter);
+    await _topicFilterStorage.saveFilter(filter);
     await refresh();
   }
 
-  /// 새로 구독한 토픽을 현재 필터에 포함시킨다. 전체 선택(null) 상태라면
+  /// 새로 구독한 토픽을 현재 필터에 포함시킨다. 전체 선택(all) 상태라면
   /// 이미 모든 토픽이 보이는 중이므로 그대로 둔다.
   Future<void> includeTopicInSelection(int topicId) async {
-    final current = state.selectedTopicIds;
-    if (current == null || current.contains(topicId)) return;
-    await filterByTopics({...current, topicId});
+    final current = state.topicFilter;
+    if (current.isSelected(topicId)) return;
+    await filterByTopics(current.includingTopic(topicId));
   }
 
   /// 현재 월/선택된 날짜의 데이터를 다시 불러온다. 전체 화면 로딩 스피너를 띄우지 않으므로
@@ -276,7 +270,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     final repo = _repository;
     if (repo == null) return;
     try {
-      final topicIds = state.selectedTopicIds?.toList();
+      final topicIds = state.topicFilter.queryTopicIds;
       final monthly = await repo.getExpensesByMonth(
         state.focusedMonth.year,
         state.focusedMonth.month,
