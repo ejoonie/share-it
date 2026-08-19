@@ -187,4 +187,124 @@ RSpec.describe "Entries API", type: :request do
       expect(response).to have_http_status(404)
     end
   end
+
+  # GET /api/v1/entries - read 필드 (이슈 #116)
+  describe "GET /api/v1/entries - read 필드" do
+    it "읽지 않은 entry는 read: false" do
+      get_json "/api/v1/entries", login_user: users(:user_two)
+
+      record = json_response["records"].find { |e| e["id"] == entries(:entry_in_topic_two).id }
+      expect(record["read"]).to eq(false)
+    end
+
+    it "읽음 처리된 entry는 read: true" do
+      EntryRead.create!(user: users(:user_two), entry: entries(:entry_in_topic_two), read_at: Time.current)
+
+      get_json "/api/v1/entries", login_user: users(:user_two)
+
+      record = json_response["records"].find { |e| e["id"] == entries(:entry_in_topic_two).id }
+      expect(record["read"]).to eq(true)
+    end
+  end
+
+  # POST /api/v1/entries/reads (이슈 #116)
+  describe "POST /api/v1/entries/reads" do
+    it "여러 entry를 한번에 읽음 처리한다" do
+      expect {
+        post_json "/api/v1/entries/reads",
+                  login_user: users(:user_one),
+                  params: { entry_ids: [entries(:entry_one).id, entries(:entry_two).id] }
+      }.to change(EntryRead, :count).by(2)
+
+      expect(response).to have_http_status(200)
+      expect(json_response["marked"]).to match_array([entries(:entry_one).id, entries(:entry_two).id])
+    end
+
+    it "이미 읽은 entry는 중복 생성하지 않는다" do
+      EntryRead.create!(user: users(:user_one), entry: entries(:entry_one), read_at: Time.current)
+
+      expect {
+        post_json "/api/v1/entries/reads",
+                  login_user: users(:user_one),
+                  params: { entry_ids: [entries(:entry_one).id, entries(:entry_two).id] }
+      }.to change(EntryRead, :count).by(1)
+    end
+
+    it "구독하지 않는 토픽의 entry는 무시한다" do
+      expect {
+        post_json "/api/v1/entries/reads",
+                  login_user: users(:user_two),
+                  params: { entry_ids: [entries(:entry_one).id] } # user_two는 topics(:one)을 구독하지 않음
+      }.not_to change(EntryRead, :count)
+
+      expect(json_response["marked"]).to eq([])
+    end
+
+    it "returns 401 when not authenticated" do
+      post "/api/v1/entries/reads", params: { entry_ids: [entries(:entry_one).id] }
+      expect(response).to have_http_status(401)
+    end
+  end
+
+  # 생성/수정 시 자동 읽음 처리 및 알림 큐잉 (이슈 #116)
+  describe "생성/수정 시 자동 읽음 처리 및 알림 큐잉" do
+    before { ActiveJob::Base.queue_adapter = :test }
+
+    it "엔트리를 생성하면 작성자 본인은 자동으로 읽음 처리된다" do
+      topic = topics(:one)
+
+      post_json "/api/v1/entries",
+                login_user: users(:user_one),
+                params: { topic_id: topic.id, title: "New" }
+
+      expect(json_response["read"]).to eq(true)
+      expect(EntryRead.exists?(user: users(:user_one), entry_id: json_response["id"])).to be true
+    end
+
+    it "엔트리를 수정하면 수정자 본인은 자동으로 읽음 처리된다" do
+      entry = entries(:entry_one)
+
+      patch_json "/api/v1/entries/#{entry.id}",
+                 login_user: users(:user_one),
+                 params: { title: "Edited" }
+
+      expect(json_response["read"]).to eq(true)
+      expect(EntryRead.exists?(user: users(:user_one), entry_id: entry.id)).to be true
+    end
+
+    it "본인을 제외하고, 디바이스 토큰을 등록한 구독자에게만 알림 잡이 큐잉된다" do
+      topic = topics(:one) # user_one 소유, guest_user·user_three가 구독
+      DeviceToken.create!(user: users(:guest_user), token: "guest-device", platform: "ios")
+      # user_three는 디바이스 토큰이 없으므로 알림 대상에서 제외된다
+
+      expect {
+        post_json "/api/v1/entries",
+                  login_user: users(:user_one),
+                  params: { topic_id: topic.id, title: "New" }
+      }.to have_enqueued_job(NotifyTopicChangeJob).exactly(1).times
+    end
+
+    it "notifications_enabled가 꺼진 구독자에게는 알림을 큐잉하지 않는다" do
+      topic = topics(:one)
+      TopicFollow.find_by(user: users(:guest_user), topic: topic).update!(notifications_enabled: false)
+      DeviceToken.create!(user: users(:guest_user), token: "guest-device", platform: "ios")
+      TopicFollow.find_by(user: users(:user_three), topic: topic).update!(notifications_enabled: true)
+      DeviceToken.create!(user: users(:user_three), token: "u3-device", platform: "android")
+
+      expect {
+        post_json "/api/v1/entries",
+                  login_user: users(:user_one),
+                  params: { topic_id: topic.id, title: "New" }
+      }.to have_enqueued_job(NotifyTopicChangeJob).exactly(1).times
+    end
+
+    it "삭제 시에도 알림 잡이 큐잉된다" do
+      entry = entries(:entry_one)
+      DeviceToken.create!(user: users(:guest_user), token: "guest-device", platform: "ios")
+
+      expect {
+        delete_json "/api/v1/entries/#{entry.id}", login_user: users(:user_one)
+      }.to have_enqueued_job(NotifyTopicChangeJob).exactly(1).times
+    end
+  end
 end
