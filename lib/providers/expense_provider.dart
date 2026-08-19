@@ -165,7 +165,11 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     if (repo == null) return;
     try {
       final m = DateTime(month.year, month.month);
-      final selectedDate = DateTime(m.year, m.month, 1);
+      // 현재 선택된 날짜와 같은 일(day)로 이동한다. 그 달에 없는 날짜라면
+      // (예: 1/31 → 2월) 그 달의 마지막 날로 대체한다.
+      final daysInMonth = DateTime(m.year, m.month + 1, 0).day;
+      final targetDay = state.day > daysInMonth ? daysInMonth : state.day;
+      final selectedDate = DateTime(m.year, m.month, targetDay);
       final topicIds = state.topicFilter.queryTopicIds;
       final monthly =
           await repo.getExpensesByMonth(m.year, m.month, topicIds: topicIds);
