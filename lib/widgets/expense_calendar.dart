@@ -20,6 +20,9 @@ class ExpenseCalendar extends ConsumerWidget {
       selectedDayPredicate: (day) => isSameDay(day, DateTime.utc(state.year, state.month, state.day)),
       calendarFormat: CalendarFormat.month,
       availableCalendarFormats: const {CalendarFormat.month: 'Month'},
+      // 세로 스와이프(월 포맷 전환용 제스처)를 꺼서, 달력 높이를 줄였을 때
+      // 감싸는 SingleChildScrollView가 세로 드래그를 받아 스크롤할 수 있게 한다.
+      availableGestures: AvailableGestures.horizontalSwipe,
       headerVisible: false,
       daysOfWeekHeight: 32,
       daysOfWeekStyle: DaysOfWeekStyle(

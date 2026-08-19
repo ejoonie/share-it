@@ -13,6 +13,9 @@ import '../widgets/expense_list.dart';
 import '../widgets/summary_drawer.dart';
 import 'amount_entry_screen.dart';
 
+/// 달력 영역의 높이. 사용자가 달력↔리스트 사이 핸들을 드래그해 조절한다.
+final calendarHeightProvider = StateProvider<double>((ref) => 360);
+
 class ExpenseScreen extends ConsumerStatefulWidget {
   const ExpenseScreen({super.key});
 
@@ -291,13 +294,43 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
           if (state.error != null) {
             return Center(child: Text('Error: ${state.error}'));
           }
-          return Column(
-            children: [
-              _MonthlySummaryBar(state: state),
-              ExpenseCalendar(state: state),
-              const Divider(height: 1),
-              Expanded(child: ExpenseList(state: state)),
-            ],
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              // 리스트가 최소한의 공간은 항상 유지하도록 달력 높이 상한을 둔다.
+              const minCalendarHeight = 50.0;
+              const minListHeight = 120.0;
+              final maxCalendarHeight =
+                  (constraints.maxHeight - minListHeight)
+                      .clamp(minCalendarHeight, double.infinity);
+              final calendarHeight = ref
+                  .watch(calendarHeightProvider)
+                  .clamp(minCalendarHeight, maxCalendarHeight);
+
+              return Column(
+                children: [
+                  _MonthlySummaryBar(state: state),
+                  const Divider(height: 1),
+                  SizedBox(
+                    height: calendarHeight,
+                    child: SingleChildScrollView(
+                      // 핸들을 위로 끌어 달력이 실제 크기보다 작아지면,
+                      // 가려진 아래쪽 주는 스크롤로 볼 수 있다.
+                      child: ExpenseCalendar(state: state),
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  _CalendarResizeHandle(
+                    onDragUpdate: (dy) {
+                      final next = (ref.read(calendarHeightProvider) + dy)
+                          .clamp(minCalendarHeight, maxCalendarHeight);
+                      ref.read(calendarHeightProvider.notifier).state = next;
+                    },
+                  ),
+                  const Divider(height: 1),
+                  Expanded(child: ExpenseList(state: state)),
+                ],
+              );
+            },
           );
         },
       ),
@@ -424,6 +457,37 @@ class _SummaryCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 달력과 리스트 사이의 드래그 핸들. 위아래로 끌면 [onDragUpdate]로 이동량(dy)을 알려준다.
+class _CalendarResizeHandle extends StatelessWidget {
+  final ValueChanged<double> onDragUpdate;
+
+  const _CalendarResizeHandle({required this.onDragUpdate});
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeRow,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onVerticalDragUpdate: (details) => onDragUpdate(details.delta.dy),
+        child: Container(
+          height: 20,
+          color: Colors.transparent,
+          alignment: Alignment.center,
+          child: Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade400,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
       ),
     );
   }
