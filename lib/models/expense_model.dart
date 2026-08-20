@@ -13,6 +13,7 @@ class ExpenseModel {
   final DateTime occurredAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final bool read;
 
   const ExpenseModel({
     this.id,
@@ -25,6 +26,7 @@ class ExpenseModel {
     required this.occurredAt,
     this.createdAt,
     this.updatedAt,
+    this.read = false,
   });
 
   double get amountInDollars => amount / 100.0;
@@ -43,6 +45,7 @@ class ExpenseModel {
     DateTime? occurredAt,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? read,
   }) {
     return ExpenseModel(
       id: id ?? this.id,
@@ -55,6 +58,7 @@ class ExpenseModel {
       occurredAt: occurredAt ?? this.occurredAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      read: read ?? this.read,
     );
   }
 
@@ -73,6 +77,7 @@ class ExpenseModel {
       occurredAt: entry.occurredAt ?? entry.createdAt,
       createdAt: entry.createdAt,
       updatedAt: entry.updatedAt,
+      read: entry.read,
     );
   }
 

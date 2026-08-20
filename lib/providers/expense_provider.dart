@@ -192,6 +192,59 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     }
   }
 
+  /// 특정 날짜로 곧장 이동한다 (달/일을 모두 그 날짜에 맞춘다). 알림 탭으로 특정
+  /// entry의 날짜로 이동할 때처럼, 현재 선택된 일(day)을 유지하는 [changeMonth]와
+  /// 달리 목표 날짜를 그대로 사용한다.
+  Future<void> goToDate(int year, int month, int day) async {
+    final repo = _repository;
+    if (repo == null) return;
+    try {
+      final m = DateTime(year, month);
+      final topicIds = state.topicFilter.queryTopicIds;
+      final monthly =
+          await repo.getExpensesByMonth(m.year, m.month, topicIds: topicIds);
+      final summary = repo.buildMonthlySummary(monthly);
+      final daily = await repo.getExpensesByDate(
+        year,
+        month,
+        day,
+        topicIds: topicIds,
+      );
+      state = state.copyWith(
+        focusedMonth: m,
+        selectedDate: DateTime(year, month, day),
+        monthlyExpenses: monthly,
+        selectedDateExpenses: daily,
+        monthlySummary: summary,
+      );
+    } catch (e) {
+      state = state.copyWith(error: () => e.toString());
+    }
+  }
+
+  /// 화면에 보인 entry들을 읽음 처리한다 (스크롤 기반, 디바운스되어 호출됨).
+  /// 실패해도 조용히 무시 — 다음에 다시 보이면 재시도된다.
+  Future<void> markEntriesRead(Iterable<int> entryIds) async {
+    final repo = _repository;
+    final ids = entryIds.toSet();
+    if (repo == null || ids.isEmpty) return;
+    try {
+      await repo.markEntriesRead(ids.toList());
+      state = state.copyWith(
+        monthlyExpenses: _markRead(state.monthlyExpenses, ids),
+        selectedDateExpenses: _markRead(state.selectedDateExpenses, ids),
+      );
+    } catch (_) {
+      // 네트워크 오류 — 다음에 다시 보이면 재시도됨
+    }
+  }
+
+  List<ExpenseModel> _markRead(List<ExpenseModel> expenses, Set<int> ids) {
+    return expenses
+        .map((e) => (e.id != null && ids.contains(e.id)) ? e.copyWith(read: true) : e)
+        .toList();
+  }
+
   Future<void> selectDate(int year, int month, int day) async {
     final date = DateTime(year, month, day); // local
     final repo = _repository;
@@ -306,3 +359,7 @@ final expenseNotifierProvider =
     ref.watch(topicFilterStorageProvider),
   ),
 );
+
+/// 알림을 탭해서 특정 entry로 이동했을 때, 리스트에서 그 entry로 스크롤하고
+/// 애니메이션을 재생하도록 신호를 보내는 데 쓴다. 애니메이션이 끝나면 null로 되돌아간다.
+final highlightedEntryIdProvider = StateProvider<int?>((ref) => null);

@@ -1,5 +1,6 @@
 import 'package:app_links/app_links.dart';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -174,6 +175,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initDeepLinks();
+      _initNotificationTapHandling();
     });
   }
 
@@ -218,6 +220,39 @@ class _MainScreenState extends ConsumerState<MainScreen>
         ),
       );
     }
+  }
+
+  Future<void> _initNotificationTapHandling() async {
+    // 앱이 종료된 상태에서 알림을 탭해 열린 경우
+    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+    if (initialMessage != null && mounted) {
+      _handleNotificationTap(initialMessage);
+    }
+
+    // 앱이 백그라운드에 있다가 알림 탭으로 포그라운드로 온 경우
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      if (mounted) _handleNotificationTap(message);
+    });
+  }
+
+  void _handleNotificationTap(RemoteMessage message) {
+    final data = message.data;
+    if (data['type'] != 'entry_change') return;
+
+    final entryId = int.tryParse('${data['entry_id']}');
+    final occurredAt = DateTime.tryParse('${data['occurred_at']}');
+    if (entryId == null || occurredAt == null) return;
+
+    final local = occurredAt.toLocal();
+    setState(() => _currentIndex = 0);
+    ref
+        .read(expenseNotifierProvider.notifier)
+        .goToDate(local.year, local.month, local.day)
+        .then((_) {
+      if (mounted) {
+        ref.read(highlightedEntryIdProvider.notifier).state = entryId;
+      }
+    });
   }
 
   void _onTabTapped(int index) {

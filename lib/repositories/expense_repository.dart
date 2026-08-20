@@ -89,6 +89,10 @@ class ExpenseRepository {
     await _entryRepository.deleteEntry(id);
   }
 
+  Future<List<int>> markEntriesRead(List<int> entryIds) {
+    return _entryRepository.markEntriesRead(entryIds);
+  }
+
   Map<DateTime, Map<String, int>> buildMonthlySummary(List<ExpenseModel> expenses) {
     final Map<DateTime, Map<String, int>> summary = {};
 
