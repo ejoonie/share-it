@@ -28,6 +28,7 @@ class NotifyTopicChange
         device_token_ids: device_token_ids,
         topic_id: @entry.topic_id,
         entry_id: @entry.id,
+        actor_id: @actor.id,
         occurred_at: @entry.occurred_at&.iso8601,
         action: @action.to_s
       )

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
 import '../models/topic_model.dart';
+import '../repositories/device_token_repository.dart';
 import '../repositories/entry_repository.dart';
 import '../repositories/topic_repository.dart';
 import '../storage/last_used_topic_storage.dart';
@@ -38,6 +39,10 @@ final topicRepositoryProvider = Provider<TopicRepository>((ref) {
 
 final subscriptionRepositoryProvider = Provider<SubscriptionRepository>((ref) {
   return SubscriptionRepository(apiClient: ref.watch(apiClientProvider));
+});
+
+final deviceTokenRepositoryProvider = Provider<DeviceTokenRepository>((ref) {
+  return DeviceTokenRepository(apiClient: ref.watch(apiClientProvider));
 });
 
 /// 유저가 명시적으로 선택한 토픽 ID. null이면 세션 기본값을 사용한다.
