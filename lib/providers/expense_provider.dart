@@ -223,16 +223,20 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
   }
 
   /// 화면에 보인 entry들을 읽음 처리한다 (스크롤 기반, 디바운스되어 호출됨).
-  /// 실패해도 조용히 무시 — 다음에 다시 보이면 재시도된다.
+  /// 삭제되었거나 더 이상 접근 권한이 없는 id는 서버가 응답의 marked에서
+  /// 조용히 제외하므로, 로컬 상태도 요청에 보낸 id가 아니라 서버가 실제로
+  /// 확인해준 id만 읽음으로 반영한다. 실패해도 조용히 무시 — 다음에 다시
+  /// 보이면 재시도된다.
   Future<void> markEntriesRead(Iterable<int> entryIds) async {
     final repo = _repository;
     final ids = entryIds.toSet();
     if (repo == null || ids.isEmpty) return;
     try {
-      await repo.markEntriesRead(ids.toList());
+      final marked = (await repo.markEntriesRead(ids.toList())).toSet();
+      if (marked.isEmpty) return;
       state = state.copyWith(
-        monthlyExpenses: _markRead(state.monthlyExpenses, ids),
-        selectedDateExpenses: _markRead(state.selectedDateExpenses, ids),
+        monthlyExpenses: _markRead(state.monthlyExpenses, marked),
+        selectedDateExpenses: _markRead(state.selectedDateExpenses, marked),
       );
     } catch (_) {
       // 네트워크 오류 — 다음에 다시 보이면 재시도됨

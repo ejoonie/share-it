@@ -5,9 +5,9 @@ class NotifyTopicChangeJob < ApplicationJob
   queue_as :default
 
   ACTION_VERBS = {
-    "created" => "새 기록을 추가했어요",
-    "updated" => "기록을 수정했어요",
-    "deleted" => "기록을 삭제했어요"
+    "created" => "added a new entry",
+    "updated" => "updated an entry",
+    "deleted" => "deleted an entry"
   }.freeze
 
   # 발송 실패로 봐서 디바이스 토큰을 지워도 되는 FCM 에러 코드
@@ -28,8 +28,8 @@ class NotifyTopicChangeJob < ApplicationJob
     return if topic.nil? || entry.nil? || actor.nil?
 
     title = topic.title
-    verb = ACTION_VERBS.fetch(action, "기록을 변경했어요")
-    body = "#{actor.nick_name}님이 #{verb}#{entry.title.presence ? ": #{entry.title}" : ''}"
+    verb = ACTION_VERBS.fetch(action, "made a change")
+    body = "#{actor.nick_name} #{verb}#{entry.title.presence ? ": #{entry.title}" : ''}"
 
     data = {
       type: "entry_change",
