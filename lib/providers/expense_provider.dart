@@ -118,6 +118,13 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
   final ExpenseRepository? _repository;
   final TopicFilterStorage _topicFilterStorage;
 
+  // _load/changeMonth/goToDate/selectDate는 전부 focusedMonth/selectedDate를
+  // 바꾸는 비동기 요청이라, 예를 들어 알림 탭으로 goToDate가 호출된 직후에도
+  // 앱 시작 시 생성자가 건 초기 load()가 뒤늦게 끝나 결과를 덮어쓸 수 있다.
+  // 요청마다 세대를 증가시키고, 응답이 왔을 때 자신이 여전히 최신 세대인
+  // 경우에만 state에 반영해 뒤늦게 끝난 stale 요청이 최신 요청을 덮지 않게 한다.
+  int _requestGen = 0;
+
   ExpenseNotifier(this._repository, this._topicFilterStorage)
       : super(
           ExpenseState.initial().copyWith(
@@ -132,6 +139,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
   Future<void> _load(DateTime month) async {
     final repo = _repository;
     if (repo == null) return;
+    final gen = ++_requestGen;
     state = state.copyWith(isLoading: true, error: () => null);
     try {
       final m = DateTime(month.year, month.month);
@@ -147,6 +155,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
         selectedDate.day,
         topicIds: topicIds,
       );
+      if (gen != _requestGen) return;
       state = state.copyWith(
         focusedMonth: m,
         selectedDate: selectedDate,
@@ -156,6 +165,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
         isLoading: false,
       );
     } catch (e) {
+      if (gen != _requestGen) return;
       state = state.copyWith(isLoading: false, error: () => e.toString());
     }
   }
@@ -163,6 +173,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
   Future<void> changeMonth(DateTime month) async {
     final repo = _repository;
     if (repo == null) return;
+    final gen = ++_requestGen;
     try {
       final m = DateTime(month.year, month.month);
       // 현재 선택된 날짜와 같은 일(day)로 이동한다. 그 달에 없는 날짜라면
@@ -180,6 +191,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
         selectedDate.day,
         topicIds: topicIds,
       );
+      if (gen != _requestGen) return;
       state = state.copyWith(
         focusedMonth: m,
         selectedDate: selectedDate,
@@ -188,6 +200,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
         monthlySummary: summary,
       );
     } catch (e) {
+      if (gen != _requestGen) return;
       state = state.copyWith(error: () => e.toString());
     }
   }
@@ -198,6 +211,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
   Future<void> goToDate(int year, int month, int day) async {
     final repo = _repository;
     if (repo == null) return;
+    final gen = ++_requestGen;
     try {
       final m = DateTime(year, month);
       final topicIds = state.topicFilter.queryTopicIds;
@@ -210,6 +224,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
         day,
         topicIds: topicIds,
       );
+      if (gen != _requestGen) return;
       state = state.copyWith(
         focusedMonth: m,
         selectedDate: DateTime(year, month, day),
@@ -218,6 +233,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
         monthlySummary: summary,
       );
     } catch (e) {
+      if (gen != _requestGen) return;
       state = state.copyWith(error: () => e.toString());
     }
   }
@@ -253,6 +269,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     final date = DateTime(year, month, day); // local
     final repo = _repository;
     if (repo == null) return;
+    final gen = ++_requestGen;
     try {
       final daily = await repo.getExpensesByDate(
         year,
@@ -260,11 +277,13 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
         day,
         topicIds: state.topicFilter.queryTopicIds,
       );
+      if (gen != _requestGen) return;
       state = state.copyWith(
         selectedDate: date,
         selectedDateExpenses: daily,
       );
     } catch (e) {
+      if (gen != _requestGen) return;
       state = state.copyWith(error: () => e.toString());
     }
   }

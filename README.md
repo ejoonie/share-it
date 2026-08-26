@@ -78,13 +78,13 @@ accounts, signing, and API credentials are configured.
 
 ```sh
 # Upload Android App Bundle to the Google Play internal track
-ANDROID_PACKAGE_NAME=com.example.share_it \
+ANDROID_PACKAGE_NAME=com.sharablepiggy.app \
 GOOGLE_PLAY_JSON_KEY=/path/to/play-service-account.json \
 GOOGLE_PLAY_TRACK=internal \
 scripts/upload_android.sh
 
 # Upload a signed iOS IPA to App Store Connect
-IOS_APP_IDENTIFIER=com.example.shareIt \
+IOS_APP_IDENTIFIER=com.sharablepiggy.app \
 APP_STORE_CONNECT_API_KEY_PATH=/path/to/app-store-connect-api-key.json \
 IOS_ARTIFACT_PATH=build/ios/ipa/share_it.ipa \
 scripts/upload_ios.sh

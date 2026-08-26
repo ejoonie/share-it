@@ -36,7 +36,6 @@ class DefaultFirebaseOptions {
     projectId: 'sharable-piggy',
     storageBucket: 'sharable-piggy.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBSzg__7vuqFm7VL3nWbM0tSWGPwLL03Jc',
     appId: '1:783938606545:ios:f738c52298decb918c3cf0',

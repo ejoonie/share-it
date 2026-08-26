@@ -5,9 +5,9 @@ class NotifyTopicChangeJob < ApplicationJob
   queue_as :default
 
   ACTION_VERBS = {
-    "created" => "added a new entry",
-    "updated" => "updated an entry",
-    "deleted" => "deleted an entry"
+    "created" => "added",
+    "updated" => "updated",
+    "deleted" => "deleted",
   }.freeze
 
   # 발송 실패로 봐서 디바이스 토큰을 지워도 되는 FCM 에러 코드
@@ -28,15 +28,21 @@ class NotifyTopicChangeJob < ApplicationJob
     return if topic.nil? || entry.nil? || actor.nil?
 
     title = topic.title
-    verb = ACTION_VERBS.fetch(action, "made a change")
-    body = "#{actor.nick_name} #{verb}#{entry.title.presence ? ": #{entry.title}" : ''}"
+    verb = ACTION_VERBS.fetch(action, "added")
+    entry_label = entry.title.presence || "No title"
+    body =
+      if entry.amount.positive?
+        "#{actor.nick_name} #{verb} #{format_amount(entry.amount)} for #{entry_label}"
+      else
+        "#{actor.nick_name} #{verb} #{entry_label}"
+      end
 
     data = {
       type: "entry_change",
       topic_id: topic_id,
       entry_id: entry_id,
       occurred_at: occurred_at,
-      action: action
+      action: action,
     }
 
     tokens.find_each do |device_token|
@@ -46,6 +52,12 @@ class NotifyTopicChangeJob < ApplicationJob
   end
 
   private
+
+  # entry.amount는 센트 단위 정수(예: 4200 = $42.00)로 저장된다 - lib/models/expense_model.dart의
+  # amountInDollars와 동일한 변환.
+  def format_amount(cents)
+    format("$%.2f", cents / 100.0)
+  end
 
   def handle_response(response, device_token)
     return if response.is_a?(Net::HTTPSuccess)
