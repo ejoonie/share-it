@@ -46,5 +46,12 @@ RSpec.describe FcmClient do
       expect(classify(with_header).retry_after).to eq(120)
       expect(classify(without_header).retry_after).to eq(60)
     end
+
+    it "falls back safely when Retry-After is malformed" do
+      response = instance_double(Net::HTTPResponse, code: "429", body: "{}")
+      allow(response).to receive(:[]).with("Retry-After").and_return("not-a-date")
+
+      expect(classify(response).retry_after).to eq(60)
+    end
   end
 end

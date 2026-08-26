@@ -42,6 +42,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _onNotificationToggle(bool value) async {
+    try {
+      await _updateNotificationSetting(value);
+    } on Exception {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to update notifications. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _updateNotificationSetting(bool value) async {
     if (!value) {
       await ref
           .read(notificationSettingsProvider.notifier)

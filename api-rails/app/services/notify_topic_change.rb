@@ -28,24 +28,29 @@ class NotifyTopicChange
       occurred_at: @entry.occurred_at&.iso8601
     )
 
-    recipient_follows.find_each do |follow|
-      follow.user.device_tokens.find_each do |device_token|
-        SendPushJob.perform_later(
-          device_token_id: device_token.id,
-          title: message.title,
-          body: message.body,
-          data: message.data
-        )
-      end
+    recipient_tokens.find_each do |device_token|
+      SendPushJob.perform_later(
+        device_token_id: device_token.id,
+        title: message.title,
+        body: message.body,
+        data: message.data
+      )
     end
   end
 
   private
 
-  def recipient_follows
-    TopicFollow
-      .where(topic_id: @entry.topic_id, notifications_enabled: true)
-      .where.not(user_id: @actor.id)
-      .includes(:user)
+  def recipient_tokens
+    DeviceToken
+      .joins(user: :topic_follows)
+      .where(
+        topic_follows: {
+          topic_id: @entry.topic_id,
+          notifications_enabled: true
+        },
+        users: { notifications_enabled: true }
+      )
+      .where.not(device_tokens: { user_id: @actor.id })
+      .distinct
   end
 end

@@ -103,9 +103,11 @@ class FcmClient
     return 60 if value.blank? && response.code.to_i == 429
     return if value.blank?
 
-    Integer(value)
-  rescue ArgumentError
+    return value.to_i if value.match?(/\A\d+\z/)
+
     [(Time.httpdate(value) - Time.now).ceil, 0].max
+  rescue ArgumentError
+    response.code.to_i == 429 ? 60 : nil
   end
 
   def access_token
