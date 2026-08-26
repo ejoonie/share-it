@@ -25,7 +25,7 @@ if [[ ! -f "$API_KEY_PATH" ]]; then
 fi
 
 if [[ -z "$APP_IDENTIFIER" ]]; then
-  echo "IOS_APP_IDENTIFIER is required, for example com.example.shareIt." >&2
+  echo "IOS_APP_IDENTIFIER is required, for example com.sharablepiggy.app." >&2
   exit 1
 fi
 

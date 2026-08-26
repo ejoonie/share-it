@@ -1,4 +1,4 @@
-package com.example.share_it
+package com.sharablepiggy.app
 
 import io.flutter.embedding.android.FlutterActivity
 

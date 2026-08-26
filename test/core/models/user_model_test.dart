@@ -18,6 +18,7 @@ void main() {
       'email': 'user@example.com',
       'nick_name': 'Alice',
       'is_guest': false,
+      'notifications_enabled': true,
       'token': 'auth_token_abc',
       'created_at': '2026-05-01T00:00:00.000Z',
       'updated_at': '2026-05-10T00:00:00.000Z',
@@ -43,6 +44,7 @@ void main() {
         expect(model.email, 'user@example.com');
         expect(model.nickName, 'Alice');
         expect(model.isGuest, false);
+        expect(model.notificationsEnabled, true);
         expect(model.token, 'auth_token_abc');
       });
 
@@ -53,4 +55,3 @@ void main() {
     });
   });
 }
-

@@ -11,12 +11,13 @@ class SessionState {
   final SessionStatus status;
   final BootstrapResponse? data;
 
-  const SessionState({
-    this.status = SessionStatus.loading,
-    this.data,
-  });
+  const SessionState({this.status = SessionStatus.loading, this.data});
 
-  SessionState copyWith({SessionStatus? status, BootstrapResponse? data, bool clearData = false}) {
+  SessionState copyWith({
+    SessionStatus? status,
+    BootstrapResponse? data,
+    bool clearData = false,
+  }) {
     return SessionState(
       status: status ?? this.status,
       data: clearData ? null : (data ?? this.data),
@@ -31,9 +32,9 @@ class SessionNotifier extends StateNotifier<SessionState> {
   SessionNotifier({
     required SessionRepository repository,
     required TokenStorage tokenStorage,
-  })  : _repository = repository,
-        _tokenStorage = tokenStorage,
-        super(const SessionState());
+  }) : _repository = repository,
+       _tokenStorage = tokenStorage,
+       super(const SessionState());
 
   /// 앱 시작 시 호출.
   /// - 한 번이라도 로그인한 적 있으면 토큰 없을 때 게스트 생성 없이 unauthorized로 전환.
@@ -93,6 +94,15 @@ class SessionNotifier extends StateNotifier<SessionState> {
     await _loadData();
   }
 
+  void setNotificationsEnabled(bool enabled) {
+    final data = state.data;
+    final user = data?.user;
+    if (data == null || user == null) return;
+    state = state.copyWith(
+      data: data.copyWith(user: user.copyWith(notificationsEnabled: enabled)),
+    );
+  }
+
   Future<void> _loadData() async {
     final data = await _repository.loadData();
     state = state.copyWith(status: SessionStatus.ready, data: data);
@@ -105,5 +115,5 @@ final sessionRepositoryProvider = Provider<SessionRepository>((ref) {
 
 final sessionNotifierProvider =
     StateNotifierProvider<SessionNotifier, SessionState>((ref) {
-  throw UnimplementedError('sessionNotifierProvider must be overridden');
-});
+      throw UnimplementedError('sessionNotifierProvider must be overridden');
+    });

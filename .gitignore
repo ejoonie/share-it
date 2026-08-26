@@ -130,5 +130,6 @@ app.*.symbols
 # fastlane
 fastlane/.env
 
-*.p8fastlane/report.xml
+*.p8
+fastlane/report.xml
 fastlane/AuthKey_*.p8

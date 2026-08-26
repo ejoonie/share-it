@@ -17,7 +17,7 @@ GOOGLE_PLAY_TRACK="${GOOGLE_PLAY_TRACK:-internal}"
 RELEASE_STATUS="${GOOGLE_PLAY_RELEASE_STATUS:-draft}"
 
 if [[ -z "$PACKAGE_NAME" ]]; then
-  echo "ANDROID_PACKAGE_NAME is required, for example com.example.share_it." >&2
+  echo "ANDROID_PACKAGE_NAME is required, for example com.sharablepiggy.app." >&2
   exit 1
 fi
 

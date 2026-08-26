@@ -248,7 +248,11 @@ RSpec.describe "Entries API", type: :request do
 
   # 생성/수정 시 자동 읽음 처리 및 알림 큐잉 (이슈 #116)
   describe "생성/수정 시 자동 읽음 처리 및 알림 큐잉" do
-    before { ActiveJob::Base.queue_adapter = :test }
+    before do
+      ActiveJob::Base.queue_adapter = :test
+      users(:guest_user).update!(notifications_enabled: true)
+      users(:user_three).update!(notifications_enabled: true)
+    end
 
     it "엔트리를 생성하면 작성자 본인은 자동으로 읽음 처리된다" do
       topic = topics(:one)
@@ -281,7 +285,19 @@ RSpec.describe "Entries API", type: :request do
         post_json "/api/v1/entries",
                   login_user: users(:user_one),
                   params: { topic_id: topic.id, title: "New" }
-      }.to have_enqueued_job(NotifyTopicChangeJob).exactly(1).times
+      }.to have_enqueued_job(SendPushJob).exactly(1).times
+    end
+
+    it "한 사용자의 디바이스 토큰마다 독립적인 알림 잡을 큐잉한다" do
+      topic = topics(:one)
+      DeviceToken.create!(user: users(:guest_user), token: "guest-ios", platform: "ios")
+      DeviceToken.create!(user: users(:guest_user), token: "guest-android", platform: "android")
+
+      expect {
+        post_json "/api/v1/entries",
+                  login_user: users(:user_one),
+                  params: { topic_id: topic.id, title: "New" }
+      }.to have_enqueued_job(SendPushJob).exactly(2).times
     end
 
     it "notifications_enabled가 꺼진 구독자에게는 알림을 큐잉하지 않는다" do
@@ -295,7 +311,19 @@ RSpec.describe "Entries API", type: :request do
         post_json "/api/v1/entries",
                   login_user: users(:user_one),
                   params: { topic_id: topic.id, title: "New" }
-      }.to have_enqueued_job(NotifyTopicChangeJob).exactly(1).times
+      }.to have_enqueued_job(SendPushJob).exactly(1).times
+    end
+
+    it "계정 알림이 꺼진 구독자에게는 토큰이 남아 있어도 큐잉하지 않는다" do
+      topic = topics(:one)
+      users(:guest_user).update!(notifications_enabled: false)
+      DeviceToken.create!(user: users(:guest_user), token: "stale-device", platform: "ios")
+
+      expect {
+        post_json "/api/v1/entries",
+                  login_user: users(:user_one),
+                  params: { topic_id: topic.id, title: "New" }
+      }.not_to have_enqueued_job(SendPushJob)
     end
 
     it "삭제 시에도 알림 잡이 큐잉된다" do
@@ -304,7 +332,7 @@ RSpec.describe "Entries API", type: :request do
 
       expect {
         delete_json "/api/v1/entries/#{entry.id}", login_user: users(:user_one)
-      }.to have_enqueued_job(NotifyTopicChangeJob).exactly(1).times
+      }.to have_enqueued_job(SendPushJob).exactly(1).times
     end
   end
 end
