@@ -5,7 +5,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:app_settings/app_settings.dart';
 
 import '../models/subscription_model.dart';
-import '../models/topic_model.dart'; // TopicModel: _buildMyPiggies에서 사용
 import '../providers/core_providers.dart';
 import '../providers/notification_permission_provider.dart';
 import '../providers/session_provider.dart';
@@ -44,14 +43,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _onNotificationToggle(bool value) async {
     if (!value) {
-      await ref.read(notificationPermissionProvider.notifier).disable();
+      await ref
+          .read(notificationSettingsProvider.notifier)
+          .disableNotifications();
       return;
     }
 
     final status = await Permission.notification.status;
 
     if (status.isGranted) {
-      // Already granted — provider state already true, nothing to do
+      await ref
+          .read(notificationSettingsProvider.notifier)
+          .enableNotifications();
       return;
     }
 
@@ -61,7 +64,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('Notification Permission Required'),
-          content: const Text('Notifications are blocked. Please enable them in your device settings.'),
+          content: const Text(
+            'Notifications are blocked. Please enable them in your device settings.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -86,7 +91,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('Enable Notifications'),
-          content: const Text('Get notified when new expenses are added to your shared piggies.'),
+          content: const Text(
+            'Get notified when new expenses are added to your shared piggies.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -100,13 +107,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       );
       if (confirmed != true) {
-        // Revert toggle — provider state is still false
-        ref.invalidate(notificationPermissionProvider);
         return;
       }
     }
 
-    await ref.read(notificationPermissionProvider.notifier).request();
+    final result = await ref
+        .read(notificationSettingsProvider.notifier)
+        .requestOsPermission();
+    if (result.isGranted) {
+      await ref
+          .read(notificationSettingsProvider.notifier)
+          .enableNotifications();
+    }
   }
 
   List<Widget> _buildAccountTiles(BuildContext context, WidgetRef ref) {
@@ -176,7 +188,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final success = await notifier.unsubscribe(topicId);
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to unsubscribe. Please try again.')),
+        const SnackBar(
+          content: Text('Failed to unsubscribe. Please try again.'),
+        ),
       );
     }
   }
@@ -189,8 +203,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
 
     final state = ref.watch(settingsNotifierProvider);
+    final notificationSettings = ref.watch(notificationSettingsProvider);
     final notificationsEnabled =
-        ref.watch(notificationPermissionProvider).valueOrNull ?? false;
+        notificationSettings.valueOrNull?.isActive ?? false;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -218,7 +233,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: const Text('Notifications'),
             subtitle: const Text('Get notified when expenses are added'),
             value: notificationsEnabled,
-            onChanged: _onNotificationToggle,
+            onChanged:
+                notificationSettings.isLoading ? null : _onNotificationToggle,
           ),
           const _SectionHeader(title: 'Share'),
           ListTile(
@@ -261,8 +277,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       error: (_, __) => [
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Text('Failed to load piggies.',
-              style: TextStyle(color: Colors.red)),
+          child: Text(
+            'Failed to load piggies.',
+            style: TextStyle(color: Colors.red),
+          ),
         ),
       ],
       data: (piggies) => piggies.isEmpty
@@ -323,21 +341,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
             ]
-          : subs.map((sub) => _SubscriptionTile(
-                sub: sub,
-                onToggleNotification: (enabled) async {
-                  final success = await notifier.toggleNotification(sub.topic.id, enabled: enabled);
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(success
-                          ? (enabled ? 'Notifications enabled.' : 'Notifications muted.')
-                          : 'Failed to update notification setting.'),
-                    ),
-                  );
-                },
-                onUnsubscribe: () => _confirmUnsubscribe(sub.topic.id, sub.topic.title),
-              )).toList(),
+          : subs
+              .map(
+                (sub) => _SubscriptionTile(
+                  sub: sub,
+                  onToggleNotification: (enabled) async {
+                    final success = await notifier.toggleNotification(
+                      sub.topic.id,
+                      enabled: enabled,
+                    );
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          success
+                              ? (enabled
+                                  ? 'Notifications enabled.'
+                                  : 'Notifications muted.')
+                              : 'Failed to update notification setting.',
+                        ),
+                      ),
+                    );
+                  },
+                  onUnsubscribe: () =>
+                      _confirmUnsubscribe(sub.topic.id, sub.topic.title),
+                ),
+              )
+              .toList(),
     );
   }
 }
@@ -363,10 +393,14 @@ class _SubscriptionTile extends StatelessWidget {
         children: [
           IconButton(
             icon: Icon(
-              sub.notificationsEnabled ? Icons.notifications_outlined : Icons.notifications_off_outlined,
+              sub.notificationsEnabled
+                  ? Icons.notifications_outlined
+                  : Icons.notifications_off_outlined,
               color: sub.notificationsEnabled ? null : Colors.grey,
             ),
-            tooltip: sub.notificationsEnabled ? 'Mute notifications' : 'Unmute notifications',
+            tooltip: sub.notificationsEnabled
+                ? 'Mute notifications'
+                : 'Unmute notifications',
             onPressed: () => onToggleNotification(!sub.notificationsEnabled),
           ),
           IconButton(

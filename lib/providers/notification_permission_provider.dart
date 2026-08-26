@@ -1,88 +1,113 @@
 import 'dart:io' show Platform;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'core_providers.dart';
 import 'session_provider.dart';
 
-final notificationPermissionProvider =
-    AsyncNotifierProvider<NotificationPermissionNotifier, bool>(
-      NotificationPermissionNotifier.new,
+class NotificationSettingsState {
+  final PermissionStatus osAuthorization;
+  final bool serverEnabled;
+
+  const NotificationSettingsState({
+    required this.osAuthorization,
+    required this.serverEnabled,
+  });
+
+  bool get isActive => osAuthorization.isGranted && serverEnabled;
+
+  NotificationSettingsState copyWith({
+    PermissionStatus? osAuthorization,
+    bool? serverEnabled,
+  }) {
+    return NotificationSettingsState(
+      osAuthorization: osAuthorization ?? this.osAuthorization,
+      serverEnabled: serverEnabled ?? this.serverEnabled,
     );
+  }
+}
 
-class NotificationPermissionNotifier extends AsyncNotifier<bool> {
+final notificationSettingsProvider =
+    AsyncNotifierProvider<
+      NotificationSettingsNotifier,
+      NotificationSettingsState
+    >(NotificationSettingsNotifier.new);
+
+class NotificationSettingsNotifier
+    extends AsyncNotifier<NotificationSettingsState> {
   @override
-  Future<bool> build() async {
-    // FCM 토큰이 재발급될 때마다(재설치, 앱 데이터 삭제 등) 다시 등록한다.
-    FirebaseMessaging.instance.onTokenRefresh.listen((token) {
-      if (state.valueOrNull == true) _registerDeviceToken(token);
-    });
-    return (await Permission.notification.status).isGranted;
+  Future<NotificationSettingsState> build() async {
+    final osAuthorization = await Permission.notification.status;
+    final serverEnabled =
+        ref.read(sessionNotifierProvider).data?.user?.notificationsEnabled ??
+        false;
+    return NotificationSettingsState(
+      osAuthorization: osAuthorization,
+      serverEnabled: serverEnabled,
+    );
   }
 
-  /// 앱이 포그라운드로 복귀할 때 OS 권한 상태를 확인하고 서버에 동기화
-  Future<void> sync() async {
-    final granted = (await Permission.notification.status).isGranted;
-    final previous = state.valueOrNull;
-    state = AsyncData(granted);
-    if (previous != granted) {
-      await _updateServer(granted);
-    } else if (granted) {
-      // 상태는 그대로여도, 토큰이 아직 서버에 등록 안 됐을 수 있으니 확인 차 재시도.
-      await _registerDeviceToken();
-    }
-  }
-
-  /// 시스템 권한 요청 — 결과(granted 여부)를 반환
-  Future<bool> request() async {
+  Future<PermissionStatus> requestOsPermission() async {
     final result = await Permission.notification.request();
-    final granted = result.isGranted;
-    state = AsyncData(granted);
-    if (granted) await _updateServer(true);
-    return granted;
+    final current = state.requireValue;
+    state = AsyncData(current.copyWith(osAuthorization: result));
+    return result;
   }
 
-  Future<void> disable() async {
-    state = const AsyncData(false);
-    await _updateServer(false);
+  Future<void> enableNotifications() async {
+    final current = state.requireValue;
+    await ref.read(notificationRepositoryProvider).setEnabled(true);
+    ref.read(sessionNotifierProvider.notifier).setNotificationsEnabled(true);
+    state = AsyncData(current.copyWith(serverEnabled: true));
+    await syncToken();
   }
 
-  Future<void> _updateServer(bool enabled) async {
+  Future<void> disableNotifications() async {
+    final current = state.requireValue;
+    await ref.read(notificationRepositoryProvider).setEnabled(false);
+    ref.read(sessionNotifierProvider.notifier).setNotificationsEnabled(false);
+    state = AsyncData(current.copyWith(serverEnabled: false));
+    await _unregisterCurrentToken();
+  }
+
+  Future<void> syncOsPermission() async {
+    final current = state.requireValue;
+    final osAuthorization = await Permission.notification.status;
+    final updated = current.copyWith(osAuthorization: osAuthorization);
+    state = AsyncData(updated);
+    if (updated.isActive) await syncToken();
+  }
+
+  Future<void> onTokenRefreshed(String token) async {
+    final current = state.valueOrNull;
+    if (current == null || !current.isActive) return;
     try {
-      await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(enabled);
-    } catch (_) {
-      // 네트워크 오류 — 다음 sync 시 재시도됨
-    }
-
-    if (enabled) {
-      await _registerDeviceToken();
-    } else {
-      await _unregisterDeviceToken();
+      await syncToken(token);
+    } on Exception catch (error) {
+      debugPrint('[push] Failed to register refreshed token: $error');
     }
   }
 
-  Future<void> _registerDeviceToken([String? token]) async {
-    try {
-      final fcmToken = token ?? await FirebaseMessaging.instance.getToken();
-      if (fcmToken == null) return;
-      await ref.read(deviceTokenRepositoryProvider).register(
-            token: fcmToken,
-            platform: Platform.isIOS ? 'ios' : 'android',
-          );
-    } catch (_) {
-      // 네트워크 오류 등 — 다음 sync 시 재시도됨
-    }
+  Future<void> syncToken([String? refreshedToken]) async {
+    final current = state.valueOrNull;
+    if (current == null || !current.isActive) return;
+
+    final token = refreshedToken ?? await FirebaseMessaging.instance.getToken();
+    if (token == null) return;
+    await ref
+        .read(notificationRepositoryProvider)
+        .registerToken(
+          token: token,
+          platform: Platform.isIOS ? 'ios' : 'android',
+        );
   }
 
-  Future<void> _unregisterDeviceToken() async {
-    try {
-      final fcmToken = await FirebaseMessaging.instance.getToken();
-      if (fcmToken == null) return;
-      await ref.read(deviceTokenRepositoryProvider).unregister(fcmToken);
-    } catch (_) {
-      // 네트워크 오류 등 — 무시 (서버에 남아있어도 mute 상태라 실질적 영향 없음)
-    }
+  Future<void> _unregisterCurrentToken() async {
+    final token = await FirebaseMessaging.instance.getToken();
+    if (token == null) return;
+    await ref.read(notificationRepositoryProvider).unregisterToken(token);
   }
 }
