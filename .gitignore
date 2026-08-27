@@ -121,8 +121,15 @@ app.*.symbols
 .idea
 .DS_Store
 *.iml
+
+# Firebase client config — contains a project API key; repo is public so we
+# keep these out and let each environment place its own copy locally.
+**/android/app/google-services.json
+**/ios/Runner/GoogleService-Info.plist
+
 # fastlane
 fastlane/.env
 
-*.p8fastlane/report.xml
+*.p8
+fastlane/report.xml
 fastlane/AuthKey_*.p8

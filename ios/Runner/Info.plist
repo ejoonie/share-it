@@ -76,5 +76,9 @@
 		<false/>
 		<key>NSUserTrackingUsageDescription</key>
 		<string>This helps us improve the app experience and provide relevant content.</string>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>remote-notification</string>
+		</array>
 	</dict>
 </plist>
