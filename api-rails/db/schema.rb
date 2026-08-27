@@ -10,9 +10,19 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_08_18_170520) do
+ActiveRecord::Schema[7.2].define(version: 2026_08_19_151117) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "device_tokens", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "token", null: false
+    t.string "platform", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["token"], name: "index_device_tokens_on_token", unique: true
+    t.index ["user_id"], name: "index_device_tokens_on_user_id"
+  end
 
   create_table "entries", force: :cascade do |t|
     t.bigint "topic_id", null: false
@@ -34,6 +44,17 @@ ActiveRecord::Schema[7.2].define(version: 2026_08_18_170520) do
     t.index ["deleted_at"], name: "index_entries_on_deleted_at"
     t.index ["topic_id"], name: "index_entries_on_topic_id"
     t.index ["updated_by_id"], name: "index_entries_on_updated_by_id"
+  end
+
+  create_table "entry_reads", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "entry_id", null: false
+    t.datetime "read_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["entry_id"], name: "index_entry_reads_on_entry_id"
+    t.index ["user_id", "entry_id"], name: "index_entry_reads_on_user_id_and_entry_id", unique: true
+    t.index ["user_id"], name: "index_entry_reads_on_user_id"
   end
 
   create_table "topic_follows", force: :cascade do |t|
@@ -80,9 +101,12 @@ ActiveRecord::Schema[7.2].define(version: 2026_08_18_170520) do
     t.index ["token"], name: "index_users_on_token", unique: true
   end
 
+  add_foreign_key "device_tokens", "users"
   add_foreign_key "entries", "topics"
   add_foreign_key "entries", "users", column: "created_by_id"
   add_foreign_key "entries", "users", column: "updated_by_id"
+  add_foreign_key "entry_reads", "entries"
+  add_foreign_key "entry_reads", "users"
   add_foreign_key "topic_follows", "topics"
   add_foreign_key "topic_follows", "users"
   add_foreign_key "topics", "users"
