@@ -120,4 +120,15 @@ class EntryRepository {
     final json = await _apiClient.delete('/api/v1/entries/$id');
     return EntryModel.fromJson(json);
   }
+
+  /// 여러 엔트리를 한번에 읽음 처리한다 (POST /api/v1/entries/reads).
+  /// 실제로 반영된(구독 중인 토픽에 속한) entry id 목록을 반환한다.
+  Future<List<int>> markEntriesRead(List<int> entryIds) async {
+    if (entryIds.isEmpty) return const [];
+    final json = await _apiClient.post('/api/v1/entries/reads', {
+      'entry_ids': entryIds,
+    });
+    final marked = json['marked'] as List<dynamic>? ?? [];
+    return marked.map((e) => e as int).toList();
+  }
 }

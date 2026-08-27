@@ -118,6 +118,13 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
   final ExpenseRepository? _repository;
   final TopicFilterStorage _topicFilterStorage;
 
+  // _load/changeMonth/goToDate/selectDate는 전부 focusedMonth/selectedDate를
+  // 바꾸는 비동기 요청이라, 예를 들어 알림 탭으로 goToDate가 호출된 직후에도
+  // 앱 시작 시 생성자가 건 초기 load()가 뒤늦게 끝나 결과를 덮어쓸 수 있다.
+  // 요청마다 세대를 증가시키고, 응답이 왔을 때 자신이 여전히 최신 세대인
+  // 경우에만 state에 반영해 뒤늦게 끝난 stale 요청이 최신 요청을 덮지 않게 한다.
+  int _requestGen = 0;
+
   ExpenseNotifier(this._repository, this._topicFilterStorage)
       : super(
           ExpenseState.initial().copyWith(
@@ -132,6 +139,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
   Future<void> _load(DateTime month) async {
     final repo = _repository;
     if (repo == null) return;
+    final gen = ++_requestGen;
     state = state.copyWith(isLoading: true, error: () => null);
     try {
       final m = DateTime(month.year, month.month);
@@ -147,6 +155,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
         selectedDate.day,
         topicIds: topicIds,
       );
+      if (gen != _requestGen) return;
       state = state.copyWith(
         focusedMonth: m,
         selectedDate: selectedDate,
@@ -156,6 +165,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
         isLoading: false,
       );
     } catch (e) {
+      if (gen != _requestGen) return;
       state = state.copyWith(isLoading: false, error: () => e.toString());
     }
   }
@@ -163,6 +173,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
   Future<void> changeMonth(DateTime month) async {
     final repo = _repository;
     if (repo == null) return;
+    final gen = ++_requestGen;
     try {
       final m = DateTime(month.year, month.month);
       // 현재 선택된 날짜와 같은 일(day)로 이동한다. 그 달에 없는 날짜라면
@@ -180,6 +191,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
         selectedDate.day,
         topicIds: topicIds,
       );
+      if (gen != _requestGen) return;
       state = state.copyWith(
         focusedMonth: m,
         selectedDate: selectedDate,
@@ -188,14 +200,76 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
         monthlySummary: summary,
       );
     } catch (e) {
+      if (gen != _requestGen) return;
       state = state.copyWith(error: () => e.toString());
     }
+  }
+
+  /// 특정 날짜로 곧장 이동한다 (달/일을 모두 그 날짜에 맞춘다). 알림 탭으로 특정
+  /// entry의 날짜로 이동할 때처럼, 현재 선택된 일(day)을 유지하는 [changeMonth]와
+  /// 달리 목표 날짜를 그대로 사용한다.
+  Future<void> goToDate(int year, int month, int day) async {
+    final repo = _repository;
+    if (repo == null) return;
+    final gen = ++_requestGen;
+    try {
+      final m = DateTime(year, month);
+      final topicIds = state.topicFilter.queryTopicIds;
+      final monthly =
+          await repo.getExpensesByMonth(m.year, m.month, topicIds: topicIds);
+      final summary = repo.buildMonthlySummary(monthly);
+      final daily = await repo.getExpensesByDate(
+        year,
+        month,
+        day,
+        topicIds: topicIds,
+      );
+      if (gen != _requestGen) return;
+      state = state.copyWith(
+        focusedMonth: m,
+        selectedDate: DateTime(year, month, day),
+        monthlyExpenses: monthly,
+        selectedDateExpenses: daily,
+        monthlySummary: summary,
+      );
+    } catch (e) {
+      if (gen != _requestGen) return;
+      state = state.copyWith(error: () => e.toString());
+    }
+  }
+
+  /// 화면에 보인 entry들을 읽음 처리한다 (스크롤 기반, 디바운스되어 호출됨).
+  /// 삭제되었거나 더 이상 접근 권한이 없는 id는 서버가 응답의 marked에서
+  /// 조용히 제외하므로, 로컬 상태도 요청에 보낸 id가 아니라 서버가 실제로
+  /// 확인해준 id만 읽음으로 반영한다. 실패해도 조용히 무시 — 다음에 다시
+  /// 보이면 재시도된다.
+  Future<void> markEntriesRead(Iterable<int> entryIds) async {
+    final repo = _repository;
+    final ids = entryIds.toSet();
+    if (repo == null || ids.isEmpty) return;
+    try {
+      final marked = (await repo.markEntriesRead(ids.toList())).toSet();
+      if (marked.isEmpty) return;
+      state = state.copyWith(
+        monthlyExpenses: _markRead(state.monthlyExpenses, marked),
+        selectedDateExpenses: _markRead(state.selectedDateExpenses, marked),
+      );
+    } catch (_) {
+      // 네트워크 오류 — 다음에 다시 보이면 재시도됨
+    }
+  }
+
+  List<ExpenseModel> _markRead(List<ExpenseModel> expenses, Set<int> ids) {
+    return expenses
+        .map((e) => (e.id != null && ids.contains(e.id)) ? e.copyWith(read: true) : e)
+        .toList();
   }
 
   Future<void> selectDate(int year, int month, int day) async {
     final date = DateTime(year, month, day); // local
     final repo = _repository;
     if (repo == null) return;
+    final gen = ++_requestGen;
     try {
       final daily = await repo.getExpensesByDate(
         year,
@@ -203,11 +277,13 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
         day,
         topicIds: state.topicFilter.queryTopicIds,
       );
+      if (gen != _requestGen) return;
       state = state.copyWith(
         selectedDate: date,
         selectedDateExpenses: daily,
       );
     } catch (e) {
+      if (gen != _requestGen) return;
       state = state.copyWith(error: () => e.toString());
     }
   }
@@ -306,3 +382,7 @@ final expenseNotifierProvider =
     ref.watch(topicFilterStorageProvider),
   ),
 );
+
+/// 알림을 탭해서 특정 entry로 이동했을 때, 리스트에서 그 entry로 스크롤하고
+/// 애니메이션을 재생하도록 신호를 보내는 데 쓴다. 애니메이션이 끝나면 null로 되돌아간다.
+final highlightedEntryIdProvider = StateProvider<int?>((ref) => null);
