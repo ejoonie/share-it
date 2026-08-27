@@ -46,8 +46,17 @@ module V1
       end
       get do
         scope = Entry.where(topic_id: current_user.followed_topics.select(:id))
-        read_ids = current_user.entry_reads.where(entry: scope).pluck(:entry_id).to_set
-        paginated_list(scope, Entities::EntryEntity, entity_options: { read_entry_ids: read_ids })
+        # scope 전체가 아니라 실제 이 페이지에 나갈 records만으로 읽음 여부를
+        # 계산한다 - scope 기준으로 하면 유저가 읽은 전체 entry_reads가
+        # 요청마다 계속 불어나며 스캔된다 (entry_reads.where(entry: scope)).
+        paginated_list(
+          scope,
+          Entities::EntryEntity,
+          entity_options: lambda do |records|
+            read_ids = current_user.entry_reads.where(entry_id: records.map(&:id)).pluck(:entry_id).to_set
+            { read_entry_ids: read_ids }
+          end
+        )
       end
 
       # POST /api/v1/entries/reads
