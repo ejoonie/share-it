@@ -43,7 +43,7 @@ class UserModel {
       email: json['email'] as String,
       nickName: json['nick_name'] as String,
       isGuest: json['is_guest'] as bool,
-      notificationsEnabled: json['notifications_enabled'] as bool? ?? false,
+      notificationsEnabled: json['notifications_enabled'] as bool? ?? true,
       token: json['token'] as String,
       termsAcceptedAt: json['terms_accepted_at'] as String?,
       createdAt: json['created_at'] as String,

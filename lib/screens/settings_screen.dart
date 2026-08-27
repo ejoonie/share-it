@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:app_settings/app_settings.dart';
 
 import '../models/subscription_model.dart';
 import '../providers/core_providers.dart';
@@ -41,9 +39,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
   }
 
+  /// 알림 토글 - OS 권한 상태는 확인하지 않는다. enableNotifications()가
+  /// 내부에서 OS 권한을 요청하긴 하지만, 결과와 무관하게 서버 설정은 그대로
+  /// 반영된다 (notification_permission_provider.dart 참고).
   Future<void> _onNotificationToggle(bool value) async {
     try {
-      await _updateNotificationSetting(value);
+      final notifier = ref.read(notificationSettingsProvider.notifier);
+      if (value) {
+        await notifier.enableNotifications();
+      } else {
+        await notifier.disableNotifications();
+      }
     } on Exception {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -51,86 +57,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           content: Text('Failed to update notifications. Please try again.'),
         ),
       );
-    }
-  }
-
-  Future<void> _updateNotificationSetting(bool value) async {
-    if (!value) {
-      await ref
-          .read(notificationSettingsProvider.notifier)
-          .disableNotifications();
-      return;
-    }
-
-    final status = await Permission.notification.status;
-
-    if (status.isGranted) {
-      await ref
-          .read(notificationSettingsProvider.notifier)
-          .enableNotifications();
-      return;
-    }
-
-    if (status.isPermanentlyDenied) {
-      if (!mounted) return;
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Notification Permission Required'),
-          content: const Text(
-            'Notifications are blocked. Please enable them in your device settings.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Open Settings'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed == true) {
-        await AppSettings.openAppSettings(type: AppSettingsType.notification);
-      }
-      return;
-    }
-
-    if (status.isDenied) {
-      if (!mounted) return;
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Enable Notifications'),
-          content: const Text(
-            'Get notified when new expenses are added to your shared piggies.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Not Now'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Allow'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true) {
-        return;
-      }
-    }
-
-    final result = await ref
-        .read(notificationSettingsProvider.notifier)
-        .requestOsPermission();
-    if (result.isGranted) {
-      await ref
-          .read(notificationSettingsProvider.notifier)
-          .enableNotifications();
     }
   }
 
@@ -216,9 +142,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
 
     final state = ref.watch(settingsNotifierProvider);
-    final notificationSettings = ref.watch(notificationSettingsProvider);
     final notificationsEnabled =
-        notificationSettings.valueOrNull?.isActive ?? false;
+        ref.watch(notificationSettingsProvider).valueOrNull ?? true;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -246,8 +171,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: const Text('Notifications'),
             subtitle: const Text('Get notified when expenses are added'),
             value: notificationsEnabled,
-            onChanged:
-                notificationSettings.isLoading ? null : _onNotificationToggle,
+            onChanged: _onNotificationToggle,
           ),
           const _SectionHeader(title: 'Share'),
           ListTile(

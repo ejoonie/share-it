@@ -221,10 +221,11 @@ class _MainScreenState extends ConsumerState<MainScreen>
     }
   }
 
+  /// 앱이 포그라운드로 복귀할 때마다 디바이스 토큰을 다시 등록 시도한다 -
+  /// OS 권한/서버 설정 어느 쪽도 확인하지 않고 무조건 시도한다 (토큰을
+  /// 구할 수 있는지만 syncToken 내부에서 판단).
   Future<void> _syncNotificationSettings() async {
-    await ref.read(notificationSettingsProvider.future);
-    if (!mounted) return;
-    await ref.read(notificationSettingsProvider.notifier).syncOsPermission();
+    await ref.read(notificationSettingsProvider.notifier).syncToken();
   }
 
   Future<void> _initDeepLinks() async {
