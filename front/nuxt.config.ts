@@ -75,10 +75,10 @@ export default defineNuxtConfig({
     public: {
       apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'https://api.sharablepiggy.com',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://sharablepiggy.com',
-      iosStoreUrl: process.env.NUXT_PUBLIC_IOS_STORE_URL || 'https://apps.apple.com/app/idXXXXXXXXX',
+      iosStoreUrl: process.env.NUXT_PUBLIC_IOS_STORE_URL || 'https://apps.apple.com/us/app/sharable-piggy/id6791705834',
       androidStoreUrl:
         process.env.NUXT_PUBLIC_ANDROID_STORE_URL ||
-        'https://play.google.com/store/apps/details?id=com.example.share_it'
+        'https://play.google.com/store/apps/details?id=com.sharablepiggy.app'
     }
   }
 })
