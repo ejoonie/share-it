@@ -115,6 +115,35 @@ void main() {
       await messaging.dispose();
     });
 
+    test('emits destinations for foreground messages just like background taps', () async {
+      final messaging = _FakeNotificationMessaging();
+      final coordinator = NotificationCoordinator(
+        messaging: messaging,
+        onTokenRefreshed: (_) {},
+        onUnregisterRequested: () async {},
+      );
+      final destinations = <NotificationDestination>[];
+      final subscription = coordinator.destinations.listen(destinations.add);
+      await coordinator.init();
+
+      messaging.messageReceived.add(
+        const RemoteMessage(
+          data: {
+            'type': 'entry_change',
+            'entry_id': '10',
+            'occurred_at': '2026-08-26T12:00:00Z',
+          },
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(destinations, hasLength(1));
+      expect((destinations.single as EntryChangeDestination).entryId, 10);
+      coordinator.dispose();
+      await subscription.cancel();
+      await messaging.dispose();
+    });
+
     test('unregisterCurrentDevice delegates to the injected callback', () async {
       final messaging = _FakeNotificationMessaging();
       var unregisterCalls = 0;
@@ -137,6 +166,7 @@ void main() {
 
 class _FakeNotificationMessaging implements NotificationMessaging {
   final RemoteMessage? initialMessage;
+  final messageReceived = StreamController<RemoteMessage>.broadcast();
   final messageOpened = StreamController<RemoteMessage>.broadcast();
   final tokenRefresh = StreamController<String>.broadcast();
   int initialMessageCalls = 0;
@@ -150,12 +180,16 @@ class _FakeNotificationMessaging implements NotificationMessaging {
   }
 
   @override
+  Stream<RemoteMessage> get onMessage => messageReceived.stream;
+
+  @override
   Stream<RemoteMessage> get onMessageOpenedApp => messageOpened.stream;
 
   @override
   Stream<String> get onTokenRefresh => tokenRefresh.stream;
 
   Future<void> dispose() async {
+    await messageReceived.close();
     await messageOpened.close();
     await tokenRefresh.close();
   }

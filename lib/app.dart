@@ -269,6 +269,9 @@ class _MainScreenState extends ConsumerState<MainScreen>
     }
   }
 
+  /// coordinator.destinations로 들어오는 모든 알림(콜드 스타트, 포그라운드
+  /// 수신, 백그라운드 탭)의 최종 처리 지점 - Expenses 탭으로 전환하고 해당
+  /// 날짜로 이동한 뒤, 리스트가 그 entry로 스크롤+하이라이트하도록 신호를 준다.
   void _handleNotificationDestination(NotificationDestination destination) {
     if (destination is! EntryChangeDestination) return;
     final local = destination.occurredAt.toLocal();
