@@ -153,4 +153,23 @@ class NotificationSettingsNotifier
     if (token == null) return;
     await ref.read(notificationRepositoryProvider).unregisterToken(token);
   }
+
+  /// 로그아웃/회원탈퇴 시 호출 — 이 기기의 FCM 토큰을 서버에서 먼저 해제하고
+  /// (아직 인증 토큰이 남아있을 때), FirebaseMessaging.deleteToken()으로 토큰
+  /// 자체도 폐기한다. 둘 중 하나가 실패해도 나머지는 계속 진행하고, 호출자의
+  /// 로그아웃 흐름 자체를 막지 않도록 예외를 던지지 않는다 - 서버 해제가
+  /// 실패해도 deleteToken()이 성공하면 기존 토큰은 무효화되고, 서버에 남은
+  /// 레코드는 다음 발송 시 FCM의 UNREGISTERED 응답으로 정리된다.
+  Future<void> unregisterCurrentDevice() async {
+    try {
+      await _unregisterCurrentToken();
+    } catch (error) {
+      debugPrint('[push] Failed to unregister device token on server: $error');
+    }
+    try {
+      await FirebaseMessaging.instance.deleteToken();
+    } catch (error) {
+      debugPrint('[push] Failed to delete local FCM token: $error');
+    }
+  }
 }

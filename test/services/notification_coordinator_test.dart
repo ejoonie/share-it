@@ -60,6 +60,7 @@ void main() {
       final coordinator = NotificationCoordinator(
         messaging: messaging,
         onTokenRefreshed: refreshedTokens.add,
+        onUnregisterRequested: () async {},
       );
 
       final initial = await coordinator.init();
@@ -80,6 +81,7 @@ void main() {
       final coordinator = NotificationCoordinator(
         messaging: messaging,
         onTokenRefreshed: (_) {},
+        onUnregisterRequested: () async {},
       );
       final destinations = <NotificationDestination>[];
       final subscription = coordinator.destinations.listen(destinations.add);
@@ -110,6 +112,24 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(destinations, hasLength(1));
       await subscription.cancel();
+      await messaging.dispose();
+    });
+
+    test('unregisterCurrentDevice delegates to the injected callback', () async {
+      final messaging = _FakeNotificationMessaging();
+      var unregisterCalls = 0;
+      final coordinator = NotificationCoordinator(
+        messaging: messaging,
+        onTokenRefreshed: (_) {},
+        onUnregisterRequested: () async {
+          unregisterCalls += 1;
+        },
+      );
+
+      await coordinator.unregisterCurrentDevice();
+
+      expect(unregisterCalls, 1);
+      coordinator.dispose();
       await messaging.dispose();
     });
   });

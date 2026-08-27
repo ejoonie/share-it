@@ -28,12 +28,15 @@ class SessionState {
 class SessionNotifier extends StateNotifier<SessionState> {
   final SessionRepository _repository;
   final TokenStorage _tokenStorage;
+  final Future<void> Function()? _onSignOut;
 
   SessionNotifier({
     required SessionRepository repository,
     required TokenStorage tokenStorage,
+    Future<void> Function()? onSignOut,
   }) : _repository = repository,
        _tokenStorage = tokenStorage,
+       _onSignOut = onSignOut,
        super(const SessionState());
 
   /// 앱 시작 시 호출.
@@ -74,14 +77,28 @@ class SessionNotifier extends StateNotifier<SessionState> {
     }
   }
 
-  /// 로그아웃 — 토큰 삭제 후 unauthorized 상태로 전환.
+  /// 로그아웃 — 인증 토큰이 아직 남아있을 때 이 기기의 FCM 토큰을 먼저
+  /// 해제하고, 로컬 토큰 삭제 후 unauthorized 상태로 전환한다. 알림 해제가
+  /// 실패해도(네트워크 오류 등) 로그아웃 자체는 막지 않는다.
   Future<void> signOut() async {
-    await _tokenStorage.clearToken();
-    state = state.copyWith(status: SessionStatus.unauthorized, clearData: true);
+    try {
+      await _onSignOut?.call();
+    } catch (_) {
+      // 무시 - 로그아웃을 막지 않는다
+    } finally {
+      await _tokenStorage.clearToken();
+      state = state.copyWith(status: SessionStatus.unauthorized, clearData: true);
+    }
   }
 
-  /// 회원탈퇴 — 서버 계정 삭제 후 로컬 상태 전체 초기화 (게스트 플래그 포함).
+  /// 회원탈퇴 — 이 기기의 FCM 토큰을 먼저 해제한 뒤 서버 계정 삭제, 로컬
+  /// 상태 전체 초기화 (게스트 플래그 포함).
   Future<void> deleteAccount() async {
+    try {
+      await _onSignOut?.call();
+    } catch (_) {
+      // 무시 - 탈퇴를 막지 않는다
+    }
     await _repository.deleteAccount();
     await _tokenStorage.clearAll();
     state = state.copyWith(status: SessionStatus.unauthorized, clearData: true);

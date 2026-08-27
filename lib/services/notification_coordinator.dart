@@ -53,6 +53,7 @@ class FirebaseNotificationMessaging implements NotificationMessaging {
 class NotificationCoordinator {
   final NotificationMessaging _messaging;
   final void Function(String token) _onTokenRefreshed;
+  final Future<void> Function() _onUnregisterRequested;
   final _destinations = StreamController<NotificationDestination>.broadcast();
   StreamSubscription<RemoteMessage>? _messageOpenedSubscription;
   StreamSubscription<String>? _tokenRefreshSubscription;
@@ -61,8 +62,10 @@ class NotificationCoordinator {
   NotificationCoordinator({
     required NotificationMessaging messaging,
     required void Function(String token) onTokenRefreshed,
+    required Future<void> Function() onUnregisterRequested,
   })  : _messaging = messaging,
-        _onTokenRefreshed = onTokenRefreshed;
+        _onTokenRefreshed = onTokenRefreshed,
+        _onUnregisterRequested = onUnregisterRequested;
 
   Stream<NotificationDestination> get destinations => _destinations.stream;
 
@@ -81,6 +84,9 @@ class NotificationCoordinator {
         ? null
         : NotificationDestination.fromMessage(initialMessage);
   }
+
+  /// 로그아웃 등으로 이 기기를 알림 수신 대상에서 뺄 때 호출한다.
+  Future<void> unregisterCurrentDevice() => _onUnregisterRequested();
 
   void _emitDestination(RemoteMessage message) {
     final destination = NotificationDestination.fromMessage(message);
@@ -101,6 +107,11 @@ final notificationCoordinatorProvider = Provider<NotificationCoordinator>((
     messaging: FirebaseNotificationMessaging(),
     onTokenRefreshed: (token) {
       ref.read(notificationSettingsProvider.notifier).onTokenRefreshed(token);
+    },
+    onUnregisterRequested: () {
+      return ref
+          .read(notificationSettingsProvider.notifier)
+          .unregisterCurrentDevice();
     },
   );
   ref.onDispose(coordinator.dispose);

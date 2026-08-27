@@ -8,6 +8,7 @@ import 'firebase_options.dart';
 import 'providers/session_provider.dart';
 import 'providers/core_providers.dart';
 import 'repositories/session_repository.dart';
+import 'services/notification_coordinator.dart';
 import 'storage/last_used_topic_storage.dart';
 import 'storage/token_storage.dart';
 import 'storage/topic_filter_storage.dart';
@@ -41,6 +42,8 @@ void main() async {
           (ref) => SessionNotifier(
             repository: ref.watch(sessionRepositoryProvider),
             tokenStorage: tokenStorage,
+            onSignOut: () =>
+                ref.read(notificationCoordinatorProvider).unregisterCurrentDevice(),
           ),
         ),
       ],
