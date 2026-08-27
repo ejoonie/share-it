@@ -75,10 +75,10 @@ export default defineNuxtConfig({
     public: {
       apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'https://api.sharablepiggy.com',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://sharablepiggy.com',
-      iosStoreUrl: process.env.NUXT_PUBLIC_IOS_STORE_URL || 'https://apps.apple.com/us/app/sharable-piggy/id6791705834',
-      androidStoreUrl:
-        process.env.NUXT_PUBLIC_ANDROID_STORE_URL ||
-        'https://play.google.com/store/apps/details?id=com.sharablepiggy.app'
+      // 스토어 URL은 확정값이라 하드코딩한다. env(NUXT_PUBLIC_*)로 두면 CI에서 빈
+      // 시크릿이 넘어올 때 ""로 덮어써져 배지가 href=""로 나온다. (#124)
+      iosStoreUrl: 'https://apps.apple.com/us/app/sharable-piggy/id6791705834',
+      androidStoreUrl: 'https://play.google.com/store/apps/details?id=com.sharablepiggy.app'
     }
   }
 })
