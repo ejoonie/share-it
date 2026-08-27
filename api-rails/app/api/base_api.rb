@@ -25,5 +25,6 @@ class BaseAPI < Grape::API
     mount V1::My::TopicsAPI
     mount V1::My::EntriesAPI
     mount V1::My::AccountAPI
+    mount V1::My::DeviceTokensAPI
   end
 end

@@ -18,7 +18,7 @@ module Helpers
     end
 
     # ransack q 파라미터 포함 목록
-    def paginated_list(scope, entity_class)
+    def paginated_list(scope, entity_class, entity_options: {})
       search = scope.ransack(params[:q])
       results = search.result(distinct: true)
       results = results.order(created_at: :desc) unless params.dig(:q, :s).present?
@@ -29,7 +29,7 @@ module Helpers
         total: total,
         page: page,
         limit: limit,
-        records: entity_class.represent(records)
+        records: entity_class.represent(records, entity_options)
       }
     end
   end
