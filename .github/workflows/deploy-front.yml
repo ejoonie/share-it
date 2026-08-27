@@ -10,8 +10,9 @@
 #| `CLOUDFRONT_DISTRIBUTION_ID` | CloudFront ID (없으면 생략 가능) |
 #| `NUXT_PUBLIC_API_BASE_URL` | `https://api.sharablepiggy.com` |
 #| `NUXT_PUBLIC_SITE_URL` | `https://sharablepiggy.com` |
-#| `NUXT_PUBLIC_IOS_STORE_URL` | 앱스토어 URL |
-#| `NUXT_PUBLIC_ANDROID_STORE_URL` | 플레이스토어 URL |
+#
+#스토어 URL(iOS/Android)은 nuxt.config.ts 에 하드코딩돼 있으므로 여기서 넘기지 않는다.
+#빈 시크릿을 env 로 넘기면 Nuxt runtimeConfig 기본값이 ""로 덮여 배지가 href="" 가 된다. (#124)
 #
 #**동작 방식:**
 #- `master` 브랜치에 `front/` 경로 변경이 푸시될 때만 실행
@@ -50,8 +51,8 @@ jobs:
         env:
           NUXT_PUBLIC_API_BASE_URL: ${{ secrets.NUXT_PUBLIC_API_BASE_URL }}
           NUXT_PUBLIC_SITE_URL: ${{ secrets.NUXT_PUBLIC_SITE_URL }}
-          NUXT_PUBLIC_IOS_STORE_URL: ${{ secrets.NUXT_PUBLIC_IOS_STORE_URL }}
-          NUXT_PUBLIC_ANDROID_STORE_URL: ${{ secrets.NUXT_PUBLIC_ANDROID_STORE_URL }}
+          # 스토어 URL은 nuxt.config.ts 하드코딩값 사용 — 빈 시크릿이 넘어오면
+          # runtimeConfig 기본값을 ""로 덮어써 배지가 href="" 가 됨 (#124)
 
       - name: Sync to S3
         run: |
