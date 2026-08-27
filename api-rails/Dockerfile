@@ -34,9 +34,13 @@ COPY --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
 COPY --from=build /rails /rails
 
 # 보안: 비루트 유저로 실행
+# config/firebase는 FCM 서비스 계정 키(service_account.json)를 배포 시
+# 호스트에서 bind mount하는 위치 - 이미지엔 파일이 없고(.gitignore) 디렉터리만
+# 미리 만들어 소유권을 맞춰둔다.
 RUN groupadd --system --gid 1000 rails && \
     useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash && \
-    chown -R rails:rails db log storage tmp
+    mkdir -p config/firebase && \
+    chown -R rails:rails db log storage tmp config/firebase
 USER 1000:1000
 
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]

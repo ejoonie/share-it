@@ -72,7 +72,14 @@ jobs:
             SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
             SMTP_SENDER_EMAIL=${{ secrets.SMTP_SENDER_EMAIL }}
             SMTP_PORT=${{ secrets.SMTP_PORT }}
+            FIREBASE_SERVICE_ACCOUNT_PATH=/rails/config/firebase/service_account.json
             EOF
+
+            # FCM 서비스 계정 키 - GitHub Secret(base64)에서 파일로 복원해
+            # docker-compose.prod.yml이 컨테이너로 bind mount한다.
+            mkdir -p config/firebase
+            echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON_B64 }}' | base64 -d > config/firebase/service_account.json
+            chmod 644 config/firebase/service_account.json
 
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker compose -f docker-compose.prod.yml pull sp-api

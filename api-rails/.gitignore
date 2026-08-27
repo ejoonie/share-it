@@ -10,3 +10,7 @@
 # Temporary files
 /tmp/
 .env.prod
+
+# Firebase Admin SDK service account key — grants server-side push send
+# access, must never be committed.
+/config/firebase/service_account.json

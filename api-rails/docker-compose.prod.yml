@@ -15,6 +15,11 @@ services:
     env_file: .env.prod
     environment:
       RAILS_ENV: production
+    volumes:
+      # FCM 발송용 서비스 계정 키. 레포에는 없음(.gitignore) - 배포 워크플로가
+      # GitHub Secret에서 이 경로에 파일을 생성해둔다 (.env.prod의
+      # FIREBASE_SERVICE_ACCOUNT_PATH와 같은 경로).
+      - ./config/firebase/service_account.json:/rails/config/firebase/service_account.json:ro
     depends_on:
       - db
     restart: always

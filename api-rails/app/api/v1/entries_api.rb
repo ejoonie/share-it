@@ -46,7 +46,41 @@ module V1
       end
       get do
         scope = Entry.where(topic_id: current_user.followed_topics.select(:id))
-        paginated_list(scope, Entities::EntryEntity)
+        # scope 전체가 아니라 실제 이 페이지에 나갈 records만으로 읽음 여부를
+        # 계산한다 - scope 기준으로 하면 유저가 읽은 전체 entry_reads가
+        # 요청마다 계속 불어나며 스캔된다 (entry_reads.where(entry: scope)).
+        paginated_list(
+          scope,
+          Entities::EntryEntity,
+          entity_options: lambda do |records|
+            read_ids = current_user.entry_reads.where(entry_id: records.map(&:id)).pluck(:entry_id).to_set
+            { read_entry_ids: read_ids }
+          end
+        )
+      end
+
+      # POST /api/v1/entries/reads
+      desc '엔트리 여러 개를 한번에 읽음 처리 (구독 중인 토픽의 엔트리만 반영)'
+      params do
+        requires :entry_ids, type: Array[Integer]
+      end
+      post :reads do
+        accessible_ids = Entry
+          .where(id: params[:entry_ids], topic_id: current_user.followed_topics.select(:id))
+          .pluck(:id)
+
+        already_read = current_user.entry_reads.where(entry_id: accessible_ids).pluck(:entry_id).to_set
+        new_ids = accessible_ids.reject { |id| already_read.include?(id) }
+
+        if new_ids.any?
+          now = Time.current
+          EntryRead.insert_all(
+            new_ids.map { |entry_id| { user_id: current_user.id, entry_id: entry_id, read_at: now, created_at: now, updated_at: now } }
+          )
+        end
+
+        status 200
+        { marked: accessible_ids }
       end
 
       # POST /api/v1/entries
@@ -78,9 +112,11 @@ module V1
           content: params[:content],
           checked: params[:checked] || false
         )
+        current_user.mark_entry_read!(entry)
+        NotifyTopicChange.call(entry: entry, actor: current_user, action: :created)
 
         status 201
-        present entry, with: Entities::EntryEntity
+        present entry, with: Entities::EntryEntity, read_entry_ids: Set[entry.id]
       end
 
       route_param :id do
@@ -88,7 +124,8 @@ module V1
         desc '엔트리 조회'
         get do
           entry = find_followed_entry!(params[:id])
-          present entry, with: Entities::EntryEntity
+          read_ids = current_user.entry_reads.exists?(entry_id: entry.id) ? Set[entry.id] : Set.new
+          present entry, with: Entities::EntryEntity, read_entry_ids: read_ids
         end
 
         # PATCH /api/v1/entries/:id
@@ -114,7 +151,10 @@ module V1
           update_params[:updated_by] = current_user
 
           entry.update!(update_params)
-          present entry, with: Entities::EntryEntity
+          current_user.mark_entry_read!(entry)
+          NotifyTopicChange.call(entry: entry, actor: current_user, action: :updated)
+
+          present entry, with: Entities::EntryEntity, read_entry_ids: Set[entry.id]
         end
 
         # DELETE /api/v1/entries/:id
@@ -126,6 +166,8 @@ module V1
 
           entry.soft_delete!
           deleted_entry = Entry.unscoped.find(entry.id)
+          NotifyTopicChange.call(entry: deleted_entry, actor: current_user, action: :deleted)
+
           status 200
           present deleted_entry, with: Entities::EntryEntity
         end
