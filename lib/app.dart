@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:app_links/app_links.dart';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +14,7 @@ import 'providers/session_provider.dart';
 import 'screens/bootstrap_debug_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/subscribe_screen.dart';
+import 'services/notification_opt_in.dart';
 import 'theme/app_theme.dart';
 import 'widgets/bottom_nav_bar.dart';
 
@@ -167,6 +171,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
   final _appLinks = AppLinks();
+  StreamSubscription<String>? _tokenRefreshSub;
 
   @override
   void initState() {
@@ -174,12 +179,14 @@ class _MainScreenState extends ConsumerState<MainScreen>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initDeepLinks();
+      _initNotifications();
     });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _tokenRefreshSub?.cancel();
     super.dispose();
   }
 
@@ -192,6 +199,57 @@ class _MainScreenState extends ConsumerState<MainScreen>
 
   Future<void> _syncNotificationPermission() async {
     await ref.read(notificationPermissionProvider.notifier).sync();
+  }
+
+  /// 이미 알림 opt-in한 기기라면 앱 시작 시 FCM 토큰을 다시 등록하고
+  /// (재설치·앱 데이터 삭제 등으로 토큰이 바뀌었을 수 있다), 실행 중
+  /// 토큰이 재발급되면 계속 갱신되도록 리스너를 건다.
+  Future<void> _initNotifications() async {
+    final storage = ref.read(notificationOptInStorageProvider);
+    if (storage.optedIn) {
+      await ref.read(notificationOptInProvider).enable();
+    }
+    _tokenRefreshSub =
+        FirebaseMessaging.instance.onTokenRefresh.listen((token) {
+      if (ref.read(notificationOptInStorageProvider).optedIn) {
+        ref.read(notificationOptInProvider).handleTokenRefresh(token);
+      }
+    });
+  }
+
+  /// Share 탭에 처음 들어왔을 때 인앱 알림 opt-in 다이얼로그를 한 번 띄운다.
+  /// 이슈 #130: 앱 시작 시가 아니라 이 시점에 물어보고, OS 권한 상태는
+  /// 고려하지 않는다. "나중에"를 누르면 서버의 notifications_enabled를
+  /// false로 내린다(기본값 true). 한 번 응답하면 다시 띄우지 않는다.
+  Future<void> _maybePromptNotificationOptIn() async {
+    final storage = ref.read(notificationOptInStorageProvider);
+    if (storage.hasResponded || !mounted) return;
+
+    final allow = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Turn on notifications?'),
+        content: const Text(
+          'Get notified when new expenses are added to piggies you share or follow.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Not now'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Allow'),
+          ),
+        ],
+      ),
+    );
+    if (allow == null) return;
+
+    await storage.saveResponse(optedIn: allow);
+    final optIn = ref.read(notificationOptInProvider);
+    await (allow ? optIn.enable() : optIn.decline());
   }
 
   Future<void> _initDeepLinks() async {
@@ -231,6 +289,8 @@ class _MainScreenState extends ConsumerState<MainScreen>
     // Tapping the tab triggers an explicit refresh.
     if (index == 0) {
       ref.read(expenseNotifierProvider.notifier).load();
+    } else if (index == 1) {
+      _maybePromptNotificationOptIn();
     } else if (index == 2) {
       // Settings data is managed by settingsNotifierProvider (autoDispose).
       // Incrementing settingsRefreshProvider signals the screen to reload,

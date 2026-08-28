@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/session_provider.dart';
+import '../services/notification_opt_in.dart';
 
 /// Three-step password change flow:
 ///   1. Request OTP (step 0)
@@ -261,6 +262,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     if (confirmed != true || !mounted) return;
     setState(() => _isLoading = true);
     try {
+      // 인증 토큰이 아직 살아있는 지금 이 기기의 FCM 토큰을 서버에서 해제한다.
+      await ref.read(notificationOptInProvider).unregisterCurrentDevice();
       await ref.read(sessionNotifierProvider.notifier).deleteAccount();
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } on Exception catch (e) {
@@ -292,6 +295,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    await ref.read(notificationOptInProvider).unregisterCurrentDevice();
     await ref.read(sessionNotifierProvider.notifier).signOut();
     if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
   }
