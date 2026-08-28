@@ -24,13 +24,6 @@ class DeviceTokenSync {
       // 조용히 반환되니 매번 호출해도 안전하고, 결과(허용/거부)는 여기서 쓰지
       // 않는다 - 토큰 등록 자체는 권한 여부와 무관하게 시도한다.
       await FirebaseMessaging.instance.requestPermission();
-
-      // APNs 토큰이 준비될 때까지 짧게 폴링한다 (registerForRemoteNotifications
-      // 콜백이 비동기라 바로 다음 줄에서 확인하면 아직 안 왔을 수 있다).
-      for (var i = 0; i < 10; i++) {
-        if (await FirebaseMessaging.instance.getAPNSToken() != null) break;
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-      }
       if (await FirebaseMessaging.instance.getAPNSToken() == null) return;
     }
 
