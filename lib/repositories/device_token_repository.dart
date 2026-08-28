@@ -1,0 +1,19 @@
+import '../api/api_client.dart';
+
+/// FCM 디바이스 토큰을 서버에 등록/해제한다.
+class DeviceTokenRepository {
+  final ApiClient _apiClient;
+
+  DeviceTokenRepository({required ApiClient apiClient}) : _apiClient = apiClient;
+
+  Future<void> register({required String token, required String platform}) async {
+    await _apiClient.post('/api/v1/my/device_tokens', {
+      'token': token,
+      'platform': platform,
+    });
+  }
+
+  Future<void> unregister(String token) async {
+    await _apiClient.delete('/api/v1/my/device_tokens/$token');
+  }
+}

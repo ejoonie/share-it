@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:app_links/app_links.dart';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +14,7 @@ import 'providers/session_provider.dart';
 import 'screens/bootstrap_debug_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/subscribe_screen.dart';
+import 'services/device_token_sync.dart';
 import 'theme/app_theme.dart';
 import 'widgets/bottom_nav_bar.dart';
 
@@ -167,6 +171,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
   final _appLinks = AppLinks();
+  StreamSubscription<String>? _tokenRefreshSubscription;
 
   @override
   void initState() {
@@ -174,12 +179,14 @@ class _MainScreenState extends ConsumerState<MainScreen>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initDeepLinks();
+      _initDeviceTokenSync();
     });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _tokenRefreshSubscription?.cancel();
     super.dispose();
   }
 
@@ -187,11 +194,24 @@ class _MainScreenState extends ConsumerState<MainScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _syncNotificationPermission();
+      ref.read(deviceTokenSyncProvider).syncToken();
     }
   }
 
   Future<void> _syncNotificationPermission() async {
     await ref.read(notificationPermissionProvider.notifier).sync();
+  }
+
+  /// 디바이스 토큰 등록 - OS 알림 권한/서버 설정 어느 쪽에도 종속되지 않고,
+  /// 토큰을 구할 수 있으면 무조건 서버에 등록한다. 앱 시작 시 한 번 시도하고,
+  /// 토큰이 재발급될 때(재설치, 앱 데이터 삭제 등)마다 다시 등록한다.
+  Future<void> _initDeviceTokenSync() async {
+    final sync = ref.read(deviceTokenSyncProvider);
+    await sync.syncToken();
+    if (!mounted) return;
+    _tokenRefreshSubscription = FirebaseMessaging.instance.onTokenRefresh.listen(
+      sync.syncToken,
+    );
   }
 
   Future<void> _initDeepLinks() async {
