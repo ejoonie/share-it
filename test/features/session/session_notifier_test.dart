@@ -27,6 +27,9 @@ class _FakeTokenStorage extends TokenStorage {
 
   @override
   Future<void> clearToken() async => _token = null;
+
+  @override
+  Future<void> clearAll() async => _token = null;
 }
 
 /// SessionRepository 의 네트워크 호출을 제어 가능한 stub 으로 대체한다.
@@ -34,6 +37,7 @@ class _FakeSessionRepository extends SessionRepository {
   bool guestLoginCalled = false;
   int loadDataCallCount = 0;
   bool throwUnauthorizedOnLoad = false;
+  bool deleteAccountCalled = false;
 
   _FakeSessionRepository(TokenStorage storage)
       : super(apiClient: ApiClient(), tokenStorage: storage);
@@ -51,6 +55,11 @@ class _FakeSessionRepository extends SessionRepository {
       throw ApiException(statusCode: 401, message: 'Unauthorized');
     }
     return _fakeBootstrap();
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    deleteAccountCalled = true;
   }
 }
 
@@ -78,12 +87,16 @@ late SharedPreferences _prefs;
 
 /// 각 테스트마다 독립적인 storage 와 notifier 를 만든다.
 ({_FakeSessionRepository repo, _FakeTokenStorage storage, SessionNotifier notifier})
-    _make({String? initialToken}) {
+    _make({String? initialToken, Future<void> Function()? onSignOut}) {
   final storage = _FakeTokenStorage(_prefs);
   if (initialToken != null) storage._token = initialToken;
 
   final repo = _FakeSessionRepository(storage);
-  final notifier = SessionNotifier(repository: repo, tokenStorage: storage);
+  final notifier = SessionNotifier(
+    repository: repo,
+    tokenStorage: storage,
+    onSignOut: onSignOut,
+  );
   return (repo: repo, storage: storage, notifier: notifier);
 }
 
@@ -189,6 +202,83 @@ void main() {
       await notifier.continueAsGuest();
 
       expect(repo.loadDataCallCount, 1);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // signOut() / deleteAccount() — 알림 기기 등록 해제
+  // ---------------------------------------------------------------------------
+  group('SessionNotifier.signOut()', () {
+    test('토큰이 남아있는 동안 onSignOut을 호출한 뒤 로컬 토큰을 지운다', () async {
+      final storage = _FakeTokenStorage(_prefs)
+        .._token = 'token';
+      final repo = _FakeSessionRepository(storage);
+      var onSignOutCalled = false;
+      String? tokenAtCallTime;
+      final notifier = SessionNotifier(
+        repository: repo,
+        tokenStorage: storage,
+        onSignOut: () async {
+          onSignOutCalled = true;
+          tokenAtCallTime = storage.getToken();
+        },
+      );
+
+      await notifier.signOut();
+
+      expect(onSignOutCalled, isTrue);
+      expect(tokenAtCallTime, 'token', reason: 'onSignOut 호출 시점엔 아직 인증 토큰이 남아있어야 한다');
+      expect(storage.getToken(), isNull);
+      expect(notifier.state.status, SessionStatus.unauthorized);
+    });
+
+    test('onSignOut이 실패해도 로그아웃은 계속 진행된다', () async {
+      final (:repo, :storage, :notifier) = _make(
+        initialToken: 'token',
+        onSignOut: () async => throw Exception('network error'),
+      );
+
+      await notifier.signOut();
+
+      expect(storage.getToken(), isNull);
+      expect(notifier.state.status, SessionStatus.unauthorized);
+    });
+
+    test('onSignOut 없이도 정상 동작한다', () async {
+      final (:repo, :storage, :notifier) = _make(initialToken: 'token');
+
+      await notifier.signOut();
+
+      expect(storage.getToken(), isNull);
+      expect(notifier.state.status, SessionStatus.unauthorized);
+    });
+  });
+
+  group('SessionNotifier.deleteAccount()', () {
+    test('onSignOut 호출 후 계정 삭제와 전체 초기화를 진행한다', () async {
+      var onSignOutCalled = false;
+      final (:repo, :storage, :notifier) = _make(
+        initialToken: 'token',
+        onSignOut: () async => onSignOutCalled = true,
+      );
+
+      await notifier.deleteAccount();
+
+      expect(onSignOutCalled, isTrue);
+      expect(repo.deleteAccountCalled, isTrue);
+      expect(storage.getToken(), isNull);
+      expect(notifier.state.status, SessionStatus.unauthorized);
+    });
+
+    test('onSignOut이 실패해도 계정 삭제는 계속 진행된다', () async {
+      final (:repo, :storage, :notifier) = _make(
+        initialToken: 'token',
+        onSignOut: () async => throw Exception('network error'),
+      );
+
+      await notifier.deleteAccount();
+
+      expect(repo.deleteAccountCalled, isTrue);
     });
   });
 }

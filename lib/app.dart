@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app_links/app_links.dart';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:flutter/foundation.dart';
@@ -11,6 +13,7 @@ import 'providers/session_provider.dart';
 import 'screens/bootstrap_debug_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/subscribe_screen.dart';
+import 'services/notification_coordinator.dart';
 import 'theme/app_theme.dart';
 import 'widgets/bottom_nav_bar.dart';
 
@@ -44,11 +47,15 @@ class _SessionGateState extends ConsumerState<_SessionGate> {
       // iOS 14+: UIWindow가 준비된 첫 프레임에서 ATT 권한 요청
       // runApp() 전에 호출하면 window가 없어 다이얼로그가 표시되지 않는다
       try {
-        final status = await AppTrackingTransparency.trackingAuthorizationStatus;
+        final status =
+            await AppTrackingTransparency.trackingAuthorizationStatus;
         debugPrint('[ATT] current status: $status');
         if (status == TrackingStatus.notDetermined) {
-          await Future.delayed(const Duration(milliseconds: 500)); // 다이얼로그가 production 에서 안뜰때가 있음
-          final result = await AppTrackingTransparency.requestTrackingAuthorization();
+          await Future.delayed(
+            const Duration(milliseconds: 500),
+          ); // 다이얼로그가 production 에서 안뜰때가 있음
+          final result =
+              await AppTrackingTransparency.requestTrackingAuthorization();
           debugPrint('[ATT] requested, result: $result');
         }
       } catch (e) {
@@ -89,7 +96,7 @@ class _UnauthorizedScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final mint = const Color(0xFF3dbfa8);
+    const mint = Color(0xFF3dbfa8);
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -98,7 +105,11 @@ class _UnauthorizedScreen extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.lock_outline, size: 56, color: Color(0xFF3dbfa8)),
+                const Icon(
+                  Icons.lock_outline,
+                  size: 56,
+                  color: Color(0xFF3dbfa8),
+                ),
                 const SizedBox(height: 20),
                 const Text(
                   'Session expired',
@@ -127,9 +138,17 @@ class _UnauthorizedScreen extends ConsumerWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: mint,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Text('Sign In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    child: const Text(
+                      'Sign In',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -138,13 +157,20 @@ class _UnauthorizedScreen extends ConsumerWidget {
                   height: 52,
                   child: OutlinedButton(
                     onPressed: () {
-                      ref.read(sessionNotifierProvider.notifier).continueAsGuest();
+                      ref
+                          .read(sessionNotifierProvider.notifier)
+                          .continueAsGuest();
                     },
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: Colors.grey.shade300),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Text('Continue as Guest', style: TextStyle(fontSize: 16)),
+                    child: const Text(
+                      'Continue as Guest',
+                      style: TextStyle(fontSize: 16),
+                    ),
                   ),
                 ),
               ],
@@ -167,6 +193,8 @@ class _MainScreenState extends ConsumerState<MainScreen>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
   final _appLinks = AppLinks();
+  StreamSubscription<Uri>? _appLinkSubscription;
+  StreamSubscription<NotificationDestination>? _notificationSubscription;
 
   @override
   void initState() {
@@ -174,24 +202,30 @@ class _MainScreenState extends ConsumerState<MainScreen>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initDeepLinks();
+      _initNotifications();
     });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _appLinkSubscription?.cancel();
+    _notificationSubscription?.cancel();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _syncNotificationPermission();
+      _syncNotificationSettings();
     }
   }
 
-  Future<void> _syncNotificationPermission() async {
-    await ref.read(notificationPermissionProvider.notifier).sync();
+  /// 앱이 포그라운드로 복귀할 때마다 디바이스 토큰을 다시 등록 시도한다 -
+  /// OS 권한/서버 설정 어느 쪽도 확인하지 않고 무조건 시도한다 (토큰을
+  /// 구할 수 있는지만 syncToken 내부에서 판단).
+  Future<void> _syncNotificationSettings() async {
+    await ref.read(notificationSettingsProvider.notifier).syncToken();
   }
 
   Future<void> _initDeepLinks() async {
@@ -200,9 +234,10 @@ class _MainScreenState extends ConsumerState<MainScreen>
     if (initialUri != null && mounted) {
       _handleDeepLink(initialUri);
     }
+    if (!mounted) return;
 
     // 앱이 백그라운드에 있다가 딥링크로 포그라운드로 온 경우
-    _appLinks.uriLinkStream.listen((uri) {
+    _appLinkSubscription = _appLinks.uriLinkStream.listen((uri) {
       if (mounted) _handleDeepLink(uri);
     });
   }
@@ -213,11 +248,44 @@ class _MainScreenState extends ConsumerState<MainScreen>
     if (segments.length >= 2 && segments[0] == 'topics') {
       final token = segments[1];
       Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => SubscribeScreen(topicToken: token),
-        ),
+        MaterialPageRoute(builder: (_) => SubscribeScreen(topicToken: token)),
       );
     }
+  }
+
+  Future<void> _initNotifications() async {
+    final coordinator = ref.read(notificationCoordinatorProvider);
+    _notificationSubscription = coordinator.destinations.listen(
+      _handleNotificationDestination,
+    );
+    final initialDestination = await coordinator.init();
+    if (initialDestination != null && mounted) {
+      _handleNotificationDestination(initialDestination);
+    }
+    if (!mounted) return;
+    ref.invalidate(notificationSettingsProvider);
+    await ref.read(notificationSettingsProvider.future);
+    if (mounted) {
+      await ref.read(notificationSettingsProvider.notifier).syncToken();
+    }
+  }
+
+  /// coordinator.destinations로 들어오는 모든 알림(콜드 스타트, 포그라운드
+  /// 수신, 백그라운드 탭)의 최종 처리 지점 - Expenses 탭으로 전환하고 해당
+  /// 날짜로 이동한 뒤, 리스트가 그 entry로 스크롤+하이라이트하도록 신호를 준다.
+  void _handleNotificationDestination(NotificationDestination destination) {
+    if (destination is! EntryChangeDestination) return;
+    final local = destination.occurredAt.toLocal();
+    setState(() => _currentIndex = 0);
+    ref
+        .read(expenseNotifierProvider.notifier)
+        .goToDate(local.year, local.month, local.day)
+        .then((_) {
+      if (mounted) {
+        ref.read(highlightedEntryIdProvider.notifier).state =
+            destination.entryId;
+      }
+    });
   }
 
   void _onTabTapped(int index) {
@@ -242,10 +310,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: BottomNavBar(
-        currentIndex: _currentIndex,
-        onTap: _onTabTapped,
-      ),
+      body: BottomNavBar(currentIndex: _currentIndex, onTap: _onTabTapped),
       floatingActionButton: kDebugMode
           ? FloatingActionButton.small(
               heroTag: 'bootstrap_debug_fab',

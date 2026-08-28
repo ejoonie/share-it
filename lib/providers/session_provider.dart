@@ -11,12 +11,13 @@ class SessionState {
   final SessionStatus status;
   final BootstrapResponse? data;
 
-  const SessionState({
-    this.status = SessionStatus.loading,
-    this.data,
-  });
+  const SessionState({this.status = SessionStatus.loading, this.data});
 
-  SessionState copyWith({SessionStatus? status, BootstrapResponse? data, bool clearData = false}) {
+  SessionState copyWith({
+    SessionStatus? status,
+    BootstrapResponse? data,
+    bool clearData = false,
+  }) {
     return SessionState(
       status: status ?? this.status,
       data: clearData ? null : (data ?? this.data),
@@ -27,13 +28,16 @@ class SessionState {
 class SessionNotifier extends StateNotifier<SessionState> {
   final SessionRepository _repository;
   final TokenStorage _tokenStorage;
+  final Future<void> Function()? _onSignOut;
 
   SessionNotifier({
     required SessionRepository repository,
     required TokenStorage tokenStorage,
-  })  : _repository = repository,
-        _tokenStorage = tokenStorage,
-        super(const SessionState());
+    Future<void> Function()? onSignOut,
+  }) : _repository = repository,
+       _tokenStorage = tokenStorage,
+       _onSignOut = onSignOut,
+       super(const SessionState());
 
   /// 앱 시작 시 호출.
   /// - 한 번이라도 로그인한 적 있으면 토큰 없을 때 게스트 생성 없이 unauthorized로 전환.
@@ -73,14 +77,28 @@ class SessionNotifier extends StateNotifier<SessionState> {
     }
   }
 
-  /// 로그아웃 — 토큰 삭제 후 unauthorized 상태로 전환.
+  /// 로그아웃 — 인증 토큰이 아직 남아있을 때 이 기기의 FCM 토큰을 먼저
+  /// 해제하고, 로컬 토큰 삭제 후 unauthorized 상태로 전환한다. 알림 해제가
+  /// 실패해도(네트워크 오류 등) 로그아웃 자체는 막지 않는다.
   Future<void> signOut() async {
-    await _tokenStorage.clearToken();
-    state = state.copyWith(status: SessionStatus.unauthorized, clearData: true);
+    try {
+      await _onSignOut?.call();
+    } catch (_) {
+      // 무시 - 로그아웃을 막지 않는다
+    } finally {
+      await _tokenStorage.clearToken();
+      state = state.copyWith(status: SessionStatus.unauthorized, clearData: true);
+    }
   }
 
-  /// 회원탈퇴 — 서버 계정 삭제 후 로컬 상태 전체 초기화 (게스트 플래그 포함).
+  /// 회원탈퇴 — 이 기기의 FCM 토큰을 먼저 해제한 뒤 서버 계정 삭제, 로컬
+  /// 상태 전체 초기화 (게스트 플래그 포함).
   Future<void> deleteAccount() async {
+    try {
+      await _onSignOut?.call();
+    } catch (_) {
+      // 무시 - 탈퇴를 막지 않는다
+    }
     await _repository.deleteAccount();
     await _tokenStorage.clearAll();
     state = state.copyWith(status: SessionStatus.unauthorized, clearData: true);
@@ -91,6 +109,15 @@ class SessionNotifier extends StateNotifier<SessionState> {
     state = state.copyWith(status: SessionStatus.loading);
     await _repository.guestLogin();
     await _loadData();
+  }
+
+  void setNotificationsEnabled(bool enabled) {
+    final data = state.data;
+    final user = data?.user;
+    if (data == null || user == null) return;
+    state = state.copyWith(
+      data: data.copyWith(user: user.copyWith(notificationsEnabled: enabled)),
+    );
   }
 
   Future<void> _loadData() async {
@@ -105,5 +132,5 @@ final sessionRepositoryProvider = Provider<SessionRepository>((ref) {
 
 final sessionNotifierProvider =
     StateNotifierProvider<SessionNotifier, SessionState>((ref) {
-  throw UnimplementedError('sessionNotifierProvider must be overridden');
-});
+      throw UnimplementedError('sessionNotifierProvider must be overridden');
+    });

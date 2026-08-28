@@ -14,6 +14,7 @@ class EntryModel {
   final DateTime? deletedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool read;
 
   const EntryModel({
     required this.id,
@@ -31,6 +32,7 @@ class EntryModel {
     this.deletedAt,
     required this.createdAt,
     required this.updatedAt,
+    this.read = false,
   });
 
   factory EntryModel.fromJson(Map<String, dynamic> json) {
@@ -54,6 +56,7 @@ class EntryModel {
           : null,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
+      read: (json['read'] as bool?) ?? false,
     );
   }
 
