@@ -257,6 +257,14 @@ class _MainScreenState extends ConsumerState<MainScreen>
       // which is also used when returning from TopicDetailScreen after an edit.
       ref.read(settingsRefreshProvider.notifier).update((n) => n + 1);
     }
+
+    // Share/Settings 탭에 들어올 때마다 디바이스 토큰 등록을 한 번 더
+    // 시도한다 - 셋 다 IndexedStack으로 한 번만 생성돼서 initState는 앱 시작
+    // 시점에만 도는데, 그때는 OS 알림 권한이 아직 미결정이라 등록이 실패했을
+    // 수 있다. 탭마다 다시 시도해서 나중에라도 등록되게 한다.
+    if (index == 1 || index == 2) {
+      ref.read(deviceTokenSyncProvider).syncToken();
+    }
   }
 
   @override
