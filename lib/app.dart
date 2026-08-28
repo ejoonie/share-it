@@ -194,7 +194,8 @@ class _MainScreenState extends ConsumerState<MainScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _syncNotificationPermission();
-      ref.read(deviceTokenSyncProvider).syncToken();
+      final sync = ref.read(deviceTokenSyncProvider);
+      sync.requestPermission().then((_) => sync.syncToken());
     }
   }
 
@@ -205,8 +206,11 @@ class _MainScreenState extends ConsumerState<MainScreen>
   /// 디바이스 토큰 등록 - OS 알림 권한/서버 설정 어느 쪽에도 종속되지 않고,
   /// 토큰을 구할 수 있으면 무조건 서버에 등록한다. 앱 시작 시 한 번 시도하고,
   /// 토큰이 재발급될 때(재설치, 앱 데이터 삭제 등)마다 다시 등록한다.
+  /// onTokenRefresh로 오는 경우는 이미 등록(requestPermission)이 끝난
+  /// 뒤라 다시 요청할 필요 없이 바로 syncToken만 부른다.
   Future<void> _initDeviceTokenSync() async {
     final sync = ref.read(deviceTokenSyncProvider);
+    await sync.requestPermission();
     await sync.syncToken();
     if (!mounted) return;
     _tokenRefreshSubscription = FirebaseMessaging.instance.onTokenRefresh.listen(
@@ -263,7 +267,8 @@ class _MainScreenState extends ConsumerState<MainScreen>
     // 시점에만 도는데, 그때는 OS 알림 권한이 아직 미결정이라 등록이 실패했을
     // 수 있다. 탭마다 다시 시도해서 나중에라도 등록되게 한다.
     if (index == 1 || index == 2) {
-      ref.read(deviceTokenSyncProvider).syncToken();
+      final sync = ref.read(deviceTokenSyncProvider);
+      sync.requestPermission().then((_) => sync.syncToken());
     }
   }
 

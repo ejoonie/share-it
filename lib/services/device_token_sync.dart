@@ -14,17 +14,27 @@ class DeviceTokenSync {
 
   DeviceTokenSync(this._ref);
 
-  /// 앱 시작/포그라운드 복귀/토큰 리프레시 시 호출한다.
+  /// iOS 네이티브 remote notification 등록(registerForRemoteNotifications)을
+  /// 트리거한다. permission_handler 등으로 OS 알림 권한만 받으면
+  /// UNUserNotificationCenter만 갱신되고 그 등록은 안 불려서 APNs 토큰이
+  /// 영영 안 온다 - FirebaseMessaging.requestPermission()이 내부적으로 그
+  /// 등록까지 같이 해준다. 이미 권한이 결정된 상태면 다이얼로그 없이 조용히
+  /// 반환되니 아무 때나 불러도 안전하고, 결과(허용/거부)는 쓰지 않는다 -
+  /// 토큰 등록 자체는 권한 여부와 무관하게 시도한다(syncToken 참고).
+  ///
+  /// syncToken()과 분리해두는 이유: onTokenRefresh로 이미 토큰을 받은
+  /// 경우엔 등록이 이미 끝난 뒤이므로 이걸 다시 부를 필요가 없다.
+  Future<void> requestPermission() async {
+    if (!Platform.isIOS) return;
+    await FirebaseMessaging.instance.requestPermission();
+  }
+
+  /// 토큰을 구할 수 있으면 서버에 등록한다. OS 권한/서버 설정 어느 쪽에도
+  /// 종속되지 않는다 - requestPermission()을 먼저 불렀는지와 무관하게, 지금
+  /// APNs/FCM 토큰을 구할 수 있으면 그대로 등록을 시도한다.
   Future<void> syncToken([String? refreshedToken]) async {
-    if (Platform.isIOS) {
-      // permission_handler 등으로 OS 알림 권한만 받으면 UNUserNotificationCenter만
-      // 갱신되고 UIApplication.registerForRemoteNotifications()는 안 불려서 APNs
-      // 토큰이 영영 안 온다. FirebaseMessaging.requestPermission()이 내부적으로
-      // 그 등록까지 트리거해준다 - 이미 권한이 결정된 상태면 다이얼로그 없이
-      // 조용히 반환되니 매번 호출해도 안전하고, 결과(허용/거부)는 여기서 쓰지
-      // 않는다 - 토큰 등록 자체는 권한 여부와 무관하게 시도한다.
-      await FirebaseMessaging.instance.requestPermission();
-      if (await FirebaseMessaging.instance.getAPNSToken() == null) return;
+    if (Platform.isIOS && await FirebaseMessaging.instance.getAPNSToken() == null) {
+      return;
     }
 
     final token = refreshedToken ?? await FirebaseMessaging.instance.getToken();
