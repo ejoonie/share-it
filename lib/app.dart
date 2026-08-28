@@ -204,13 +204,13 @@ class _MainScreenState extends ConsumerState<MainScreen>
   }
 
   /// 디바이스 토큰 등록 - OS 알림 권한/서버 설정 어느 쪽에도 종속되지 않고,
-  /// 토큰을 구할 수 있으면 무조건 서버에 등록한다. 앱 시작 시 한 번 시도하고,
+  /// 토큰을 구할 수 있으면 무조건 서버에 등록한다. 앱 시작 시엔
+  /// requestPermission()을 부르지 않는다 - 이미 등록된 적 있는 기기라면
+  /// syncToken()만으로 충분하고, 첫 실행이라 아직 APNs 토큰이 없는 경우는
+  /// 이후 리쥼/탭 진입 시 requestPermission()과 함께 재시도된다.
   /// 토큰이 재발급될 때(재설치, 앱 데이터 삭제 등)마다 다시 등록한다.
-  /// onTokenRefresh로 오는 경우는 이미 등록(requestPermission)이 끝난
-  /// 뒤라 다시 요청할 필요 없이 바로 syncToken만 부른다.
   Future<void> _initDeviceTokenSync() async {
     final sync = ref.read(deviceTokenSyncProvider);
-    await sync.requestPermission();
     await sync.syncToken();
     if (!mounted) return;
     _tokenRefreshSubscription = FirebaseMessaging.instance.onTokenRefresh.listen(
