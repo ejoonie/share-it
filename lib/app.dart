@@ -206,24 +206,25 @@ class _MainScreenState extends ConsumerState<MainScreen>
   /// 토큰이 재발급되면 계속 갱신되도록 리스너를 건다.
   Future<void> _initNotifications() async {
     final storage = ref.read(notificationOptInStorageProvider);
-    if (storage.optedIn) {
-      await ref.read(notificationOptInProvider).enable();
+    if (storage.hasResponded) {
+      // 동의 여부 응답을 한번이라도 하면 결과 상관없이 수집한다. 상태와는 decouple
+      // 앱 시작하자마자 동의 띄우는걸 안하려고, 응답했는지를 표시한 이후에 토큰 수집
+      await ref.read(notificationOptInProvider).registerToken();
     }
+
     _tokenRefreshSub =
         FirebaseMessaging.instance.onTokenRefresh.listen((token) {
-      if (ref.read(notificationOptInStorageProvider).optedIn) {
-        ref.read(notificationOptInProvider).handleTokenRefresh(token);
-      }
-    });
+          ref.read(notificationOptInProvider).handleTokenRefresh(token);
+        }); // dispose 시 cancel 해야함
   }
 
   /// Share 탭에 처음 들어왔을 때 인앱 알림 opt-in 다이얼로그를 한 번 띄운다.
   /// 이슈 #130: 앱 시작 시가 아니라 이 시점에 물어보고, OS 권한 상태는
   /// 고려하지 않는다. "나중에"를 누르면 서버의 notifications_enabled를
   /// false로 내린다(기본값 true). 한 번 응답하면 다시 띄우지 않는다.
-  Future<void> _maybePromptNotificationOptIn() async {
+  Future<void> _promptNotificationOptIn() async {
     final storage = ref.read(notificationOptInStorageProvider);
-    if (storage.hasResponded || !mounted) return;
+    if (storage.hasResponded || !mounted) return; // 이미 한번 응답한 적이 있으면 띄우지 않는다.
 
     final allow = await showDialog<bool>(
       context: context,
@@ -247,9 +248,17 @@ class _MainScreenState extends ConsumerState<MainScreen>
     );
     if (allow == null) return;
 
-    await storage.saveResponse(optedIn: allow);
-    final optIn = ref.read(notificationOptInProvider);
-    await (allow ? optIn.enable() : optIn.decline());
+    /// 승인되면 IOS 프롬프트 띄운다.
+    /// iOS 프롬프트에서 거절해도 코드 실행은 되지만 token 은 Null
+    final optInProvider = ref.read(notificationOptInProvider);
+    if (allow) {
+      await optInProvider.enable();
+    } else {
+      await optInProvider.decline();
+    }
+
+    // 토큰 등록 성공여부와 관계없이 응답했으니 마크 함
+    await storage.markAsResponded();
   }
 
   Future<void> _initDeepLinks() async {
@@ -290,7 +299,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
     if (index == 0) {
       ref.read(expenseNotifierProvider.notifier).load();
     } else if (index == 1) {
-      _maybePromptNotificationOptIn();
+      _promptNotificationOptIn();
     } else if (index == 2) {
       // Settings data is managed by settingsNotifierProvider (autoDispose).
       // Incrementing settingsRefreshProvider signals the screen to reload,

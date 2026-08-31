@@ -18,7 +18,7 @@ module V1
             entries = topic.entries.order(created_at: :asc).to_a if topic
           else
             topic = current_user.topics.create!(
-              title: '✨ My First Piggy 🎉',
+              title: "My First Piggy - #{SecureRandom.hex(4)}🎉",
               is_default: true
             )
 
