@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:app_settings/app_settings.dart';
 
 import '../models/subscription_model.dart';
-import '../models/topic_model.dart'; // TopicModel: _buildMyPiggies에서 사용
 import '../providers/core_providers.dart';
 import '../providers/session_provider.dart';
 import 'login_screen.dart';
@@ -144,6 +141,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ref.listen(settingsRefreshProvider, (_, __) {
       notifier.loadMyPiggies();
       notifier.loadSubscriptions();
+      ref.read(sessionNotifierProvider.notifier).refreshNotificationEnabled();
     });
 
     final state = ref.watch(settingsNotifierProvider);

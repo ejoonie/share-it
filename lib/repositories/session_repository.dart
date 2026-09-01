@@ -112,4 +112,9 @@ class SessionRepository {
   Future<void> updateNotificationsEnabled(bool enabled) async {
     await _apiClient.put('/api/v1/my/account/notifications', {'enabled': enabled});
   }
+
+  Future<bool> getNotificationsEnabled() async {
+    final json = await _apiClient.get('/api/v1/my/account/notifications');
+    return json['notifications_enabled'] as bool;
+  }
 }

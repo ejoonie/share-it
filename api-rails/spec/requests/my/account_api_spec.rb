@@ -52,6 +52,24 @@ RSpec.describe 'My Account API', type: :request do
     end
   end
 
+  describe 'GET /api/v1/my/account/notifications' do
+    it 'returns the current notification setting' do
+      user = users(:user_one)
+      user.update!(notifications_enabled: false)
+
+      get_json '/api/v1/my/account/notifications', login_user: user
+
+      expect(response).to have_http_status(200)
+      expect(json_response['notifications_enabled']).to be(false)
+    end
+
+    it 'returns 401 when not authenticated' do
+      get '/api/v1/my/account/notifications'
+
+      expect(response).to have_http_status(401)
+    end
+  end
+
   describe 'POST /api/v1/my/account/change_password' do
     it 'changes the password when code and confirmation are valid' do
       user = users(:user_one)

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:app_links/app_links.dart';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
@@ -280,14 +279,16 @@ class _MainScreenState extends ConsumerState<MainScreen>
       ),
     );
 
-    // 사용자가 응답을 했는지 기록
+    // 사용자가 응답을 했는지 로컬에 기록
     storage.markAsResponded();
 
-    // 서버에 기록하고, 최초인 경우 iOS 다이얼로그 호출
+    // 결과를 서버에 기록
+    await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(allow ?? false);
+
+    // 승인했을 경우 다이얼로그 호출
+    // 토큰은 결과에 관계없이 언제나 전송
     if (allow == true) {
-      await _deviceTokenService?.requestPermissionAndSync();
-    } else {
-      await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(false);
+      await _deviceTokenService?.requestPermissionAndSync(); // handles iOS
     }
   }
 

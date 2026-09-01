@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
@@ -128,6 +129,26 @@ class SessionNotifier extends StateNotifier<SessionState> {
       );
     } catch (e) {
       state = state.copyWith(data: data); // rewind
+    }
+  }
+
+  Future<void> refreshNotificationEnabled() async {
+    final data = state.data;
+    final user = data?.user;
+
+    if (user == null) return;
+
+    try {
+      final enabled = await _repository.getNotificationsEnabled();
+      state = state.copyWith(
+        data: data?.copyWith(
+          user: user.copyWith(
+            notificationsEnabled: enabled,
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Failed to refresh notification enabled: $e');
     }
   }
 }
