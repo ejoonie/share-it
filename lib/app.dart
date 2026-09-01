@@ -184,9 +184,10 @@ class _MainScreenState extends ConsumerState<MainScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initDeepLinks();
 
-      if (Platform.isIOS) {
-        _deviceTokenService?.requestPermissionAndSync();
-      }
+      // permission 은 앱 실행시 바로 요청하지 않는다.
+      // if (Platform.isIOS) {
+      //   _deviceTokenService?.requestPermissionAndSync();
+      // }
       _deviceTokenService?.initialize();
     });
   }
@@ -243,12 +244,50 @@ class _MainScreenState extends ConsumerState<MainScreen>
     if (index == 0) {
       ref.read(expenseNotifierProvider.notifier).load();
     } else if (index == 1) {
-
+      _promptForNotificationPermission(); // share tab 처음 진입할때
     } else if (index == 2) {
       // Settings data is managed by settingsNotifierProvider (autoDispose).
       // Incrementing settingsRefreshProvider signals the screen to reload,
       // which is also used when returning from TopicDetailScreen after an edit.
       ref.read(settingsRefreshProvider.notifier).update((n) => n + 1);
+    }
+  }
+
+  Future<void> _promptForNotificationPermission() async {
+    final storage = ref.read(notificationOptInStorageProvider);
+    if (!mounted || storage.hasResponded) {
+      return;
+    }
+
+    final allow = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Turn on notifications?'),
+        content: const Text(
+          'Get notified when new expenses are added.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Not now'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Allow'),
+          ),
+        ],
+      ),
+    );
+
+    // 사용자가 응답을 했는지 기록
+    storage.markAsResponded();
+
+    // 서버에 기록하고, 최초인 경우 iOS 다이얼로그 호출
+    if (allow == true) {
+      await _deviceTokenService?.requestPermissionAndSync();
+    } else {
+      await ref.read(notificationRepositoryProvider).setEnabled(false);
     }
   }
 

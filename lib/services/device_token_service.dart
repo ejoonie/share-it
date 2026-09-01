@@ -55,7 +55,7 @@ class DeviceTokenService {
       if (token == null) return;
 
       await repository.register(token: token, platform: Platform.isIOS ? 'ios' : 'android');
-      debugPrint('[push] Token registered');
+      debugPrint('[push] Token registered: $token');
     } catch (error) {
       debugPrint('[push] Token sync failed: $error');
     }

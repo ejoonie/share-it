@@ -4,6 +4,7 @@ import '../api/api_client.dart';
 import '../models/topic_model.dart';
 import '../repositories/device_token_repository.dart';
 import '../repositories/entry_repository.dart';
+import '../repositories/notification_repository.dart';
 import '../repositories/topic_repository.dart';
 import '../storage/last_used_topic_storage.dart';
 import '../storage/notification_opt_in_storage.dart';
@@ -51,6 +52,10 @@ final subscriptionRepositoryProvider = Provider<SubscriptionRepository>((ref) {
 
 final deviceTokenRepositoryProvider = Provider<DeviceTokenRepository>((ref) {
   return DeviceTokenRepository(apiClient: ref.watch(apiClientProvider));
+});
+
+final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
+  return NotificationRepository(apiClient: ref.watch(apiClientProvider));
 });
 
 /// 유저가 명시적으로 선택한 토픽 ID. null이면 세션 기본값을 사용한다.
