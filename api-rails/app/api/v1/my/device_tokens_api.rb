@@ -21,9 +21,12 @@ module V1
           { id: device_token.id }
         end
 
-        # DELETE /api/v1/my/device_tokens/:token
+        # DELETE /api/v1/my/device_tokens
         desc '디바이스 토큰 등록 해제 (로그아웃 시 호출)'
-        delete ':token' do
+        params do
+          requires :token, type: String, regexp: /\S/
+        end
+        delete do
           current_user.device_tokens.where(token: params[:token]).delete_all
           status 204
         end

@@ -20,8 +20,9 @@ module RequestHelpers
       headers: default_json_headers(login_user&.token).merge(headers)
   end
 
-  def delete_json(path, login_user: nil, headers: {})
+  def delete_json(path, login_user: nil, params: {}, headers: {})
     delete path,
+      params: params.to_json,
       headers: default_json_headers(login_user&.token).merge(headers)
   end
 

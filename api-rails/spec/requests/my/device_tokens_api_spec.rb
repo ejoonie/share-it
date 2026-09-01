@@ -51,13 +51,15 @@ RSpec.describe "MyDeviceTokens API", type: :request do
     end
   end
 
-  # DELETE /api/v1/my/device_tokens/:token
-  describe "DELETE /api/v1/my/device_tokens/:token" do
+  # DELETE /api/v1/my/device_tokens
+  describe "DELETE /api/v1/my/device_tokens" do
     it "removes the token for the current user" do
       DeviceToken.create!(user: users(:user_one), token: "to-remove", platform: "ios")
 
       expect {
-        delete_json "/api/v1/my/device_tokens/to-remove", login_user: users(:user_one)
+        delete_json "/api/v1/my/device_tokens",
+                    login_user: users(:user_one),
+                    params: { token: "to-remove" }
       }.to change(DeviceToken, :count).by(-1)
 
       expect(response).to have_http_status(204)
@@ -67,12 +69,20 @@ RSpec.describe "MyDeviceTokens API", type: :request do
       DeviceToken.create!(user: users(:user_two), token: "not-mine", platform: "ios")
 
       expect {
-        delete_json "/api/v1/my/device_tokens/not-mine", login_user: users(:user_one)
+        delete_json "/api/v1/my/device_tokens",
+                    login_user: users(:user_one),
+                    params: { token: "not-mine" }
       }.not_to change(DeviceToken, :count)
     end
 
+    it "returns 400 when token is missing" do
+      delete_json "/api/v1/my/device_tokens", login_user: users(:user_one)
+
+      expect(response).to have_http_status(400)
+    end
+
     it "returns 401 when not authenticated" do
-      delete "/api/v1/my/device_tokens/whatever"
+      delete_json "/api/v1/my/device_tokens", params: { token: "whatever" }
 
       expect(response).to have_http_status(401)
     end
