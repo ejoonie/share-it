@@ -1,20 +1,19 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:app_links/app_links.dart';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_it/services/device_token_service.dart';
 
 import 'providers/core_providers.dart';
 import 'providers/expense_provider.dart';
-import 'providers/notification_permission_provider.dart';
 import 'providers/session_provider.dart';
 import 'screens/bootstrap_debug_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/subscribe_screen.dart';
-import 'services/notification_opt_in.dart';
 import 'theme/app_theme.dart';
 import 'widgets/bottom_nav_bar.dart';
 
@@ -171,94 +170,39 @@ class _MainScreenState extends ConsumerState<MainScreen>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
   final _appLinks = AppLinks();
-  StreamSubscription<String>? _tokenRefreshSub;
+  late final DeviceTokenService? _deviceTokenService;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    _deviceTokenService = DeviceTokenService(
+      ref.read(deviceTokenRepositoryProvider),
+    );
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initDeepLinks();
-      _initNotifications();
+
+      if (Platform.isIOS) {
+        _deviceTokenService?.requestPermissionAndSync();
+      }
+      _deviceTokenService?.initialize();
     });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _tokenRefreshSub?.cancel();
+    unawaited(_deviceTokenService?.dispose());
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _syncNotificationPermission();
-    }
-  }
-
-  Future<void> _syncNotificationPermission() async {
-    await ref.read(notificationPermissionProvider.notifier).sync();
-  }
-
-  /// 이미 알림 opt-in한 기기라면 앱 시작 시 FCM 토큰을 다시 등록하고
-  /// (재설치·앱 데이터 삭제 등으로 토큰이 바뀌었을 수 있다), 실행 중
-  /// 토큰이 재발급되면 계속 갱신되도록 리스너를 건다.
-  Future<void> _initNotifications() async {
-    final storage = ref.read(notificationOptInStorageProvider);
-    if (storage.hasResponded) {
-      // 동의 여부 응답을 한번이라도 하면 결과 상관없이 수집한다. 상태와는 decouple
-      // 앱 시작하자마자 동의 띄우는걸 안하려고, 응답했는지를 표시한 이후에 토큰 수집
-      await ref.read(notificationOptInProvider).registerToken();
-    }
-
-    _tokenRefreshSub =
-        FirebaseMessaging.instance.onTokenRefresh.listen((token) {
-          ref.read(notificationOptInProvider).handleTokenRefresh(token);
-        }); // dispose 시 cancel 해야함
-  }
-
-  /// Share 탭에 처음 들어왔을 때 인앱 알림 opt-in 다이얼로그를 한 번 띄운다.
-  /// 이슈 #130: 앱 시작 시가 아니라 이 시점에 물어보고, OS 권한 상태는
-  /// 고려하지 않는다. "나중에"를 누르면 서버의 notifications_enabled를
-  /// false로 내린다(기본값 true). 한 번 응답하면 다시 띄우지 않는다.
-  Future<void> _promptNotificationOptIn() async {
-    final storage = ref.read(notificationOptInStorageProvider);
-    if (storage.hasResponded || !mounted) return; // 이미 한번 응답한 적이 있으면 띄우지 않는다.
-
-    final allow = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Turn on notifications?'),
-        content: const Text(
-          'Get notified when new expenses are added to piggies you share or follow.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Not now'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Allow'),
-          ),
-        ],
-      ),
-    );
-    if (allow == null) return;
-
-    /// 승인되면 IOS 프롬프트 띄운다.
-    /// iOS 프롬프트에서 거절해도 코드 실행은 되지만 token 은 Null
-    final optInProvider = ref.read(notificationOptInProvider);
-    if (allow) {
-      await optInProvider.enable();
-    } else {
-      await optInProvider.decline();
-    }
-
-    // 토큰 등록 성공여부와 관계없이 응답했으니 마크 함
-    await storage.markAsResponded();
+    // if (state == AppLifecycleState.resumed) {
+    //   _syncNotificationPermission();
+    // }
   }
 
   Future<void> _initDeepLinks() async {
@@ -299,7 +243,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
     if (index == 0) {
       ref.read(expenseNotifierProvider.notifier).load();
     } else if (index == 1) {
-      _promptNotificationOptIn();
+
     } else if (index == 2) {
       // Settings data is managed by settingsNotifierProvider (autoDispose).
       // Incrementing settingsRefreshProvider signals the screen to reload,
