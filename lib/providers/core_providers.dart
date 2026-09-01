@@ -10,6 +10,7 @@ import '../storage/notification_opt_in_storage.dart';
 import '../storage/token_storage.dart';
 import '../storage/topic_filter_storage.dart';
 import '../repositories/subscription_repository.dart';
+import '../services/device_token_service.dart';
 import 'session_provider.dart';
 
 /// Must be overridden in main() with a real [TokenStorage] instance.
@@ -28,7 +29,8 @@ final lastUsedTopicStorageProvider = Provider<LastUsedTopicStorage>((ref) {
 });
 
 /// Must be overridden in main() with a real [NotificationOptInStorage] instance.
-final notificationOptInStorageProvider = Provider<NotificationOptInStorage>((ref) {
+final notificationOptInStorageProvider =
+    Provider<NotificationOptInStorage>((ref) {
   throw UnimplementedError(
     'notificationOptInStorageProvider must be overridden',
   );
@@ -51,6 +53,10 @@ final subscriptionRepositoryProvider = Provider<SubscriptionRepository>((ref) {
 
 final deviceTokenRepositoryProvider = Provider<DeviceTokenRepository>((ref) {
   return DeviceTokenRepository(apiClient: ref.watch(apiClientProvider));
+});
+
+final deviceTokenServiceProvider = Provider<DeviceTokenService>((ref) {
+  return DeviceTokenService(ref.watch(deviceTokenRepositoryProvider));
 });
 
 /// 유저가 명시적으로 선택한 토픽 ID. null이면 세션 기본값을 사용한다.

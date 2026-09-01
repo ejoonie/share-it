@@ -46,6 +46,7 @@ void main() async {
           (ref) => SessionNotifier(
             repository: ref.watch(sessionRepositoryProvider),
             tokenStorage: tokenStorage,
+            deviceTokenService: ref.watch(deviceTokenServiceProvider),
           ),
         ),
       ],

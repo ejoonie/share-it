@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_client.dart';
 import '../models/bootstrap_response.dart';
 import '../repositories/session_repository.dart';
+import '../services/device_token_service.dart';
 import '../storage/token_storage.dart';
 
 enum SessionStatus { loading, ready, unauthorized }
@@ -32,12 +33,15 @@ class SessionState {
 class SessionNotifier extends StateNotifier<SessionState> {
   final SessionRepository _repository;
   final TokenStorage _tokenStorage;
+  final DeviceTokenService? _deviceTokenService;
 
   SessionNotifier({
     required SessionRepository repository,
     required TokenStorage tokenStorage,
+    DeviceTokenService? deviceTokenService,
   })  : _repository = repository,
         _tokenStorage = tokenStorage,
+        _deviceTokenService = deviceTokenService,
         super(const SessionState());
 
   /// 앱 시작 시 호출.
@@ -69,6 +73,7 @@ class SessionNotifier extends StateNotifier<SessionState> {
     try {
       await _tokenStorage.markLoggedIn();
       await _loadData();
+      await _deviceTokenService?.syncCurrentToken();
     } on ApiException catch (e) {
       if (e.statusCode == 401) {
         state = state.copyWith(status: SessionStatus.unauthorized);
@@ -78,8 +83,9 @@ class SessionNotifier extends StateNotifier<SessionState> {
     }
   }
 
-  /// 로그아웃 — 토큰 삭제 후 unauthorized 상태로 전환.
+  /// 로그아웃 — 디바이스 토큰 해제 후 인증 토큰을 삭제한다.
   Future<void> signOut() async {
+    await _deviceTokenService?.unregisterCurrentToken();
     await _tokenStorage.clearToken();
     state = state.copyWith(status: SessionStatus.unauthorized, clearData: true);
   }

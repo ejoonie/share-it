@@ -46,11 +46,15 @@ class _SessionGateState extends ConsumerState<_SessionGate> {
       // iOS 14+: UIWindow가 준비된 첫 프레임에서 ATT 권한 요청
       // runApp() 전에 호출하면 window가 없어 다이얼로그가 표시되지 않는다
       try {
-        final status = await AppTrackingTransparency.trackingAuthorizationStatus;
+        final status =
+            await AppTrackingTransparency.trackingAuthorizationStatus;
         debugPrint('[ATT] current status: $status');
         if (status == TrackingStatus.notDetermined) {
-          await Future.delayed(const Duration(milliseconds: 500)); // 다이얼로그가 production 에서 안뜰때가 있음
-          final result = await AppTrackingTransparency.requestTrackingAuthorization();
+          await Future.delayed(
+            const Duration(milliseconds: 500),
+          ); // 다이얼로그가 production 에서 안뜰때가 있음
+          final result =
+              await AppTrackingTransparency.requestTrackingAuthorization();
           debugPrint('[ATT] requested, result: $result');
         }
       } catch (e) {
@@ -100,7 +104,11 @@ class _UnauthorizedScreen extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.lock_outline, size: 56, color: Color(0xFF3dbfa8)),
+                const Icon(
+                  Icons.lock_outline,
+                  size: 56,
+                  color: Color(0xFF3dbfa8),
+                ),
                 const SizedBox(height: 20),
                 const Text(
                   'Session expired',
@@ -119,7 +127,9 @@ class _UnauthorizedScreen extends ConsumerWidget {
                   child: ElevatedButton(
                     onPressed: () async {
                       await Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const LoginScreen(),
+                        ),
                       );
                       // 로그인 성공 후 데이터 리프레시
                       if (context.mounted) {
@@ -129,9 +139,15 @@ class _UnauthorizedScreen extends ConsumerWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: mint,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Text('Sign In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    child: const Text(
+                      'Sign In',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -140,13 +156,20 @@ class _UnauthorizedScreen extends ConsumerWidget {
                   height: 52,
                   child: OutlinedButton(
                     onPressed: () {
-                      ref.read(sessionNotifierProvider.notifier).continueAsGuest();
+                      ref
+                          .read(sessionNotifierProvider.notifier)
+                          .continueAsGuest();
                     },
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: Colors.grey.shade300),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Text('Continue as Guest', style: TextStyle(fontSize: 16)),
+                    child: const Text(
+                      'Continue as Guest',
+                      style: TextStyle(fontSize: 16),
+                    ),
                   ),
                 ),
               ],
@@ -169,16 +192,14 @@ class _MainScreenState extends ConsumerState<MainScreen>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
   final _appLinks = AppLinks();
-  late final DeviceTokenService? _deviceTokenService;
+  late final DeviceTokenService _deviceTokenService;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    _deviceTokenService = DeviceTokenService(
-      ref.read(deviceTokenRepositoryProvider),
-    );
+    _deviceTokenService = ref.read(deviceTokenServiceProvider);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initDeepLinks();
@@ -187,14 +208,14 @@ class _MainScreenState extends ConsumerState<MainScreen>
       // if (Platform.isIOS) {
       //   _deviceTokenService?.requestPermissionAndSync();
       // }
-      _deviceTokenService?.initialize();
+      _deviceTokenService.initialize();
     });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    unawaited(_deviceTokenService?.dispose());
+    unawaited(_deviceTokenService.dispose());
     super.dispose();
   }
 
@@ -283,12 +304,14 @@ class _MainScreenState extends ConsumerState<MainScreen>
     storage.markAsResponded();
 
     // 결과를 서버에 기록
-    await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(allow ?? false);
+    await ref
+        .read(sessionRepositoryProvider)
+        .updateNotificationsEnabled(allow ?? false);
 
     // 승인했을 경우 다이얼로그 호출
     // 토큰은 결과에 관계없이 언제나 전송
     if (allow == true) {
-      await _deviceTokenService?.requestPermissionAndSync(); // handles iOS
+      await _deviceTokenService.requestPermissionAndSync(); // handles iOS
     }
   }
 
