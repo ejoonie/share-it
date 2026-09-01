@@ -1,12 +1,14 @@
+import 'dart:async';
+
 import 'package:app_links/app_links.dart';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_it/services/device_token_service.dart';
 
 import 'providers/core_providers.dart';
 import 'providers/expense_provider.dart';
-import 'providers/notification_permission_provider.dart';
 import 'providers/session_provider.dart';
 import 'screens/bootstrap_debug_screen.dart';
 import 'screens/login_screen.dart';
@@ -44,11 +46,15 @@ class _SessionGateState extends ConsumerState<_SessionGate> {
       // iOS 14+: UIWindow가 준비된 첫 프레임에서 ATT 권한 요청
       // runApp() 전에 호출하면 window가 없어 다이얼로그가 표시되지 않는다
       try {
-        final status = await AppTrackingTransparency.trackingAuthorizationStatus;
+        final status =
+            await AppTrackingTransparency.trackingAuthorizationStatus;
         debugPrint('[ATT] current status: $status');
         if (status == TrackingStatus.notDetermined) {
-          await Future.delayed(const Duration(milliseconds: 500)); // 다이얼로그가 production 에서 안뜰때가 있음
-          final result = await AppTrackingTransparency.requestTrackingAuthorization();
+          await Future.delayed(
+            const Duration(milliseconds: 500),
+          ); // 다이얼로그가 production 에서 안뜰때가 있음
+          final result =
+              await AppTrackingTransparency.requestTrackingAuthorization();
           debugPrint('[ATT] requested, result: $result');
         }
       } catch (e) {
@@ -98,7 +104,11 @@ class _UnauthorizedScreen extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.lock_outline, size: 56, color: Color(0xFF3dbfa8)),
+                const Icon(
+                  Icons.lock_outline,
+                  size: 56,
+                  color: Color(0xFF3dbfa8),
+                ),
                 const SizedBox(height: 20),
                 const Text(
                   'Session expired',
@@ -117,7 +127,9 @@ class _UnauthorizedScreen extends ConsumerWidget {
                   child: ElevatedButton(
                     onPressed: () async {
                       await Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const LoginScreen(),
+                        ),
                       );
                       // 로그인 성공 후 데이터 리프레시
                       if (context.mounted) {
@@ -127,9 +139,15 @@ class _UnauthorizedScreen extends ConsumerWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: mint,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Text('Sign In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    child: const Text(
+                      'Sign In',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -138,13 +156,20 @@ class _UnauthorizedScreen extends ConsumerWidget {
                   height: 52,
                   child: OutlinedButton(
                     onPressed: () {
-                      ref.read(sessionNotifierProvider.notifier).continueAsGuest();
+                      ref
+                          .read(sessionNotifierProvider.notifier)
+                          .continueAsGuest();
                     },
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: Colors.grey.shade300),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Text('Continue as Guest', style: TextStyle(fontSize: 16)),
+                    child: const Text(
+                      'Continue as Guest',
+                      style: TextStyle(fontSize: 16),
+                    ),
                   ),
                 ),
               ],
@@ -167,31 +192,38 @@ class _MainScreenState extends ConsumerState<MainScreen>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
   final _appLinks = AppLinks();
+  late final DeviceTokenService _deviceTokenService;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    _deviceTokenService = ref.read(deviceTokenServiceProvider);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initDeepLinks();
+
+      // permission 은 앱 실행시 바로 요청하지 않는다.
+      // if (Platform.isIOS) {
+      //   _deviceTokenService?.requestPermissionAndSync();
+      // }
+      _deviceTokenService.initialize();
     });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    unawaited(_deviceTokenService.dispose());
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _syncNotificationPermission();
-    }
-  }
-
-  Future<void> _syncNotificationPermission() async {
-    await ref.read(notificationPermissionProvider.notifier).sync();
+    // if (state == AppLifecycleState.resumed) {
+    //   _syncNotificationPermission();
+    // }
   }
 
   Future<void> _initDeepLinks() async {
@@ -231,11 +263,55 @@ class _MainScreenState extends ConsumerState<MainScreen>
     // Tapping the tab triggers an explicit refresh.
     if (index == 0) {
       ref.read(expenseNotifierProvider.notifier).load();
+    } else if (index == 1) {
+      _promptForNotificationPermission(); // share tab 처음 진입할때
     } else if (index == 2) {
       // Settings data is managed by settingsNotifierProvider (autoDispose).
       // Incrementing settingsRefreshProvider signals the screen to reload,
       // which is also used when returning from TopicDetailScreen after an edit.
       ref.read(settingsRefreshProvider.notifier).update((n) => n + 1);
+    }
+  }
+
+  Future<void> _promptForNotificationPermission() async {
+    final storage = ref.read(notificationOptInStorageProvider);
+    if (!mounted || storage.hasResponded) {
+      return;
+    }
+
+    final allow = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Never miss an update'),
+        content: const Text(
+          'Get notified when someone adds an expense to a shared space.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Not now'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Turn on'),
+          ),
+        ],
+      ),
+    );
+
+    // 사용자가 응답을 했는지 로컬에 기록
+    storage.markAsResponded();
+
+    // 결과를 서버에 기록
+    await ref
+        .read(sessionRepositoryProvider)
+        .updateNotificationsEnabled(allow ?? false);
+
+    // 승인했을 경우 다이얼로그 호출
+    // 토큰은 결과에 관계없이 언제나 전송
+    if (allow == true) {
+      await _deviceTokenService.requestPermissionAndSync(); // handles iOS
     }
   }
 

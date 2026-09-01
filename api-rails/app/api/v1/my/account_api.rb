@@ -52,6 +52,13 @@ module V1
           { message: 'Guest data merged successfully.' }
         end
 
+        # GET /api/v1/my/account/notifications
+        desc '알림 수신 설정 조회'
+        get :notifications do
+          status 200
+          { notifications_enabled: current_user.notifications_enabled }
+        end
+
         # PUT /api/v1/my/account/notifications
         desc '알림 수신 설정 업데이트'
         params do

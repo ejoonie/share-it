@@ -4,7 +4,9 @@ import 'package:share_it/api/api_client.dart';
 import 'package:share_it/models/bootstrap_response.dart';
 import 'package:share_it/models/topic_model.dart';
 import 'package:share_it/providers/session_provider.dart';
+import 'package:share_it/repositories/device_token_repository.dart';
 import 'package:share_it/repositories/session_repository.dart';
+import 'package:share_it/services/device_token_service.dart';
 import 'package:share_it/storage/token_storage.dart';
 
 // ---------------------------------------------------------------------------
@@ -54,6 +56,27 @@ class _FakeSessionRepository extends SessionRepository {
   }
 }
 
+class _FakeDeviceTokenService extends DeviceTokenService {
+  final TokenStorage storage;
+  bool syncCalled = false;
+  bool unregisterCalled = false;
+  String? authTokenDuringUnregister;
+
+  _FakeDeviceTokenService(this.storage)
+      : super(DeviceTokenRepository(apiClient: ApiClient()));
+
+  @override
+  Future<void> syncCurrentToken() async {
+    syncCalled = true;
+  }
+
+  @override
+  Future<void> unregisterCurrentToken() async {
+    unregisterCalled = true;
+    authTokenDuringUnregister = storage.getToken();
+  }
+}
+
 BootstrapResponse _fakeBootstrap() {
   return BootstrapResponse(
     bootstrapCreated: false,
@@ -77,13 +100,20 @@ BootstrapResponse _fakeBootstrap() {
 late SharedPreferences _prefs;
 
 /// 각 테스트마다 독립적인 storage 와 notifier 를 만든다.
-({_FakeSessionRepository repo, _FakeTokenStorage storage, SessionNotifier notifier})
-    _make({String? initialToken}) {
+({
+  _FakeSessionRepository repo,
+  _FakeTokenStorage storage,
+  SessionNotifier notifier
+}) _make({String? initialToken, DeviceTokenService? deviceTokenService}) {
   final storage = _FakeTokenStorage(_prefs);
   if (initialToken != null) storage._token = initialToken;
 
   final repo = _FakeSessionRepository(storage);
-  final notifier = SessionNotifier(repository: repo, tokenStorage: storage);
+  final notifier = SessionNotifier(
+    repository: repo,
+    tokenStorage: storage,
+    deviceTokenService: deviceTokenService,
+  );
   return (repo: repo, storage: storage, notifier: notifier);
 }
 
@@ -106,18 +136,21 @@ void main() {
 
       await notifier.init();
 
-      expect(repo.guestLoginCalled, isTrue, reason: '토큰이 없으므로 게스트 로그인을 호출해야 한다');
+      expect(repo.guestLoginCalled, isTrue,
+          reason: '토큰이 없으므로 게스트 로그인을 호출해야 한다');
       expect(repo.loadDataCallCount, 1);
       expect(notifier.state.status, SessionStatus.ready);
       expect(notifier.state.data, isNotNull);
     });
 
     test('토큰 있으면 게스트 로그인 건너뛰고 데이터 로드 → ready', () async {
-      final (:repo, :storage, :notifier) = _make(initialToken: 'existing-token');
+      final (:repo, :storage, :notifier) =
+          _make(initialToken: 'existing-token');
 
       await notifier.init();
 
-      expect(repo.guestLoginCalled, isFalse, reason: '이미 토큰이 있으면 게스트 로그인을 하면 안 된다');
+      expect(repo.guestLoginCalled, isFalse,
+          reason: '이미 토큰이 있으면 게스트 로그인을 하면 안 된다');
       expect(repo.loadDataCallCount, 1);
       expect(notifier.state.status, SessionStatus.ready);
     });
@@ -140,7 +173,8 @@ void main() {
 
       await notifier.init();
 
-      expect(states.first, SessionStatus.loading, reason: 'init() 시작 시 loading 이어야 한다');
+      expect(states.first, SessionStatus.loading,
+          reason: 'init() 시작 시 loading 이어야 한다');
       expect(states.last, SessionStatus.ready);
     });
   });
@@ -150,13 +184,15 @@ void main() {
   // ---------------------------------------------------------------------------
   group('SessionNotifier.reload()', () {
     test('새 토큰이 저장된 상태에서 reload() → ready, 데이터 갱신', () async {
-      final (:repo, :storage, :notifier) = _make(initialToken: 'new-auth-token');
+      final (:repo, :storage, :notifier) =
+          _make(initialToken: 'new-auth-token');
 
       await notifier.reload();
 
       expect(notifier.state.status, SessionStatus.ready);
       expect(notifier.state.data, isNotNull);
-      expect(repo.guestLoginCalled, isFalse, reason: 'reload() 는 게스트 로그인을 호출하면 안 된다');
+      expect(repo.guestLoginCalled, isFalse,
+          reason: 'reload() 는 게스트 로그인을 호출하면 안 된다');
     });
 
     test('reload() 중 401 → unauthorized 상태', () async {
@@ -165,6 +201,39 @@ void main() {
 
       await notifier.reload();
 
+      expect(notifier.state.status, SessionStatus.unauthorized);
+    });
+
+    test('로그인 성공 후 디바이스 토큰을 전송한다', () async {
+      final storage = _FakeTokenStorage(_prefs).._token = 'new-auth-token';
+      final deviceTokenService = _FakeDeviceTokenService(storage);
+      final result = _make(
+        initialToken: 'new-auth-token',
+        deviceTokenService: deviceTokenService,
+      );
+
+      await result.notifier.reload();
+
+      expect(deviceTokenService.syncCalled, isTrue);
+    });
+  });
+
+  group('SessionNotifier.signOut()', () {
+    test('인증 토큰을 지우기 전 디바이스 토큰을 서버에서 해제한다', () async {
+      final storage = _FakeTokenStorage(_prefs).._token = 'auth-token';
+      final deviceTokenService = _FakeDeviceTokenService(storage);
+      final repository = _FakeSessionRepository(storage);
+      final notifier = SessionNotifier(
+        repository: repository,
+        tokenStorage: storage,
+        deviceTokenService: deviceTokenService,
+      );
+
+      await notifier.signOut();
+
+      expect(deviceTokenService.unregisterCalled, isTrue);
+      expect(deviceTokenService.authTokenDuringUnregister, 'auth-token');
+      expect(storage.getToken(), isNull);
       expect(notifier.state.status, SessionStatus.unauthorized);
     });
   });
@@ -178,7 +247,8 @@ void main() {
 
       await notifier.continueAsGuest();
 
-      expect(storage.getToken(), isNull, reason: 'continueAsGuest() 는 기존 토큰을 삭제해야 한다');
+      expect(storage.getToken(), isNull,
+          reason: 'continueAsGuest() 는 기존 토큰을 삭제해야 한다');
       expect(repo.guestLoginCalled, isTrue);
       expect(notifier.state.status, SessionStatus.ready);
     });

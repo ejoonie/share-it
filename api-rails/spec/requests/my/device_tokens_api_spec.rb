@@ -13,10 +13,17 @@ RSpec.describe "MyDeviceTokens API", type: :request do
       expect(response).to have_http_status(201)
       expect(DeviceToken.last.user).to eq(users(:user_one))
       expect(DeviceToken.last.platform).to eq("ios")
+      expect(DeviceToken.last.last_seen_at).to be_present
     end
 
     it "reassigns an existing token to the current user (e.g. device re-login as another account)" do
-      existing = DeviceToken.create!(user: users(:user_two), token: "shared-token", platform: "android")
+      previous_last_seen_at = 1.day.ago
+      existing = DeviceToken.create!(
+        user: users(:user_two),
+        token: "shared-token",
+        platform: "android",
+        last_seen_at: previous_last_seen_at
+      )
 
       expect {
         post_json "/api/v1/my/device_tokens",
@@ -24,7 +31,9 @@ RSpec.describe "MyDeviceTokens API", type: :request do
                   params: { token: "shared-token", platform: "android" }
       }.not_to change(DeviceToken, :count)
 
-      expect(existing.reload.user).to eq(users(:user_one))
+      existing.reload
+      expect(existing.user).to eq(users(:user_one))
+      expect(existing.last_seen_at).to be > previous_last_seen_at
     end
 
     it "returns 400 for an unsupported platform" do
@@ -42,13 +51,15 @@ RSpec.describe "MyDeviceTokens API", type: :request do
     end
   end
 
-  # DELETE /api/v1/my/device_tokens/:token
-  describe "DELETE /api/v1/my/device_tokens/:token" do
+  # DELETE /api/v1/my/device_tokens
+  describe "DELETE /api/v1/my/device_tokens" do
     it "removes the token for the current user" do
       DeviceToken.create!(user: users(:user_one), token: "to-remove", platform: "ios")
 
       expect {
-        delete_json "/api/v1/my/device_tokens/to-remove", login_user: users(:user_one)
+        delete_json "/api/v1/my/device_tokens",
+                    login_user: users(:user_one),
+                    params: { token: "to-remove" }
       }.to change(DeviceToken, :count).by(-1)
 
       expect(response).to have_http_status(204)
@@ -58,12 +69,20 @@ RSpec.describe "MyDeviceTokens API", type: :request do
       DeviceToken.create!(user: users(:user_two), token: "not-mine", platform: "ios")
 
       expect {
-        delete_json "/api/v1/my/device_tokens/not-mine", login_user: users(:user_one)
+        delete_json "/api/v1/my/device_tokens",
+                    login_user: users(:user_one),
+                    params: { token: "not-mine" }
       }.not_to change(DeviceToken, :count)
     end
 
+    it "returns 400 when token is missing" do
+      delete_json "/api/v1/my/device_tokens", login_user: users(:user_one)
+
+      expect(response).to have_http_status(400)
+    end
+
     it "returns 401 when not authenticated" do
-      delete "/api/v1/my/device_tokens/whatever"
+      delete_json "/api/v1/my/device_tokens", params: { token: "whatever" }
 
       expect(response).to have_http_status(401)
     end
