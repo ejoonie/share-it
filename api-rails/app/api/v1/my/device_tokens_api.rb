@@ -14,6 +14,7 @@ module V1
           device_token = DeviceToken.find_or_initialize_by(token: params[:token])
           device_token.user = current_user
           device_token.platform = params[:platform]
+          device_token.last_seen_at = Time.current
           device_token.save!
 
           status 201

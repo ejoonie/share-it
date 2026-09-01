@@ -13,10 +13,17 @@ RSpec.describe "MyDeviceTokens API", type: :request do
       expect(response).to have_http_status(201)
       expect(DeviceToken.last.user).to eq(users(:user_one))
       expect(DeviceToken.last.platform).to eq("ios")
+      expect(DeviceToken.last.last_seen_at).to be_present
     end
 
     it "reassigns an existing token to the current user (e.g. device re-login as another account)" do
-      existing = DeviceToken.create!(user: users(:user_two), token: "shared-token", platform: "android")
+      previous_last_seen_at = 1.day.ago
+      existing = DeviceToken.create!(
+        user: users(:user_two),
+        token: "shared-token",
+        platform: "android",
+        last_seen_at: previous_last_seen_at
+      )
 
       expect {
         post_json "/api/v1/my/device_tokens",
@@ -24,7 +31,9 @@ RSpec.describe "MyDeviceTokens API", type: :request do
                   params: { token: "shared-token", platform: "android" }
       }.not_to change(DeviceToken, :count)
 
-      expect(existing.reload.user).to eq(users(:user_one))
+      existing.reload
+      expect(existing.user).to eq(users(:user_one))
+      expect(existing.last_seen_at).to be > previous_last_seen_at
     end
 
     it "returns 400 for an unsupported platform" do
