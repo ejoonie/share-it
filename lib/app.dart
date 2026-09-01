@@ -287,7 +287,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
     if (allow == true) {
       await _deviceTokenService?.requestPermissionAndSync();
     } else {
-      await ref.read(notificationRepositoryProvider).setEnabled(false);
+      await ref.read(sessionRepositoryProvider).updateNotificationsEnabled(false);
     }
   }
 

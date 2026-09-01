@@ -16,7 +16,11 @@ class SessionState {
     this.data,
   });
 
-  SessionState copyWith({SessionStatus? status, BootstrapResponse? data, bool clearData = false}) {
+  SessionState copyWith({
+    SessionStatus? status,
+    BootstrapResponse? data,
+    bool clearData = false,
+  }) {
     return SessionState(
       status: status ?? this.status,
       data: clearData ? null : (data ?? this.data),
@@ -96,6 +100,35 @@ class SessionNotifier extends StateNotifier<SessionState> {
   Future<void> _loadData() async {
     final data = await _repository.loadData();
     state = state.copyWith(status: SessionStatus.ready, data: data);
+  }
+
+  Future<void> setNotificationEnabled(bool enabled) async {
+    final minimumDelay = Future<void>.delayed(
+      const Duration(milliseconds: 500),
+    );
+
+    final data = state.data;
+    final user = data?.user;
+
+    if (user == null) return;
+
+    final newData = data?.copyWith(
+      user: user.copyWith(
+        notificationsEnabled: enabled,
+      ),
+    );
+    state = state.copyWith(data: newData);
+
+    try {
+      await Future.wait(
+        [
+          minimumDelay,
+          _repository.updateNotificationsEnabled(enabled),
+        ],
+      );
+    } catch (e) {
+      state = state.copyWith(data: data); // rewind
+    }
   }
 }
 
