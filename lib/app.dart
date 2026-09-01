@@ -283,9 +283,9 @@ class _MainScreenState extends ConsumerState<MainScreen>
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Turn on notifications?'),
+        title: const Text('Never miss an update'),
         content: const Text(
-          'Get notified when new expenses are added.',
+          'Get notified when someone adds an expense to a shared space.',
         ),
         actions: [
           TextButton(
@@ -294,7 +294,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Allow'),
+            child: const Text('Turn on'),
           ),
         ],
       ),
