@@ -212,6 +212,49 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     }
   }
 
+  Future<void> openEntry({required int topicId, required int entryId}) async {
+    final repo = _repository;
+    if (repo == null) return;
+
+    final topicFilter = TopicFilterSelected({topicId});
+    state = state.copyWith(
+      topicFilter: topicFilter,
+      isLoading: true,
+      error: () => null,
+    );
+    await _topicFilterStorage.saveFilter(topicFilter);
+
+    try {
+      final expense = await repo.getExpense(entryId);
+      final date = expense.occurredAt.toLocal();
+      final monthly = await repo.getExpensesByMonth(
+        date.year,
+        date.month,
+        topicIds: [topicId],
+      );
+      final daily = await repo.getExpensesByDate(
+        date.year,
+        date.month,
+        date.day,
+        topicIds: [topicId],
+      );
+
+      state = state.copyWith(
+        focusedMonth: DateTime(date.year, date.month),
+        selectedDate: date,
+        monthlyExpenses: monthly,
+        selectedDateExpenses: daily,
+        monthlySummary: repo.buildMonthlySummary(monthly),
+        isLoading: false,
+      );
+    } catch (error) {
+      state = state.copyWith(
+        isLoading: false,
+        error: () => error.toString(),
+      );
+    }
+  }
+
   Future<void> addExpense(ExpenseModel expense) async {
     final repo = _repository;
     if (repo == null) return;

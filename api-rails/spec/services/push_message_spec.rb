@@ -7,16 +7,13 @@ RSpec.describe PushMessage do
       entry: entry,
       topic: topics(:one),
       actor: users(:user_one),
-      action: :created,
-      occurred_at: entry.occurred_at.iso8601
+      action: :created
     )
 
     expect(message.title).to eq(topics(:one).title)
     expect(message.body).to include(users(:user_one).nick_name, entry.title)
-    expect(message.data).to include(
-      type: "entry_change",
-      entry_id: entry.id,
-      action: "created"
+    expect(message.data).to eq(
+      deeplink: "https://sharablepiggy.com/topics/#{entry.topic_id}/entries/#{entry.id}"
     )
   end
 end

@@ -9,7 +9,7 @@ class PushMessage
 
   attr_reader :title, :body, :data
 
-  def self.for_entry_change(entry:, topic:, actor:, action:, occurred_at:)
+  def self.for_entry_change(entry:, topic:, actor:, action:)
     verb = ACTION_VERBS.fetch(action.to_s, "added")
     entry_label = entry.title.presence || "No title"
     body = if entry.amount.positive?
@@ -22,11 +22,7 @@ class PushMessage
       title: topic.title,
       body: body,
       data: {
-        type: "entry_change",
-        topic_id: topic.id,
-        entry_id: entry.id,
-        occurred_at: occurred_at,
-        action: action.to_s
+        deeplink: "https://sharablepiggy.com/topics/#{topic.id}/entries/#{entry.id}"
       }
     )
   end
