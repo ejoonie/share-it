@@ -216,43 +216,66 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     final repo = _repository;
     if (repo == null) return;
 
-    final topicFilter = TopicFilterSelected({topicId});
-    state = state.copyWith(
-      topicFilter: topicFilter,
-      isLoading: true,
-      error: () => null,
-    );
-    await _topicFilterStorage.saveFilter(topicFilter);
-
+    state = state.copyWith(isLoading: true, error: () => null);
     try {
       final expense = await repo.getExpense(entryId);
-      final date = expense.occurredAt.toLocal();
-      final monthly = await repo.getExpensesByMonth(
-        date.year,
-        date.month,
-        topicIds: [topicId],
-      );
-      final daily = await repo.getExpensesByDate(
-        date.year,
-        date.month,
-        date.day,
-        topicIds: [topicId],
-      );
-
-      state = state.copyWith(
-        focusedMonth: DateTime(date.year, date.month),
-        selectedDate: date,
-        monthlyExpenses: monthly,
-        selectedDateExpenses: daily,
-        monthlySummary: repo.buildMonthlySummary(monthly),
-        isLoading: false,
-      );
+      if (expense.topicId != topicId) throw StateError('Topic mismatch');
+      await _openDate(repo, topicId, expense.occurredAt);
     } catch (error) {
       state = state.copyWith(
         isLoading: false,
         error: () => error.toString(),
       );
     }
+  }
+
+  Future<void> openDate({
+    required int topicId,
+    required DateTime occurredAt,
+  }) async {
+    final repo = _repository;
+    if (repo == null) return;
+
+    state = state.copyWith(isLoading: true, error: () => null);
+    try {
+      await _openDate(repo, topicId, occurredAt);
+    } catch (error) {
+      state = state.copyWith(
+        isLoading: false,
+        error: () => error.toString(),
+      );
+    }
+  }
+
+  Future<void> _openDate(
+    ExpenseRepository repo,
+    int topicId,
+    DateTime occurredAt,
+  ) async {
+    final topicFilter = TopicFilterSelected({topicId});
+    final date = occurredAt.toLocal();
+    final monthly = await repo.getExpensesByMonth(
+      date.year,
+      date.month,
+      topicIds: [topicId],
+    );
+    final daily = await repo.getExpensesByDate(
+      date.year,
+      date.month,
+      date.day,
+      topicIds: [topicId],
+    );
+
+    await _topicFilterStorage.saveFilter(topicFilter);
+    state = state.copyWith(
+      topicFilter: topicFilter,
+      focusedMonth: DateTime(date.year, date.month),
+      selectedDate: date,
+      monthlyExpenses: monthly,
+      selectedDateExpenses: daily,
+      monthlySummary: repo.buildMonthlySummary(monthly),
+      isLoading: false,
+    );
   }
 
   Future<void> addExpense(ExpenseModel expense) async {

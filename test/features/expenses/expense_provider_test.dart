@@ -12,10 +12,16 @@ import 'package:share_it/storage/topic_filter_storage.dart';
 class _StubEntryRepository extends EntryRepository {
   final EntryModel? entry;
 
-  _StubEntryRepository({this.entry}) : super(apiClient: ApiClient(), topicId: 0);
+  _StubEntryRepository({this.entry})
+      : super(apiClient: ApiClient(), topicId: 0);
 
   @override
-  Future<List<EntryModel>> listEntries({Map<String, dynamic>? q, int page = 1, int limit = 100}) async => [];
+  Future<List<EntryModel>> listEntries({
+    Map<String, dynamic>? q,
+    int page = 1,
+    int limit = 100,
+  }) async =>
+      [];
 
   @override
   Future<List<EntryModel>> listAllEntries({
@@ -23,7 +29,8 @@ class _StubEntryRepository extends EntryRepository {
     Map<String, dynamic>? q,
     int page = 1,
     int limit = 100,
-  }) async => entry == null ? [] : [entry!];
+  }) async =>
+      entry == null ? [] : [entry!];
 
   @override
   Future<EntryModel> getEntry(int id) async => entry!;
@@ -71,7 +78,9 @@ void main() {
       expect(notifier.state.day, 30);
     });
 
-    test('말일로 대체된 뒤 다시 일수가 넉넉한 달로 이동하면 원래 유지되던 일수만큼 이동하지 않고 현재(대체된) 일을 기준으로 이동한다', () async {
+    test(
+        '말일로 대체된 뒤 다시 일수가 넉넉한 달로 이동하면 원래 유지되던 일수만큼 이동하지 않고 현재(대체된) 일을 기준으로 이동한다',
+        () async {
       // 1/31 -> 2/28(대체) -> 3월(31일까지 있음): 2/28 기준으로 이동하므로 3/28이어야 함
       await notifier.selectDate(2026, 1, 31);
       await notifier.changeMonth(DateTime(2026, 2));
@@ -111,5 +120,36 @@ void main() {
     expect(notifier.state.month, localDate.month);
     expect(notifier.state.day, localDate.day);
     expect(notifier.state.selectedDateExpenses.single.id, 918);
+  });
+
+  test('openDate converts the UTC timestamp to the local calendar date',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await TopicFilterStorage.create();
+    final occurredAt = DateTime.utc(2026, 9, 3, 1, 30);
+    final entry = EntryModel(
+      id: 918,
+      topicId: 42,
+      createdById: 1,
+      occurredAt: occurredAt,
+      kind: 'expense',
+      amount: 1000,
+      createdAt: occurredAt,
+      updatedAt: occurredAt,
+    );
+    final notifier = ExpenseNotifier(
+      ExpenseRepository(
+        entryRepository: _StubEntryRepository(entry: entry),
+      ),
+      storage,
+    );
+
+    await notifier.openDate(topicId: 42, occurredAt: occurredAt);
+
+    final localDate = occurredAt.toLocal();
+    expect(notifier.state.topicFilter, const TopicFilterSelected({42}));
+    expect(notifier.state.year, localDate.year);
+    expect(notifier.state.month, localDate.month);
+    expect(notifier.state.day, localDate.day);
   });
 }

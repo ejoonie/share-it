@@ -260,6 +260,13 @@ class _MainScreenState extends ConsumerState<MainScreen>
               topicId: topicId,
               entryId: entryId,
             );
+      case EntryDateDestination(:final topicId, :final occurredAt):
+        setState(() => _currentIndex = 0);
+        ref.read(selectedTopicIdProvider.notifier).state = topicId;
+        await ref.read(expenseNotifierProvider.notifier).openDate(
+              topicId: topicId,
+              occurredAt: occurredAt,
+            );
       case null:
         debugPrint('[deeplink] Ignored unsupported link: $uri');
     }

@@ -15,6 +15,16 @@ class EntryDestination extends AppDestination {
   const EntryDestination({required this.topicId, required this.entryId});
 }
 
+class EntryDateDestination extends AppDestination {
+  final int topicId;
+  final DateTime occurredAt;
+
+  const EntryDateDestination({
+    required this.topicId,
+    required this.occurredAt,
+  });
+}
+
 class DeepLinkParser {
   static const _host = 'sharablepiggy.com';
 
@@ -24,6 +34,19 @@ class DeepLinkParser {
     if (uri.scheme != 'https' || uri.host != _host) return null;
 
     final segments = uri.pathSegments;
+    if (segments.length == 3 &&
+        segments[0] == 'topics' &&
+        segments[2] == 'entries') {
+      final topicId = int.tryParse(segments[1]);
+      final occurredAt = DateTime.tryParse(
+        uri.queryParameters['occurred_at'] ?? '',
+      );
+      if (topicId == null || occurredAt == null || !occurredAt.isUtc) {
+        return null;
+      }
+      return EntryDateDestination(topicId: topicId, occurredAt: occurredAt);
+    }
+
     if (segments.length == 4 &&
         segments[0] == 'topics' &&
         segments[2] == 'entries') {
