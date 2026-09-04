@@ -24,8 +24,7 @@ class NotifyTopicChange
       entry: @entry,
       topic: @entry.topic,
       actor: @actor,
-      action: @action,
-      occurred_at: @entry.occurred_at&.iso8601
+      action: @action
     )
 
     recipient_tokens.find_each do |device_token|
