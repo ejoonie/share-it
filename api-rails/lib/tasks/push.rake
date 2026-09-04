@@ -3,6 +3,64 @@
 # soft_delete!, NotifyTopicChange), so notifications sent here match what a
 # real app interaction would send.
 namespace :push do
+  task deeplink: :environment do
+    recipient = User.find(50)
+    # 이메일로 찾으려면:
+    # recipient = User.find_by!(email: "test@example.com")
+
+    raise "수신자에게 등록된 device token이 없습니다" if recipient.device_tokens.none?
+
+    # 수신자 외의 사용자 한 명을 알림 발생자로 선택
+    actor = User.where.not(id: recipient.id).first!
+    raise "알림 발생자로 사용할 다른 사용자가 없습니다" unless actor
+
+    # actor가 소유한 토픽을 사용하고, 없으면 테스트 토픽 생성
+    topic = actor.topics.first || Topic.create!(
+      user: actor,
+      title: "Push test topic"
+    )
+
+    # 수신자가 해당 토픽을 구독하도록 설정
+    follow = recipient.follow(topic)
+    follow.update!(notifications_enabled: true)
+    recipient.update!(notifications_enabled: true)
+
+    # 테스트 엔트리 생성
+    entry = Entry.create!(
+      topic: topic,
+      created_by_id: actor.id,
+      updated_by_id: actor.id,
+      kind: "expense",
+      currency: "USD",
+      amount: 1000,
+      title: "Push test #{Time.current.strftime("%H:%M:%S")}",
+      occurred_at: Time.iso8601("2026-09-03T01:30:00Z")
+    )
+
+    actor.mark_entry_read!(entry)
+
+    # 실제 서비스와 같은 경로로 푸시 전송
+    NotifyTopicChange.call(
+      entry: entry,
+      actor: actor,
+      action: :created
+    )
+
+    puts({
+           recipient: "#{recipient.nick_name}(#{recipient.id})",
+           actor: "#{actor.nick_name}(#{actor.id})",
+           topic_id: topic.id,
+           entry_id: entry.id,
+           deeplink: PushMessage.for_entry_change(
+             entry: entry,
+             topic: topic,
+             actor: actor,
+             action: :created
+           ).data[:deeplink]
+         })
+  end
+
+
   desc "List topic/actor combos that can send a push (based on users with a registered device token)"
   task list: :environment do
     device_tokens = DeviceToken.includes(:user).to_a
@@ -100,13 +158,13 @@ namespace :push do
     end
 
     recipient = if recipient_id
-      User.find_by(id: recipient_id.to_i).tap do |user|
-        abort("Recipient user##{recipient_id} not found") if user.nil?
-        abort("Recipient user##{recipient_id} has no registered device token") unless user.device_tokens.exists?
-      end
-    else
-      DeviceToken.includes(:user).first&.user
-    end
+                  User.find_by(id: recipient_id.to_i).tap do |user|
+                    abort("Recipient user##{recipient_id} not found") if user.nil?
+                    abort("Recipient user##{recipient_id} has no registered device token") unless user.device_tokens.exists?
+                  end
+                else
+                  DeviceToken.includes(:user).first&.user
+                end
     abort("No device tokens registered - enable notifications in the app, or pass TOPIC_ID/ACTOR_ID explicitly") if recipient.nil?
 
     follows = recipient.topic_follows.where(notifications_enabled: true)

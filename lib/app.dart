@@ -205,9 +205,8 @@ class _MainScreenState extends ConsumerState<MainScreen>
     _deepLinkService = DeepLinkService();
     _deviceTokenService = ref.read(deviceTokenServiceProvider);
 
+    _initDeepLinks();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initDeepLinks();
-
       // permission 은 앱 실행시 바로 요청하지 않는다.
       // if (Platform.isIOS) {
       //   _deviceTokenService?.requestPermissionAndSync();
@@ -232,6 +231,8 @@ class _MainScreenState extends ConsumerState<MainScreen>
   }
 
   Future<void> _initDeepLinks() async {
+    debugPrint('[deeplink] initDeepLinks');
+
     _deepLinkSubscription = _deepLinkService.uriStream.listen(
       (uri) => unawaited(_handleDeepLink(uri)),
       onError: (Object error) {
@@ -240,10 +241,12 @@ class _MainScreenState extends ConsumerState<MainScreen>
     );
 
     final initialUri = await _deepLinkService.getInitialUri();
+    debugPrint('[deeplink] initial uri: $initialUri');
     if (initialUri != null) await _handleDeepLink(initialUri);
   }
 
   Future<void> _handleDeepLink(Uri uri) async {
+    debugPrint('[deeplink] received: $uri');
     if (!mounted) return;
 
     switch (_deepLinkParser.parse(uri)) {
