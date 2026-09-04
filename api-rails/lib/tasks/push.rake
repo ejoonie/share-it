@@ -4,7 +4,7 @@
 # real app interaction would send.
 namespace :push do
   task deeplink: :environment do
-    recipient = User.find(50)
+    recipient = User.find(53)
     # 이메일로 찾으려면:
     # recipient = User.find_by!(email: "test@example.com")
 
