@@ -1,6 +1,6 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../api/api_client.dart';
 import 'core_providers.dart';
 import '../models/expense_model.dart';
 import '../models/topic_filter.dart';
@@ -222,6 +222,19 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
       final expense = await repo.getExpense(entryId);
       if (expense.topicId != topicId) throw StateError('Topic mismatch');
       await _openDate(repo, topicId, expense.occurredAt);
+    } on ApiException catch (error) {
+      state = state.copyWith(
+        isLoading: false,
+        error: () => error.statusCode == 404
+            ? 'This expense may have been deleted or you may no longer have access.'
+            : error.toString(),
+      );
+    } on StateError {
+      state = state.copyWith(
+        isLoading: false,
+        error: () =>
+            'This expense may have been deleted or you may no longer have access.',
+      );
     } catch (error) {
       state = state.copyWith(
         isLoading: false,

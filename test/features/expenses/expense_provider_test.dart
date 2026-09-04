@@ -11,8 +11,9 @@ import 'package:share_it/storage/topic_filter_storage.dart';
 // stub EntryRepository that returns an empty list for every query.
 class _StubEntryRepository extends EntryRepository {
   final EntryModel? entry;
+  final Object? getEntryError;
 
-  _StubEntryRepository({this.entry})
+  _StubEntryRepository({this.entry, this.getEntryError})
       : super(apiClient: ApiClient(), topicId: 0);
 
   @override
@@ -33,7 +34,10 @@ class _StubEntryRepository extends EntryRepository {
       entry == null ? [] : [entry!];
 
   @override
-  Future<EntryModel> getEntry(int id) async => entry!;
+  Future<EntryModel> getEntry(int id) async {
+    if (getEntryError case final error?) throw error;
+    return entry!;
+  }
 }
 
 void main() {
@@ -151,5 +155,29 @@ void main() {
     expect(notifier.state.year, localDate.year);
     expect(notifier.state.month, localDate.month);
     expect(notifier.state.day, localDate.day);
+  });
+
+  test('openEntry shows a safe message when the entry is not accessible',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await TopicFilterStorage.create();
+    final notifier = ExpenseNotifier(
+      ExpenseRepository(
+        entryRepository: _StubEntryRepository(
+          getEntryError: const ApiException(
+            statusCode: 404,
+            message: 'Entry not found',
+          ),
+        ),
+      ),
+      storage,
+    );
+
+    await notifier.openEntry(topicId: 42, entryId: 918);
+
+    expect(
+      notifier.state.error,
+      'This expense may have been deleted or you may no longer have access.',
+    );
   });
 }

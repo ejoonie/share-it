@@ -58,6 +58,127 @@ namespace :push do
              action: :created
            ).data[:deeplink]
          })
+
+
+    ###############################################################
+    # edit
+    ###############################################################
+    entry = Entry.find(54)
+    actor = User.find(entry.updated_by_id)
+
+    entry.update!(
+      title: "Moved to another date",
+      occurred_at: Time.iso8601("2026-09-10T01:30:00Z"),
+      updated_by_id: actor.id
+    )
+
+    actor.mark_entry_read!(entry)
+
+    message = PushMessage.for_entry_change(
+      entry: entry,
+      topic: entry.topic,
+      actor: actor,
+      action: :updated
+    )
+
+    puts message.data
+
+    NotifyTopicChange.call(
+      entry: entry,
+      actor: actor,
+      action: :updated
+    )
+
+
+    ###############################################################
+    # delete
+    ###############################################################
+    entry = Entry.find(185)
+    actor = User.find(entry.updated_by_id)
+
+    # 삭제 전에 날짜를 보존
+    occurred_at = entry.occurred_at
+
+    entry.soft_delete!
+    entry = Entry.unscoped.find(entry.id)
+
+    message = PushMessage.for_entry_change(
+      entry: entry,
+      topic: entry.topic,
+      actor: actor,
+      action: :deleted
+    )
+
+    puts({
+           entry_id: entry.id,
+           occurred_at: occurred_at,
+           deeplink: message.data[:deeplink]
+         })
+
+    NotifyTopicChange.call(
+      entry: entry,
+      actor: actor,
+      action: :deleted
+    )
+
+
+    #################################################################
+    # unauthorized or deleted
+    #################################################################
+    actor = User.find(54)
+    recipient = User.find(53)
+
+    raise "user#53에 디바이스 토큰이 없습니다" if recipient.device_tokens.none?
+
+    recipient.update!(notifications_enabled: true)
+
+    # 54가 소유한 새 테스트 토픽
+    topic = Topic.create!(
+      user: actor,
+      title: "Deleted entry access test"
+    )
+
+    # 53이 알림을 받을 수 있도록 구독
+    recipient.follow(topic).update!(notifications_enabled: true)
+
+    # 54가 엔트리 생성
+    entry = Entry.create!(
+      topic: topic,
+      created_by_id: actor.id,
+      updated_by_id: actor.id,
+      kind: "expense",
+      currency: "USD",
+      amount: 1000,
+      title: "Delete before user 53 opens",
+      occurred_at: Time.current
+    )
+
+    actor.mark_entry_read!(entry)
+
+    # 생성 알림 전송
+    NotifyTopicChange.call(
+      entry: entry,
+      actor: actor,
+      action: :created
+    )
+
+    puts({
+           actor_id: actor.id,
+           recipient_id: recipient.id,
+           topic_id: topic.id,
+           entry_id: entry.id,
+           deeplink: PushMessage.for_entry_change(
+             entry: entry,
+             topic: topic,
+             actor: actor,
+             action: :created
+           ).data[:deeplink]
+         })
+
+
+    ###
+    entry.soft_delete!
+    entry.reload.deleted_at
   end
 
 
