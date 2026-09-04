@@ -241,12 +241,10 @@ class _MainScreenState extends ConsumerState<MainScreen>
     );
 
     final initialUri = await _deepLinkService.getInitialUri();
-    debugPrint('[deeplink] initial uri: $initialUri');
     if (initialUri != null) await _handleDeepLink(initialUri);
   }
 
   Future<void> _handleDeepLink(Uri uri) async {
-    debugPrint('[deeplink] received: $uri');
     if (!mounted) return;
 
     switch (_deepLinkParser.parse(uri)) {
