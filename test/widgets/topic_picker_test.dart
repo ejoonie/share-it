@@ -61,4 +61,46 @@ void main() {
       );
     });
   });
+
+  group('resolveEntryTopicId', () {
+    final topics = [
+      _topic(id: 1),
+      _topic(id: 2, isDefault: true),
+      _topic(id: 3),
+    ];
+
+    test('사용자가 직접 선택한 토픽을 가장 먼저 사용한다', () {
+      expect(
+        resolveEntryTopicId(
+          topics,
+          selectedTopicId: 3,
+          currentTopicId: 1,
+          lastUsedTopicId: 2,
+        ),
+        3,
+      );
+    });
+
+    test('직접 선택하지 않았으면 현재 보고 있는 토픽을 사용한다', () {
+      expect(
+        resolveEntryTopicId(
+          topics,
+          currentTopicId: 1,
+          lastUsedTopicId: 3,
+        ),
+        1,
+      );
+    });
+
+    test('접근할 수 없는 현재 토픽은 건너뛰고 마지막 사용 토픽을 사용한다', () {
+      expect(
+        resolveEntryTopicId(
+          topics,
+          currentTopicId: 99,
+          lastUsedTopicId: 3,
+        ),
+        3,
+      );
+    });
+  });
 }

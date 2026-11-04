@@ -18,6 +18,25 @@ int? resolveDefaultTopicId(List<TopicModel> topics, {int? lastUsedTopicId}) {
   return topics.first.id;
 }
 
+/// 엔트리 생성 화면에서 사용할 토픽을 고른다.
+/// 사용자가 직접 고른 토픽, 현재 보고 있는 토픽, 마지막 사용/기본 토픽 순이며
+/// 현재 접근 가능한 목록에 없는 ID는 건너뛴다.
+int? resolveEntryTopicId(
+  List<TopicModel> topics, {
+  int? selectedTopicId,
+  int? currentTopicId,
+  int? lastUsedTopicId,
+}) {
+  final availableIds = topics.map((topic) => topic.id).toSet();
+  if (selectedTopicId != null && availableIds.contains(selectedTopicId)) {
+    return selectedTopicId;
+  }
+  if (currentTopicId != null && availableIds.contains(currentTopicId)) {
+    return currentTopicId;
+  }
+  return resolveDefaultTopicId(topics, lastUsedTopicId: lastUsedTopicId);
+}
+
 TopicModel? findTopicById(List<TopicModel> topics, int? id) {
   if (id == null) return null;
   for (final topic in topics) {

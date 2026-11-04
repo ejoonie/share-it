@@ -47,6 +47,17 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
     if (picked != null) setState(() => _selectedTopicId = picked.id);
   }
 
+  // 사용자가 직접 고르지 않았다면 현재 보고 있는 토픽을 우선한다.
+  int? _effectiveTopicId(List<TopicModel> topics) {
+    return resolveEntryTopicId(
+      topics,
+      selectedTopicId: _selectedTopicId,
+      currentTopicId: ref.read(currentTopicIdProvider),
+      lastUsedTopicId:
+          ref.read(lastUsedTopicStorageProvider).getLastUsedTopicId(),
+    );
+  }
+
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -119,11 +130,7 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
     if (!topicsValue.hasValue) return;
     final amountStr = _finalAmount.toStringAsFixed(2);
     final topics = topicsValue.value ?? const [];
-    final topicId = _selectedTopicId ??
-        resolveDefaultTopicId(
-          topics,
-          lastUsedTopicId: ref.read(lastUsedTopicStorageProvider).getLastUsedTopicId(),
-        );
+    final topicId = _effectiveTopicId(topics);
     Navigator.push<void>(
       context,
       MaterialPageRoute(
@@ -306,13 +313,7 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
                       alignment: Alignment.centerLeft,
                       child: topicsAsync.when(
                         data: (topics) {
-                          final effectiveId = _selectedTopicId ??
-                              resolveDefaultTopicId(
-                                topics,
-                                lastUsedTopicId: ref
-                                    .read(lastUsedTopicStorageProvider)
-                                    .getLastUsedTopicId(),
-                              );
+                          final effectiveId = _effectiveTopicId(topics);
                           final selected = findTopicById(topics, effectiveId);
                           return TopicSelectorChip(
                             label: selected?.title ?? 'No topic',
@@ -518,4 +519,3 @@ class _NumKey extends StatelessWidget {
     );
   }
 }
-
