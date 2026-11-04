@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/expense_model.dart';
-import '../providers/core_providers.dart';
 import '../theme/app_theme.dart';
 import '../utils/arithmetic_parser.dart';
 import 'add_expense_screen.dart';
 
-class AmountEntryScreen extends ConsumerStatefulWidget {
+class AmountEntryScreen extends StatefulWidget {
   final int initYear;
   final int initMonth;
   final int initDay;
@@ -21,10 +19,10 @@ class AmountEntryScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<AmountEntryScreen> createState() => _AmountEntryScreenState();
+  State<AmountEntryScreen> createState() => _AmountEntryScreenState();
 }
 
-class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
+class _AmountEntryScreenState extends State<AmountEntryScreen> {
   String _input = '';
   int _cursor = 0;
   late DateTime _selectedDate;
@@ -103,8 +101,6 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
 
   void _submit(ExpenseType type) {
     if (_finalAmount <= 0) return;
-    final topicsValue = ref.read(myViewableTopicsProvider);
-    if (!topicsValue.hasValue) return;
     final amountStr = _finalAmount.toStringAsFixed(2);
     Navigator.push<void>(
       context,
@@ -138,7 +134,6 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
   @override
   Widget build(BuildContext context) {
     final evaluated = _evaluated;
-    final topicsAsync = ref.watch(myViewableTopicsProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -253,9 +248,7 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
                     child: _ActionButton(
                       label: 'Income',
                       color: AppTheme.primaryColor,
-                      onTap: topicsAsync.hasValue
-                          ? () => _submit(ExpenseType.income)
-                          : null,
+                      onTap: () => _submit(ExpenseType.income),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -263,9 +256,7 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
                     child: _ActionButton(
                       label: 'Expense',
                       color: const Color(0xFFEF5FA7),
-                      onTap: topicsAsync.hasValue
-                          ? () => _submit(ExpenseType.expense)
-                          : null,
+                      onTap: () => _submit(ExpenseType.expense),
                     ),
                   ),
                 ],
