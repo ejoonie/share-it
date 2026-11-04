@@ -30,7 +30,6 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
   String _input = '';
   int _cursor = 0;
   late DateTime _selectedDate;
-  int? _selectedTopicId;
 
   @override
   void initState() {
@@ -38,20 +37,10 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
     _selectedDate = DateTime(widget.initYear, widget.initMonth, widget.initDay);
   }
 
-  Future<void> _pickTopic(List<TopicModel> topics, int? currentId) async {
-    final picked = await showTopicPickerSheet(
-      context,
-      topics: topics,
-      selectedTopicId: currentId,
-    );
-    if (picked != null) setState(() => _selectedTopicId = picked.id);
-  }
-
-  // 사용자가 직접 고르지 않았다면 현재 보고 있는 토픽을 우선한다.
+  // 현재 보고 있는 토픽을 우선한다.
   int? _effectiveTopicId(List<TopicModel> topics) {
     return resolveEntryTopicId(
       topics,
-      selectedTopicId: _selectedTopicId,
       currentTopicId: ref.read(currentTopicIdProvider),
       lastUsedTopicId:
           ref.read(lastUsedTopicStorageProvider).getLastUsedTopicId(),
@@ -308,40 +297,7 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
                     tooltip: 'Paste',
                     onTap: _onPaste,
                   ),
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: topicsAsync.when(
-                        data: (topics) {
-                          final effectiveId = _effectiveTopicId(topics);
-                          final selected = findTopicById(topics, effectiveId);
-                          return TopicSelectorChip(
-                            label: selected?.title ?? 'No topic',
-                            onTap: () => _pickTopic(topics, effectiveId),
-                          );
-                        },
-                        loading: () => const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                          child: SizedBox(
-                            height: 16,
-                            width: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ),
-                        error: (_, __) => InkWell(
-                          onTap: () => ref.refresh(myViewableTopicsProvider),
-                          borderRadius: BorderRadius.circular(8),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                            child: Text(
-                              'Failed to load topics. Tap to retry.',
-                              style: TextStyle(fontSize: 12, color: Colors.red),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  const Spacer(),
                   _SmallIconButton(
                     icon: Icons.first_page,
                     tooltip: 'Move to start',

@@ -69,19 +69,7 @@ void main() {
       _topic(id: 3),
     ];
 
-    test('사용자가 직접 선택한 토픽을 가장 먼저 사용한다', () {
-      expect(
-        resolveEntryTopicId(
-          topics,
-          selectedTopicId: 3,
-          currentTopicId: 1,
-          lastUsedTopicId: 2,
-        ),
-        3,
-      );
-    });
-
-    test('직접 선택하지 않았으면 현재 보고 있는 토픽을 사용한다', () {
+    test('현재 보고 있는 토픽을 사용한다', () {
       expect(
         resolveEntryTopicId(
           topics,
