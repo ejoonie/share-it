@@ -3,11 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/expense_model.dart';
-import '../models/topic_model.dart';
 import '../providers/core_providers.dart';
 import '../theme/app_theme.dart';
 import '../utils/arithmetic_parser.dart';
-import '../widgets/topic_picker.dart';
 import 'add_expense_screen.dart';
 
 class AmountEntryScreen extends ConsumerStatefulWidget {
@@ -35,16 +33,6 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
   void initState() {
     super.initState();
     _selectedDate = DateTime(widget.initYear, widget.initMonth, widget.initDay);
-  }
-
-  // 현재 보고 있는 토픽을 우선한다.
-  int? _effectiveTopicId(List<TopicModel> topics) {
-    return resolveEntryTopicId(
-      topics,
-      currentTopicId: ref.read(currentTopicIdProvider),
-      lastUsedTopicId:
-          ref.read(lastUsedTopicStorageProvider).getLastUsedTopicId(),
-    );
   }
 
   Future<void> _pickDate() async {
@@ -118,8 +106,6 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
     final topicsValue = ref.read(myViewableTopicsProvider);
     if (!topicsValue.hasValue) return;
     final amountStr = _finalAmount.toStringAsFixed(2);
-    final topics = topicsValue.value ?? const [];
-    final topicId = _effectiveTopicId(topics);
     Navigator.push<void>(
       context,
       MaterialPageRoute(
@@ -129,7 +115,6 @@ class _AmountEntryScreenState extends ConsumerState<AmountEntryScreen> {
           initDay: _selectedDate.day,
           initialAmount: amountStr,
           initialType: type,
-          initialTopicId: topicId,
         ),
       ),
     );

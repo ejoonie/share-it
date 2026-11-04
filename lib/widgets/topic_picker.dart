@@ -3,34 +3,19 @@ import 'package:flutter/material.dart';
 import '../models/topic_model.dart';
 
 /// 토픽 목록에서 "기본" 토픽을 고른다.
-/// 1) [lastUsedTopicId]가 지정되어 있고 목록에 있으면 그 토픽.
-/// 2) 없으면 is_default인 토픽 중 첫 번째.
+/// 1) is_default인 토픽 중 첫 번째.
+/// 2) 없으면 [lastUsedTopicId]가 목록에 있을 때 그 토픽.
 /// 3) 그것도 없으면 목록의 첫 번째 토픽.
 /// 목록이 비어 있으면 null.
 int? resolveDefaultTopicId(List<TopicModel> topics, {int? lastUsedTopicId}) {
   if (topics.isEmpty) return null;
-  if (lastUsedTopicId != null && topics.any((t) => t.id == lastUsedTopicId)) {
-    return lastUsedTopicId;
-  }
   for (final topic in topics) {
     if (topic.isDefault) return topic.id;
   }
-  return topics.first.id;
-}
-
-/// 엔트리 생성 화면에서 사용할 토픽을 고른다.
-/// 현재 보고 있는 토픽, 마지막 사용/기본 토픽 순이며
-/// 현재 접근 가능한 목록에 없는 ID는 건너뛴다.
-int? resolveEntryTopicId(
-  List<TopicModel> topics, {
-  int? currentTopicId,
-  int? lastUsedTopicId,
-}) {
-  final availableIds = topics.map((topic) => topic.id).toSet();
-  if (currentTopicId != null && availableIds.contains(currentTopicId)) {
-    return currentTopicId;
+  if (lastUsedTopicId != null && topics.any((t) => t.id == lastUsedTopicId)) {
+    return lastUsedTopicId;
   }
-  return resolveDefaultTopicId(topics, lastUsedTopicId: lastUsedTopicId);
+  return topics.first.id;
 }
 
 TopicModel? findTopicById(List<TopicModel> topics, int? id) {

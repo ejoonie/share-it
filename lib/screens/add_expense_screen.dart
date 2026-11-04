@@ -15,7 +15,6 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
   final int initDay;
   final String initialAmount;
   final ExpenseType initialType;
-  final int? initialTopicId;
 
   const AddExpenseScreen({
     super.key,
@@ -24,7 +23,6 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
     required this.initDay,
     required this.initialAmount,
     required this.initialType,
-    this.initialTopicId,
   });
 
   @override
@@ -49,7 +47,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     _amountController.text = widget.initialAmount;
     _type = widget.initialType;
     _selectedDate = DateTime(widget.initYear, widget.initMonth, widget.initDay);
-    _selectedTopicId = widget.initialTopicId;
   }
 
   @override
@@ -73,10 +70,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   Future<void> _pickTopic(List<TopicModel> topics) async {
+    final effectiveTopicId = _selectedTopicId ?? resolveDefaultTopicId(topics);
     final picked = await showTopicPickerSheet(
       context,
       topics: topics,
-      selectedTopicId: _selectedTopicId,
+      selectedTopicId: effectiveTopicId,
     );
     if (picked != null) setState(() => _selectedTopicId = picked.id);
   }

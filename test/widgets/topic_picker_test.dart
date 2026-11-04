@@ -36,7 +36,13 @@ void main() {
       expect(resolveDefaultTopicId(topics), 1);
     });
 
-    test('lastUsedTopicId가 목록에 있으면 is_default보다 우선한다', () {
+    test('is_default 토픽이 없으면 마지막 사용 토픽을 고른다', () {
+      final topics = [_topic(id: 1), _topic(id: 2)];
+
+      expect(resolveDefaultTopicId(topics, lastUsedTopicId: 2), 2);
+    });
+
+    test('is_default 토픽은 lastUsedTopicId보다 우선한다', () {
       final topics = [
         _topic(id: 1),
         _topic(id: 2, isDefault: true),
@@ -45,7 +51,7 @@ void main() {
 
       expect(
         resolveDefaultTopicId(topics, lastUsedTopicId: 3),
-        3,
+        2,
       );
     });
 
@@ -62,33 +68,4 @@ void main() {
     });
   });
 
-  group('resolveEntryTopicId', () {
-    final topics = [
-      _topic(id: 1),
-      _topic(id: 2, isDefault: true),
-      _topic(id: 3),
-    ];
-
-    test('현재 보고 있는 토픽을 사용한다', () {
-      expect(
-        resolveEntryTopicId(
-          topics,
-          currentTopicId: 1,
-          lastUsedTopicId: 3,
-        ),
-        1,
-      );
-    });
-
-    test('접근할 수 없는 현재 토픽은 건너뛰고 마지막 사용 토픽을 사용한다', () {
-      expect(
-        resolveEntryTopicId(
-          topics,
-          currentTopicId: 99,
-          lastUsedTopicId: 3,
-        ),
-        3,
-      );
-    });
-  });
 }
