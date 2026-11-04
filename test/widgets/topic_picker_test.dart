@@ -36,7 +36,13 @@ void main() {
       expect(resolveDefaultTopicId(topics), 1);
     });
 
-    test('lastUsedTopicId가 목록에 있으면 is_default보다 우선한다', () {
+    test('is_default 토픽이 없으면 마지막 사용 토픽을 고른다', () {
+      final topics = [_topic(id: 1), _topic(id: 2)];
+
+      expect(resolveDefaultTopicId(topics, lastUsedTopicId: 2), 2);
+    });
+
+    test('is_default 토픽은 lastUsedTopicId보다 우선한다', () {
       final topics = [
         _topic(id: 1),
         _topic(id: 2, isDefault: true),
@@ -45,7 +51,7 @@ void main() {
 
       expect(
         resolveDefaultTopicId(topics, lastUsedTopicId: 3),
-        3,
+        2,
       );
     });
 
