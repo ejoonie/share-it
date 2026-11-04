@@ -10,7 +10,7 @@ import UIKit
     let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
 
     application.registerForRemoteNotifications()
-    return result;
+    return result
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {

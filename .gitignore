@@ -1,6 +1,7 @@
 # Miscellaneous
 *.class
 *.lock
+!api-rails/Gemfile.lock
 *.log
 *.pyc
 *.swp

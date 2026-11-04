@@ -56,6 +56,11 @@ class EntryRepository {
         .toList();
   }
 
+  Future<EntryModel> getEntry(int id) async {
+    final json = await _apiClient.get('/api/v1/entries/$id');
+    return EntryModel.fromJson(json);
+  }
+
   /// 구독 중인 토픽에 엔트리를 생성한다 (POST /api/v1/entries).
   /// [topicId]를 생략하면 이 리포지토리가 바인딩된 토픽에 생성한다.
   /// 서버에서 해당 토픽 follow의 create 권한을 확인한다.

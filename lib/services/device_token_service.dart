@@ -13,6 +13,15 @@ class DeviceTokenService {
   DeviceTokenService(this.repository);
 
   Future<void> initialize() async {
+    if (Platform.isIOS) {
+      await FirebaseMessaging.instance
+          .setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    }
+
     // 먼저 구독해서 초기 발급/갱신 이벤트를 놓치지 않는다.
     _refreshSubscription = FirebaseMessaging.instance.onTokenRefresh.listen(
       _registerRefreshedToken,

@@ -1,18 +1,19 @@
 import 'dart:async';
 
-import 'package:app_links/app_links.dart';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_it/services/device_token_service.dart';
 
+import 'navigation/deep_link_parser.dart';
 import 'providers/core_providers.dart';
 import 'providers/expense_provider.dart';
 import 'providers/session_provider.dart';
 import 'screens/bootstrap_debug_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/subscribe_screen.dart';
+import 'services/deep_link_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/bottom_nav_bar.dart';
 
@@ -191,7 +192,9 @@ class MainScreen extends ConsumerStatefulWidget {
 class _MainScreenState extends ConsumerState<MainScreen>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
-  final _appLinks = AppLinks();
+  final _deepLinkParser = const DeepLinkParser();
+  late final DeepLinkService _deepLinkService;
+  StreamSubscription<Uri>? _deepLinkSubscription;
   late final DeviceTokenService _deviceTokenService;
 
   @override
@@ -199,11 +202,11 @@ class _MainScreenState extends ConsumerState<MainScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
+    _deepLinkService = DeepLinkService();
     _deviceTokenService = ref.read(deviceTokenServiceProvider);
 
+    _initDeepLinks();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initDeepLinks();
-
       // permission 은 앱 실행시 바로 요청하지 않는다.
       // if (Platform.isIOS) {
       //   _deviceTokenService?.requestPermissionAndSync();
@@ -215,6 +218,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    unawaited(_deepLinkSubscription?.cancel());
     unawaited(_deviceTokenService.dispose());
     super.dispose();
   }
@@ -227,28 +231,45 @@ class _MainScreenState extends ConsumerState<MainScreen>
   }
 
   Future<void> _initDeepLinks() async {
-    // 앱이 종료된 상태에서 딥링크로 열린 경우
-    final initialUri = await _appLinks.getInitialLink();
-    if (initialUri != null && mounted) {
-      _handleDeepLink(initialUri);
-    }
+    debugPrint('[deeplink] initDeepLinks');
 
-    // 앱이 백그라운드에 있다가 딥링크로 포그라운드로 온 경우
-    _appLinks.uriLinkStream.listen((uri) {
-      if (mounted) _handleDeepLink(uri);
-    });
+    _deepLinkSubscription = _deepLinkService.uriStream.listen(
+      (uri) => unawaited(_handleDeepLink(uri)),
+      onError: (Object error) {
+        debugPrint('[deeplink] Failed to receive link: $error');
+      },
+    );
+
+    final initialUri = await _deepLinkService.getInitialUri();
+    if (initialUri != null) await _handleDeepLink(initialUri);
   }
 
-  void _handleDeepLink(Uri uri) {
-    // https://sharablepiggy.com/topics/{token}
-    final segments = uri.pathSegments;
-    if (segments.length >= 2 && segments[0] == 'topics') {
-      final token = segments[1];
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => SubscribeScreen(topicToken: token),
-        ),
-      );
+  Future<void> _handleDeepLink(Uri uri) async {
+    if (!mounted) return;
+
+    switch (_deepLinkParser.parse(uri)) {
+      case TopicSubscriptionDestination(:final topicToken):
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => SubscribeScreen(topicToken: topicToken),
+          ),
+        );
+      case EntryDestination(:final topicId, :final entryId):
+        setState(() => _currentIndex = 0);
+        ref.read(selectedTopicIdProvider.notifier).state = topicId;
+        await ref.read(expenseNotifierProvider.notifier).openEntry(
+              topicId: topicId,
+              entryId: entryId,
+            );
+      case EntryDateDestination(:final topicId, :final occurredAt):
+        setState(() => _currentIndex = 0);
+        ref.read(selectedTopicIdProvider.notifier).state = topicId;
+        await ref.read(expenseNotifierProvider.notifier).openDate(
+              topicId: topicId,
+              occurredAt: occurredAt,
+            );
+      case null:
+        debugPrint('[deeplink] Ignored unsupported link: $uri');
     }
   }
 

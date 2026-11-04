@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "uri"
+
 class PushMessage
   ACTION_VERBS = {
     "created" => "added",
@@ -9,7 +11,7 @@ class PushMessage
 
   attr_reader :title, :body, :data
 
-  def self.for_entry_change(entry:, topic:, actor:, action:, occurred_at:)
+  def self.for_entry_change(entry:, topic:, actor:, action:)
     verb = ACTION_VERBS.fetch(action.to_s, "added")
     entry_label = entry.title.presence || "No title"
     body = if entry.amount.positive?
@@ -22,11 +24,7 @@ class PushMessage
       title: topic.title,
       body: body,
       data: {
-        type: "entry_change",
-        topic_id: topic.id,
-        entry_id: entry.id,
-        occurred_at: occurred_at,
-        action: action.to_s
+        deeplink: deeplink(entry: entry, topic: topic, action: action)
       }
     )
   end
@@ -35,6 +33,15 @@ class PushMessage
     format("$%.2f", cents / 100.0)
   end
   private_class_method :format_amount
+
+  def self.deeplink(entry:, topic:, action:)
+    base_url = "https://sharablepiggy.com/topics/#{topic.id}/entries"
+    return "#{base_url}/#{entry.id}" unless action.to_s == "deleted"
+
+    occurred_at = (entry.occurred_at || entry.created_at).utc.iso8601
+    "#{base_url}?#{URI.encode_www_form(occurred_at: occurred_at)}"
+  end
+  private_class_method :deeplink
 
   def initialize(title:, body:, data:)
     @title = title
