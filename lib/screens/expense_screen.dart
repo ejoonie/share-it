@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../theme/app_theme.dart';
+import '../theme/ledger_style.dart';
+import '../design_system/design_system.dart';
 import '../providers/core_providers.dart';
 import '../providers/expense_provider.dart';
 import '../models/expense_model.dart';
@@ -12,9 +13,6 @@ import '../widgets/expense_calendar.dart';
 import '../widgets/expense_list.dart';
 import '../widgets/summary_drawer.dart';
 import 'amount_entry_screen.dart';
-
-/// 달력 영역의 높이. 사용자가 달력↔리스트 사이 핸들을 드래그해 조절한다.
-final calendarHeightProvider = StateProvider<double>((ref) => 360);
 
 class ExpenseScreen extends ConsumerStatefulWidget {
   const ExpenseScreen({super.key});
@@ -142,6 +140,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                                 .every((t) => topicFilter.isSelected(t.id));
                             return TextButton(
                               style: TextButton.styleFrom(
+                                foregroundColor: LedgerStyle.accent,
                                 padding: EdgeInsets.zero,
                                 minimumSize: Size.zero,
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -152,10 +151,12 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                                     allSelected
                                         ? const TopicFilterNone()
                                         : TopicFilterSelected(
-                                            topics.map((t) => t.id).toSet()),
+                                            topics.map((t) => t.id).toSet(),
+                                          ),
                                   ),
                               child: Text(
-                                  allSelected ? 'Unselect All' : 'Select All'),
+                                allSelected ? 'Unselect All' : 'Select All',
+                              ),
                             );
                           },
                           orElse: () => const SizedBox.shrink(),
@@ -210,12 +211,20 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
     final state = ref.watch(expenseNotifierProvider);
     final focusedMonth = state.focusedMonth;
 
+    final hasFilter =
+        state.activeFilter != null || state.topicFilter is! TopicFilterAll;
+
     return Scaffold(
+      backgroundColor: LedgerStyle.background,
       drawer: const SummaryDrawer(),
       appBar: AppBar(
+        backgroundColor: LedgerStyle.background,
+        surfaceTintColor: Colors.transparent,
+        centerTitle: false,
+        titleSpacing: 0,
         leading: Builder(
           builder: (ctx) => IconButton(
-            icon: const Icon(Icons.calendar_today_outlined),
+            icon: const Icon(Icons.space_dashboard_outlined, size: 21),
             tooltip: 'Summary',
             onPressed: () => _openSummaryDrawer(ctx),
           ),
@@ -224,11 +233,11 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
-                style: const TextStyle(color: Color(0xFF1A1A1A)),
-                cursorColor: AppTheme.primaryColor,
-                decoration: InputDecoration(
-                  hintText: 'Search...',
-                  hintStyle: TextStyle(color: Colors.grey.shade400),
+                style: const TextStyle(fontSize: 16, color: LedgerStyle.ink),
+                cursorColor: LedgerStyle.accent,
+                decoration: const InputDecoration(
+                  hintText: 'Search this day',
+                  hintStyle: TextStyle(color: LedgerStyle.secondary),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
@@ -239,33 +248,35 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                     .read(expenseNotifierProvider.notifier)
                     .searchExpenses(q),
               )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left),
-                    onPressed: () => _navigateToPrevMonth(focusedMonth),
-                  ),
-                  GestureDetector(
-                    onTap: () => _pickMonth(focusedMonth),
-                    child: Text(
-                      DateFormat('MMM yyyy').format(focusedMonth),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A),
+            : TextButton(
+                onPressed: () => _pickMonth(focusedMonth),
+                style: TextButton.styleFrom(
+                  foregroundColor: LedgerStyle.ink,
+                  padding: EdgeInsets.zero,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        DateFormat('MMMM yyyy').format(focusedMonth),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: PiggyType.pageTitle,
                       ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right),
-                    onPressed: () => _navigateToNextMonth(focusedMonth),
-                  ),
-                ],
+                    const SizedBox(width: 4),
+                    const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
+                  ],
+                ),
               ),
         actions: [
           IconButton(
-            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            tooltip: _isSearching ? 'Close search' : 'Search transactions',
+            icon: Icon(
+              _isSearching ? Icons.close : Icons.search_rounded,
+              size: 23,
+            ),
             onPressed: () {
               setState(() {
                 _isSearching = !_isSearching;
@@ -277,236 +288,155 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.tune_outlined),
+            tooltip: 'Filter transactions',
+            icon: Badge(
+              isLabelVisible: hasFilter,
+              backgroundColor: LedgerStyle.accent,
+              child: const Icon(Icons.tune_rounded, size: 21),
+            ),
             onPressed: _showFilterDialog,
           ),
+          const SizedBox(width: 8),
         ],
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1),
-        ),
       ),
-      body: Builder(
-        builder: (ctx) {
-          if (state.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (state.error != null) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      state.error!,
-                      textAlign: TextAlign.center,
+      body: state.isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: LedgerStyle.accent),
+            )
+          : state.error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(state.error!, textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: () => ref
+                              .read(expenseNotifierProvider.notifier)
+                              .refresh(),
+                          child: const Text('Try again'),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 20),
-                    FilledButton(
-                      onPressed: () {
-                        ref.read(selectedTopicIdProvider.notifier).state = null;
-                      },
-                      child: const Text('OK'),
+                  ),
+                )
+              : ExpenseList(
+                  state: state,
+                  onAdd: () =>
+                      _showAddExpenseForm(state.year, state.month, state.day),
+                  headerSlivers: [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          PiggySpace.page,
+                          PiggySpace.md,
+                          PiggySpace.page,
+                          0,
+                        ),
+                        child: Column(
+                          children: [
+                            _MonthlySummaryBar(state: state),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    'Your month',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.2,
+                                      color: LedgerStyle.secondary,
+                                    ),
+                                  ),
+                                ),
+                                TextButton(
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: LedgerStyle.accent,
+                                    minimumSize: const Size(48, 44),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                    ),
+                                    textStyle: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    final now = DateTime.now();
+                                    ref
+                                        .read(expenseNotifierProvider.notifier)
+                                        .selectDate(
+                                          now.year,
+                                          now.month,
+                                          now.day,
+                                        );
+                                  },
+                                  child: const Text('Today'),
+                                ),
+                                IconButton(
+                                  tooltip: 'Previous month',
+                                  onPressed: () =>
+                                      _navigateToPrevMonth(focusedMonth),
+                                  icon: const Icon(
+                                    Icons.chevron_left_rounded,
+                                    size: 22,
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: 'Next month',
+                                  onPressed: () =>
+                                      _navigateToNextMonth(focusedMonth),
+                                  icon: const Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 22,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            ExpenseCalendar(state: state),
+                            const SizedBox(height: 12),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            );
-          }
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              // 리스트가 최소한의 공간은 항상 유지하도록 달력 높이 상한을 둔다.
-              const minCalendarHeight = 50.0;
-              const minListHeight = 120.0;
-              final maxCalendarHeight = (constraints.maxHeight - minListHeight)
-                  .clamp(minCalendarHeight, double.infinity);
-              final calendarHeight = ref
-                  .watch(calendarHeightProvider)
-                  .clamp(minCalendarHeight, maxCalendarHeight);
-
-              return Column(
-                children: [
-                  _MonthlySummaryBar(state: state),
-                  const Divider(height: 1),
-                  SizedBox(
-                    height: calendarHeight,
-                    child: SingleChildScrollView(
-                      // 핸들을 위로 끌어 달력이 실제 크기보다 작아지면,
-                      // 가려진 아래쪽 주는 스크롤로 볼 수 있다.
-                      child: ExpenseCalendar(state: state),
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  _CalendarResizeHandle(
-                    onDragUpdate: (dy) {
-                      final next = (ref.read(calendarHeightProvider) + dy)
-                          .clamp(minCalendarHeight, maxCalendarHeight);
-                      ref.read(calendarHeightProvider.notifier).state = next;
-                    },
-                  ),
-                  const Divider(height: 1),
-                  Expanded(child: ExpenseList(state: state)),
-                ],
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () =>
-            _showAddExpenseForm(state.year, state.month, state.day),
-        backgroundColor: AppTheme.primaryDark,
-        foregroundColor: Colors.white,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add),
-      ),
     );
   }
 }
 
 class _MonthlySummaryBar extends StatelessWidget {
   final ExpenseState state;
-
   const _MonthlySummaryBar({required this.state});
 
   @override
   Widget build(BuildContext context) {
     final formatter = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
-    final income = state.monthlyIncomeTotal / 100.0;
-    final expense = state.monthlyExpenseTotal / 100.0;
-
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
-      // income, expense summary
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: _SummaryCard(
-                label: 'Income',
-                amount: formatter.format(income),
-                icon: Icons.account_balance_wallet_outlined,
-                iconColor: AppTheme.incomeColor,
-                iconBgColor: AppTheme.incomeColor.withValues(alpha: 0.1),
-                amountColor: AppTheme.incomeColor,
-              ),
-            ),
-            Container(
-                width: 1, height: 32, color: Colors.grey.shade300), // 가운데 버티컬 바
-            Expanded(
-              child: _SummaryCard(
-                label: 'Expense',
-                amount: formatter.format(expense),
-                icon: Icons.receipt_long_outlined,
-                iconColor: AppTheme.expenseColor,
-                iconBgColor: AppTheme.expenseColor.withValues(alpha: 0.1),
-                amountColor: AppTheme.expenseColor,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  final String label;
-  final String amount;
-  final IconData icon;
-  final Color iconColor;
-  final Color iconBgColor;
-  final Color amountColor;
-
-  const _SummaryCard({
-    required this.label,
-    required this.amount,
-    required this.icon,
-    required this.iconColor,
-    required this.iconBgColor,
-    required this.amountColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+    return IntrinsicHeight(
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // icon
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: iconBgColor,
-              shape: BoxShape.circle,
+          Expanded(
+            child: PiggySummaryCard(
+              label: 'Income',
+              amount: formatter.format(state.monthlyIncomeTotal / 100),
+              tone: PiggyTone.income,
+              icon: Icons.south_west_rounded,
             ),
-            child: Icon(icon, color: iconColor, size: 16),
           ),
-          // blank
-          const SizedBox(width: 12),
-          // income, expense
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
-              ),
-              Text(
-                amount,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.normal,
-                  color: amountColor,
-                ),
-              ),
-            ],
+          const SizedBox(width: PiggySpace.md),
+          Expanded(
+            child: PiggySummaryCard(
+              label: 'Expenses',
+              amount: formatter.format(state.monthlyExpenseTotal / 100),
+              tone: PiggyTone.expense,
+              icon: Icons.north_east_rounded,
+            ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// 달력과 리스트 사이의 드래그 핸들. 위아래로 끌면 [onDragUpdate]로 이동량(dy)을 알려준다.
-class _CalendarResizeHandle extends StatelessWidget {
-  final ValueChanged<double> onDragUpdate;
-
-  const _CalendarResizeHandle({required this.onDragUpdate});
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.resizeRow,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onVerticalDragUpdate: (details) => onDragUpdate(details.delta.dy),
-        child: Container(
-          height: 20,
-          color: Colors.transparent,
-          alignment: Alignment.center,
-          child: Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade400,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -528,7 +458,7 @@ class _FilterTile extends StatelessWidget {
     return ListTile(
       title: Text(label),
       trailing:
-          selected ? const Icon(Icons.check, color: Color(0xFF4CAF50)) : null,
+          selected ? const Icon(Icons.check, color: LedgerStyle.accent) : null,
       onTap: onTap,
     );
   }
@@ -562,6 +492,7 @@ class _TopicFilterList extends StatelessWidget {
       children: topics.map((topic) {
         final isSelected = topicFilter.isSelected(topic.id);
         return CheckboxListTile(
+          activeColor: LedgerStyle.accent,
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
           title: Text(topic.title),

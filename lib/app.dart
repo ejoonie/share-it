@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_it/services/device_token_service.dart';
@@ -10,7 +9,6 @@ import 'navigation/deep_link_parser.dart';
 import 'providers/core_providers.dart';
 import 'providers/expense_provider.dart';
 import 'providers/session_provider.dart';
-import 'screens/bootstrap_debug_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/subscribe_screen.dart';
 import 'services/deep_link_service.dart';
@@ -96,7 +94,7 @@ class _UnauthorizedScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final mint = const Color(0xFF3dbfa8);
+    const mint = Color(0xFF3dbfa8);
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -343,22 +341,6 @@ class _MainScreenState extends ConsumerState<MainScreen>
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
       ),
-      floatingActionButton: kDebugMode
-          ? FloatingActionButton.small(
-              heroTag: 'bootstrap_debug_fab',
-              tooltip: 'Bootstrap Debug',
-              backgroundColor: const Color(0xFF313244),
-              foregroundColor: const Color(0xFF89B4FA),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const BootstrapDebugScreen(),
-                  ),
-                );
-              },
-              child: const Icon(Icons.bug_report_outlined),
-            )
-          : null,
     );
   }
 }

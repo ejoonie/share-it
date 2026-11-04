@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../theme/app_theme.dart';
+import '../theme/ledger_style.dart';
+import '../design_system/design_system.dart';
 import '../providers/core_providers.dart';
 import '../providers/expense_provider.dart';
 import '../models/expense_model.dart';
@@ -11,96 +12,171 @@ import 'topic_picker.dart';
 
 class ExpenseList extends ConsumerWidget {
   final ExpenseState state;
+  final List<Widget> headerSlivers;
+  final VoidCallback onAdd;
 
-  const ExpenseList({super.key, required this.state});
+  const ExpenseList({
+    super.key,
+    required this.state,
+    required this.onAdd,
+    this.headerSlivers = const [],
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final items = state.filteredSelectedDateExpenses;
-    final formatter = DateFormat('yyyy-MM-dd');
+    final date = DateTime(state.year, state.month, state.day);
+    final now = DateTime.now();
+    final today =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+    final net = items.fold<int>(
+      0,
+      (sum, item) => sum + (item.isIncome ? item.amount : -item.amount),
+    );
+    final money = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
+    final filtered = state.searchQuery.isNotEmpty || state.activeFilter != null;
 
-    Future<void> onRefresh() =>
-        ref.read(expenseNotifierProvider.notifier).refresh();
-
-    return Column(
-      children: [
-        // Padding(
-        //   padding: const EdgeInsets.fromLTRB(16, 12, 12, 4),
-        //   child: Row(
-        //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        //     children: [
-        //       const Text(
-        //         'Recent Transactions',
-        //         style: TextStyle(
-        //           fontSize: 15,
-        //           fontWeight: FontWeight.w600,
-        //           color: Color(0xFF1A1A1A),
-        //         ),
-        //       ),
-        //       TextButton(
-        //         onPressed: () {},
-        //         style: TextButton.styleFrom(
-        //           foregroundColor: AppTheme.primaryColor,
-        //           padding: const EdgeInsets.symmetric(horizontal: 8),
-        //           minimumSize: Size.zero,
-        //           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        //         ),
-        //         child: const Text('View All', style: TextStyle(fontSize: 13)),
-        //       ),
-        //     ],
-        //   ),
-        // ),
-        if (items.isEmpty)
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: onRefresh,
-              child: LayoutBuilder(
-                builder: (context, constraints) => SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: ConstrainedBox(
-                    constraints:
-                        BoxConstraints(minHeight: constraints.maxHeight),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.receipt_long_outlined,
-                            size: 48,
-                            color: Colors.grey.shade400,
+    return RefreshIndicator(
+      color: LedgerStyle.accent,
+      onRefresh: () => ref.read(expenseNotifierProvider.notifier).refresh(),
+      child: CustomScrollView(
+        key: const PageStorageKey('expense-ledger'),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          ...headerSlivers,
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: PiggySpace.page),
+              padding: const EdgeInsets.only(top: 20, bottom: 16),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: LedgerStyle.line)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${today ? 'Today · ' : ''}${DateFormat('MMM d').format(date)}',
+                          style: PiggyType.sectionTitle,
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          '${DateFormat('EEEE').format(date)} · ${items.length} ${items.length == 1 ? 'transaction' : 'transactions'}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: LedgerStyle.secondary,
                           ),
-                          const SizedBox(height: 8),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (items.isNotEmpty)
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.sizeOf(context).width * 0.28,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
                           Text(
-                            '${formatter.format(DateTime(state.year, state.month, state.day))}\nNo transactions',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey.shade500),
+                            '${net < 0 ? '−' : net > 0 ? '+' : ''}${money.format(net.abs() / 100)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                              color: net < 0
+                                  ? LedgerStyle.expense
+                                  : LedgerStyle.income,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            filtered ? 'Filtered net' : 'Daily net',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: LedgerStyle.secondary,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                ),
-              ),
-            ),
-          )
-        else
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: onRefresh,
-              child: ListView.separated(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                itemCount: items.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 4),
-                itemBuilder: (context, index) {
-                  final item = items[index];
-                  return _ExpenseListTile(expense: item);
-                },
+                  const SizedBox(width: 12),
+                  PiggyAddButton(onPressed: onAdd),
+                ],
               ),
             ),
           ),
-      ],
+          if (items.isEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: const BoxDecoration(
+                        color: LedgerStyle.accentSoft,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        filtered
+                            ? Icons.search_off_rounded
+                            : Icons.receipt_long_outlined,
+                        size: 23,
+                        color: LedgerStyle.secondary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      filtered
+                          ? 'No matching transactions'
+                          : 'A fresh page for this day',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: LedgerStyle.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      filtered
+                          ? 'Try another search or change your filters.'
+                          : 'Tap + to record your first transaction.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: LedgerStyle.secondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: PiggySpace.page),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => _ExpenseListTile(
+                    expense: items[index],
+                    first: index == 0,
+                    last: index == items.length - 1,
+                  ),
+                  childCount: items.length,
+                ),
+              ),
+            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 28)),
+        ],
+      ),
     );
   }
 }
@@ -108,7 +184,14 @@ class ExpenseList extends ConsumerWidget {
 class _ExpenseListTile extends ConsumerWidget {
   final ExpenseModel expense;
 
-  const _ExpenseListTile({required this.expense});
+  final bool first;
+  final bool last;
+
+  const _ExpenseListTile({
+    required this.expense,
+    required this.first,
+    required this.last,
+  });
 
   void _showEditForm(BuildContext context) {
     showModalBottomSheet<void>(
@@ -131,7 +214,9 @@ class _ExpenseListTile extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Confirm Delete'),
-        content: Text('Delete "${expense.title.isEmpty ? 'No title' : expense.title}"?'),
+        content: Text(
+          'Delete "${expense.title.isEmpty ? 'No title' : expense.title}"?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -144,7 +229,7 @@ class _ExpenseListTile extends ConsumerWidget {
                   .deleteExpense(expense.id!);
               Navigator.pop(ctx);
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: PiggyColors.error),
             child: const Text('Delete'),
           ),
         ],
@@ -152,79 +237,61 @@ class _ExpenseListTile extends ConsumerWidget {
     );
   }
 
-  Text? _buildSubTitle(BuildContext context, String? topicName) {
-    // final debug = expense.occurredAt.toIso8601String();
-    if (expense.content != null && expense.content!.isNotEmpty) {
-      // return Text('${expense.content!}\n${debug}',
-      //     style: const TextStyle(fontSize: 10));
-      return Text('${expense.content!}\n${topicName ?? ''}',
-          style: const TextStyle(fontSize: 10));
-    } else if (expense.category != null) {
-      // return Text('${expense.category!}\n${debug}',
-      //     style: const TextStyle(fontSize: 10));
-      return Text('${expense.category!}\n${topicName ?? ''}',
-          style: const TextStyle(fontSize: 10));
-    } else {
-      // return Text('${debug}', style: const TextStyle(fontSize: 10));
-      return Text(topicName ?? '', style: const TextStyle(fontSize: 10));
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isIncome = expense.isIncome;
-    final amountColor = isIncome ? AppTheme.incomeColor : AppTheme.expenseColor;
-    final amountPrefix = isIncome ? '+' : '';
     final formatter = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
     final topics = ref.watch(myViewableTopicsProvider).valueOrNull ?? const [];
     final topicName = findTopicById(topics, expense.topicId)?.title;
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: CircleAvatar(
-          backgroundColor: isIncome
-              ? AppTheme.incomeColor.withOpacity(0.1)
-              : AppTheme.expenseColor.withOpacity(0.1),
-          child: Icon(
-            isIncome
-                ? Icons.account_balance_wallet_outlined
-                : Icons.receipt_long_outlined,
-            color: amountColor,
-            size: 20,
-          ),
+    final subtitle = [expense.category, topicName]
+        .whereType<String>()
+        .where((part) => part.trim().isNotEmpty)
+        .join(' · ');
+    return PiggyTransactionRow(
+      title: expense.title.isEmpty ? 'Untitled transaction' : expense.title,
+      subtitle: subtitle,
+      amount:
+          '${expense.isIncome ? '+' : '−'}${formatter.format(expense.amountInDollars)}',
+      tone: expense.isIncome ? PiggyTone.income : PiggyTone.expense,
+      icon: _categoryIcon(),
+      first: first,
+      last: last,
+      onTap: () => _showEditForm(context),
+      trailing: PopupMenuButton<String>(
+        tooltip: 'Transaction options',
+        icon: const Icon(
+          Icons.more_horiz_rounded,
+          size: 18,
+          color: LedgerStyle.secondary,
         ),
-        title: Text(
-          expense.title.isEmpty ? 'No title' : expense.title,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: _buildSubTitle(context, topicName),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '$amountPrefix${formatter.format(expense.amountInDollars)}',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: amountColor,
-              ),
-            ),
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                if (value == 'edit') _showEditForm(context);
-                if (value == 'delete') _confirmDelete(context, ref);
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'edit', child: Text('Edit')),
-                PopupMenuItem(value: 'delete', child: Text('Delete')),
-              ],
-            ),
-          ],
-        ),
-        onTap: () => _showEditForm(context),
+        onSelected: (value) {
+          if (value == 'edit') _showEditForm(context);
+          if (value == 'delete') _confirmDelete(context, ref);
+        },
+        itemBuilder: (_) => const [
+          PopupMenuItem(value: 'edit', child: Text('Edit')),
+          PopupMenuItem(value: 'delete', child: Text('Delete')),
+        ],
       ),
     );
+  }
+
+  IconData _categoryIcon() {
+    if (expense.isIncome) return Icons.south_west_rounded;
+    final category = expense.category?.toLowerCase() ?? '';
+    if (category.contains('food') || category.contains('식')) {
+      return Icons.restaurant_rounded;
+    }
+    if (category.contains('coffee') ||
+        category.contains('cafe') ||
+        category.contains('카페')) {
+      return Icons.local_cafe_outlined;
+    }
+    if (category.contains('transport') || category.contains('교통')) {
+      return Icons.directions_transit_rounded;
+    }
+    if (category.contains('shop') || category.contains('쇼핑')) {
+      return Icons.shopping_bag_outlined;
+    }
+    return Icons.receipt_long_outlined;
   }
 }

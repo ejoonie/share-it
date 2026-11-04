@@ -93,3 +93,16 @@ scripts/upload_ios.sh
 `ANDROID_ARTIFACT_PATH` defaults to
 `build/app/outputs/bundle/release/app-release.aab`, and `IOS_ARTIFACT_PATH` can
 be omitted when exactly one `.ipa` exists under `build/ios/ipa/`.
+
+## Design system
+
+The Flutter app uses the warm cream, blue-purple, and coral palette documented in
+[the design system guide](doc/design-system.md). Open **Settings → Design system**
+(the palette icon, debug builds only), or run the standalone live catalog:
+
+```sh
+flutter run -t lib/design_system_preview.dart
+```
+
+Import `package:share_it/design_system/design_system.dart` for shared tokens,
+components, and `PiggyTheme.light`.

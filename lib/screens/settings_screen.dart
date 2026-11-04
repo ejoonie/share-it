@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+
+import 'bootstrap_debug_screen.dart';
+import 'design_system_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -131,7 +135,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Failed to unsubscribe. Please try again.')),
+          content: Text('Failed to unsubscribe. Please try again.'),
+        ),
       );
     }
   }
@@ -150,7 +155,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             true;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(
+        title: const Text('Settings'),
+        actions: [
+          if (kDebugMode)
+            IconButton(
+              tooltip: 'Design system',
+              icon: const Icon(Icons.palette_outlined, size: 22),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const DesignSystemScreen()),
+              ),
+            ),
+          if (kDebugMode)
+            IconButton(
+              tooltip: 'Bootstrap Debug',
+              icon: const Icon(Icons.bug_report_outlined, size: 22),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const BootstrapDebugScreen()),
+              ),
+            ),
+        ],
+      ),
       body: ListView(
         children: [
           const _SectionHeader(title: 'General'),
@@ -218,8 +243,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       error: (_, __) => [
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Text('Failed to load piggies.',
-              style: TextStyle(color: Colors.red)),
+          child: Text(
+            'Failed to load piggies.',
+            style: TextStyle(color: Colors.red),
+          ),
         ),
       ],
       data: (piggies) => piggies.isEmpty
@@ -281,25 +308,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ]
           : subs
-              .map((sub) => _SubscriptionTile(
-                    sub: sub,
-                    onToggleNotification: (enabled) async {
-                      final success = await notifier
-                          .toggleNotification(sub.topic.id, enabled: enabled);
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(success
+              .map(
+                (sub) => _SubscriptionTile(
+                  sub: sub,
+                  onToggleNotification: (enabled) async {
+                    final success = await notifier
+                        .toggleNotification(sub.topic.id, enabled: enabled);
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          success
                               ? (enabled
                                   ? 'Notifications enabled.'
                                   : 'Notifications muted.')
-                              : 'Failed to update notification setting.'),
+                              : 'Failed to update notification setting.',
                         ),
-                      );
-                    },
-                    onUnsubscribe: () =>
-                        _confirmUnsubscribe(sub.topic.id, sub.topic.title),
-                  ))
+                      ),
+                    );
+                  },
+                  onUnsubscribe: () =>
+                      _confirmUnsubscribe(sub.topic.id, sub.topic.title),
+                ),
+              )
               .toList(),
     );
   }

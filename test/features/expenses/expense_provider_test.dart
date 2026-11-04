@@ -54,6 +54,24 @@ void main() {
       // 초기 load()가 오늘 날짜로 선택 상태를 세팅하므로, 테스트용 날짜로 덮어쓴다.
     });
 
+    test(
+        'selecting an adjacent-month date moves the page and selection together',
+        () async {
+      await notifier.selectDate(2026, 11, 30);
+      await notifier.selectDate(2026, 12, 1);
+      expect(notifier.state.focusedMonth, DateTime(2026, 12));
+      expect(notifier.state.month, 12);
+      expect(notifier.state.day, 1);
+    });
+
+    test('reloading the ledger preserves its selected date', () async {
+      await notifier.selectDate(2026, 9, 3);
+      await notifier.load();
+      expect(notifier.state.focusedMonth, DateTime(2026, 9));
+      expect(notifier.state.month, 9);
+      expect(notifier.state.day, 3);
+    });
+
     test('같은 일(day)이 다음 달에도 있으면 그대로 유지한다 (8/15 → 9/15)', () async {
       await notifier.selectDate(2026, 8, 15);
 

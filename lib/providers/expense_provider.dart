@@ -90,9 +90,9 @@ class ExpenseState {
   }) {
     return ExpenseState(
       focusedMonth: focusedMonth ?? this.focusedMonth,
-      year: selectedDate?.year ?? this.year,
-      month: selectedDate?.month ?? this.month,
-      day: selectedDate?.day ?? this.day,
+      year: selectedDate?.year ?? year,
+      month: selectedDate?.month ?? month,
+      day: selectedDate?.day ?? day,
       monthlyExpenses: monthlyExpenses ?? this.monthlyExpenses,
       selectedDateExpenses: selectedDateExpenses ?? this.selectedDateExpenses,
       monthlySummary: monthlySummary ?? this.monthlySummary,
@@ -118,6 +118,8 @@ class ExpenseState {
 class ExpenseNotifier extends StateNotifier<ExpenseState> {
   final ExpenseRepository? _repository;
   final TopicFilterStorage _topicFilterStorage;
+  int _dateRequest = 0;
+  DateTime? _loadedMonth;
 
   ExpenseNotifier(this._repository, this._topicFilterStorage)
       : super(
@@ -133,11 +135,13 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
   Future<void> _load(DateTime month) async {
     final repo = _repository;
     if (repo == null) return;
+    final request = ++_dateRequest;
     state = state.copyWith(isLoading: true, error: () => null);
     try {
       final m = DateTime(month.year, month.month);
-      final today = DateTime.now();
-      final selectedDate = DateTime(today.year, today.month, today.day);
+      final lastDay = DateTime(m.year, m.month + 1, 0).day;
+      final selectedDate =
+          DateTime(m.year, m.month, state.day.clamp(1, lastDay));
       final topicIds = state.topicFilter.queryTopicIds;
       final monthly =
           await repo.getExpensesByMonth(m.year, m.month, topicIds: topicIds);
@@ -148,6 +152,8 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
         selectedDate.day,
         topicIds: topicIds,
       );
+      if (!mounted || request != _dateRequest) return;
+      _loadedMonth = m;
       state = state.copyWith(
         focusedMonth: m,
         selectedDate: selectedDate,
@@ -157,59 +163,54 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
         isLoading: false,
       );
     } catch (e) {
+      if (!mounted || request != _dateRequest) return;
       state = state.copyWith(isLoading: false, error: () => e.toString());
     }
   }
 
-  Future<void> changeMonth(DateTime month) async {
-    final repo = _repository;
-    if (repo == null) return;
-    try {
-      final m = DateTime(month.year, month.month);
-      // 현재 선택된 날짜와 같은 일(day)로 이동한다. 그 달에 없는 날짜라면
-      // (예: 1/31 → 2월) 그 달의 마지막 날로 대체한다.
-      final daysInMonth = DateTime(m.year, m.month + 1, 0).day;
-      final targetDay = state.day > daysInMonth ? daysInMonth : state.day;
-      final selectedDate = DateTime(m.year, m.month, targetDay);
-      final topicIds = state.topicFilter.queryTopicIds;
-      final monthly =
-          await repo.getExpensesByMonth(m.year, m.month, topicIds: topicIds);
-      final summary = repo.buildMonthlySummary(monthly);
-      final daily = await repo.getExpensesByDate(
-        selectedDate.year,
-        selectedDate.month,
-        selectedDate.day,
-        topicIds: topicIds,
-      );
-      state = state.copyWith(
-        focusedMonth: m,
-        selectedDate: selectedDate,
-        monthlyExpenses: monthly,
-        selectedDateExpenses: daily,
-        monthlySummary: summary,
-      );
-    } catch (e) {
-      state = state.copyWith(error: () => e.toString());
-    }
+  Future<void> changeMonth(DateTime month) {
+    final lastDay = DateTime(month.year, month.month + 1, 0).day;
+    return selectDate(month.year, month.month, state.day.clamp(1, lastDay));
   }
 
   Future<void> selectDate(int year, int month, int day) async {
-    final date = DateTime(year, month, day); // local
     final repo = _repository;
     if (repo == null) return;
+    final request = ++_dateRequest;
+    final date = DateTime(year, month, day);
+    final differentMonth =
+        state.focusedMonth.year != year || state.focusedMonth.month != month;
+    final topicIds = state.topicFilter.queryTopicIds;
+    // Move the date and page together immediately. Never display the previous
+    // day's transactions under the newly selected date while fetching.
+    state = state.copyWith(
+      focusedMonth: DateTime(year, month),
+      selectedDate: date,
+      selectedDateExpenses: const [],
+      monthlyExpenses: differentMonth ? const [] : null,
+      monthlySummary: differentMonth ? const {} : null,
+      error: () => null,
+    );
     try {
-      final daily = await repo.getExpensesByDate(
-        year,
-        month,
-        day,
-        topicIds: state.topicFilter.queryTopicIds,
-      );
+      final monthly = (differentMonth ||
+              _loadedMonth?.year != year ||
+              _loadedMonth?.month != month)
+          ? await repo.getExpensesByMonth(year, month, topicIds: topicIds)
+          : null;
+      final daily =
+          await repo.getExpensesByDate(year, month, day, topicIds: topicIds);
+      if (!mounted || request != _dateRequest) return;
+      _loadedMonth = DateTime(year, month);
       state = state.copyWith(
-        selectedDate: date,
         selectedDateExpenses: daily,
+        monthlyExpenses: monthly,
+        monthlySummary:
+            monthly == null ? null : repo.buildMonthlySummary(monthly),
+        isLoading: false,
       );
     } catch (e) {
-      state = state.copyWith(error: () => e.toString());
+      if (!mounted || request != _dateRequest) return;
+      state = state.copyWith(isLoading: false, error: () => e.toString());
     }
   }
 
