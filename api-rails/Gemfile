@@ -1,7 +1,11 @@
 source "https://rubygems.org"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
-gem 'rails', '~> 8.1.4'
+gem "rails", "~> 7.2.3"
+# Active Support 7.2 passes the legacy `quirks_mode` option to JSON.generate.
+# json 3 rejects that option, so keep the compatible json 2.x line until Rails
+# itself is intentionally upgraded.
+gem "json", "< 3"
 # Use postgresql as the database for Active Record
 gem "pg", "~> 1.1"
 # Use the Puma web server [https://github.com/puma/puma]
@@ -51,7 +55,5 @@ group :development, :test do
 
    # RSpec for Rails testing
    gem "rspec-rails"
-   gem "database_cleaner-active_record"
 end
-
 
