@@ -292,16 +292,35 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (state.error != null) {
-            return Center(child: Text('Error: ${state.error}'));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      state.error!,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton(
+                      onPressed: () {
+                        ref.read(selectedTopicIdProvider.notifier).state = null;
+                      },
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
           return LayoutBuilder(
             builder: (context, constraints) {
               // 리스트가 최소한의 공간은 항상 유지하도록 달력 높이 상한을 둔다.
               const minCalendarHeight = 50.0;
               const minListHeight = 120.0;
-              final maxCalendarHeight =
-                  (constraints.maxHeight - minListHeight)
-                      .clamp(minCalendarHeight, double.infinity);
+              final maxCalendarHeight = (constraints.maxHeight - minListHeight)
+                  .clamp(minCalendarHeight, double.infinity);
               final calendarHeight = ref
                   .watch(calendarHeightProvider)
                   .clamp(minCalendarHeight, maxCalendarHeight);

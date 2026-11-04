@@ -53,6 +53,11 @@ class ExpenseRepository {
     return entries.map(ExpenseModel.fromEntry).toList();
   }
 
+  Future<ExpenseModel> getExpense(int id) async {
+    final entry = await _entryRepository.getEntry(id);
+    return ExpenseModel.fromEntry(entry);
+  }
+
   Future<ExpenseModel> addExpense(ExpenseModel expense) async {
     debugPrint('[addExpense] 전송 occurredAt: ${expense.occurredAt} (local: ${expense.occurredAt.toLocal()}, utc: ${expense.occurredAt.toUtc()})');
     final entry = await _entryRepository.createEntry(

@@ -1,6 +1,6 @@
 name: share_it
 description: A household budget and expense tracking app.
-version: 1.1.0+22
+version: 1.1.1+23
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -33,11 +33,10 @@ dependencies:
   permission_handler: ^12.0.3
   app_settings: ^8.0.1
   app_tracking_transparency: ^2.0.7
+  firebase_core: ^4.14.0
+  firebase_messaging: ^16.6.0
 
   # Push notifications
-  firebase_core: ^3.6.0
-  firebase_messaging: ^15.1.3
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
