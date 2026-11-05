@@ -313,7 +313,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
           padding: EdgeInsets.only(
-            bottom: widget.chromeVisible ? PiggySize.navigation : 0,
+            bottom: widget.chromeVisible ? PiggySize.navigation + 12 : 0,
           ),
           child: AnimatedSlide(
             duration: const Duration(milliseconds: 220),

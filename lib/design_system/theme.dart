@@ -5,10 +5,13 @@ import 'tokens.dart';
 abstract final class PiggyTheme {
   static final navigation = NavigationBarThemeData(
     height: PiggySize.navigation,
-    backgroundColor: PiggyColors.surface,
+    backgroundColor: Colors.transparent,
     surfaceTintColor: Colors.transparent,
     elevation: 0,
-    indicatorColor: PiggyColors.accentSoft,
+    indicatorColor: PiggyColors.accentSoft.withValues(alpha: 0.82),
+    indicatorShape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(18),
+    ),
     iconTheme: WidgetStateProperty.resolveWith(
       (states) => IconThemeData(
         size: 22,
