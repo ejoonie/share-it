@@ -92,8 +92,8 @@ class _DesignSystemScreenState extends State<DesignSystemScreen> {
                 ),
                 const PiggyDailySummaryCard(
                   eyebrow: 'Today',
-                  date: 'Nov 5',
-                  metadata: 'Thursday · 2026',
+                  date: '5',
+                  metadata: 'Thu',
                   income: '\$2,800.00',
                   expenses: '\$144.01',
                 ),

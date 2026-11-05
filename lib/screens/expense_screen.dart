@@ -455,11 +455,9 @@ class _DailySummary extends StatelessWidget {
         .fold<int>(0, (sum, entry) => sum + entry.amount);
 
     return PiggyDailySummaryCard(
-      eyebrow: today ? 'Today' : DateFormat('EEEE').format(date),
-      date: DateFormat('MMM d').format(date),
-      metadata: today
-          ? DateFormat('EEEE · yyyy').format(date)
-          : DateFormat('yyyy').format(date),
+      eyebrow: today ? 'Today' : 'Selected',
+      date: DateFormat('d').format(date),
+      metadata: DateFormat('EEE').format(date),
       income: formatter.format(income / 100),
       expenses: formatter.format(expenses / 100),
     );
