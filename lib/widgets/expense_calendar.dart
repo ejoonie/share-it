@@ -111,9 +111,9 @@ class _CalendarCell extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (income > 0) _amount(income, LedgerStyle.income, '+'),
+                  if (income > 0) _amount(income, LedgerStyle.income),
                   if (income > 0 && expense > 0) const SizedBox(width: 3),
-                  if (expense > 0) _amount(expense, LedgerStyle.expense, '−'),
+                  if (expense > 0) _amount(expense, LedgerStyle.expense),
                 ],
               ),
             ),
@@ -123,8 +123,8 @@ class _CalendarCell extends StatelessWidget {
     );
   }
 
-  Widget _amount(int cents, Color color, String sign) => Text(
-        '$sign${_short(cents)}',
+  Widget _amount(int cents, Color color) => Text(
+        _short(cents),
         maxLines: 1,
         style: PiggyType.calendarAmount.copyWith(color: color),
       );
