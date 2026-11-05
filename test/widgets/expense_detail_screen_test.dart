@@ -311,6 +311,170 @@ void main() {
     await tester.pump();
   });
 
+  testWidgets(
+      'unloaded old edits stay outside the loaded range and pages deduplicate',
+      (tester) async {
+    final events = StreamController<ChatEvent>();
+    await mount(
+      tester,
+      (request) async {
+        if (request.url.path.endsWith('/5')) {
+          return http.Response(
+            jsonEncode(message(5, 'Old edited message')),
+            200,
+          );
+        }
+        final older = request.url.queryParameters.containsKey('before_id');
+        return http.Response(
+          jsonEncode({
+            'records': older
+                ? [message(30, 'Boundary'), message(5, 'Old edited message')]
+                : [message(31, 'Latest'), message(30, 'Boundary')],
+            'next_before_id': older ? null : 30,
+          }),
+          200,
+        );
+      },
+      liveEvents: events.stream,
+    );
+    events.add(const ChatEvent.message(5));
+    await tester.pumpAndSettle();
+    expect(find.text('Old edited message'), findsNothing);
+    await tester.tap(find.text('Load earlier messages'));
+    await tester.pumpAndSettle();
+    expect(find.text('Boundary'), findsOneWidget);
+    expect(find.text('Old edited message'), findsOneWidget);
+    expect(find.text('Latest'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    unawaited(events.close());
+    await tester.pump();
+  });
+
+  testWidgets('transient single-message failure retries without another event',
+      (tester) async {
+    final events = StreamController<ChatEvent>();
+    var attempts = 0;
+    await mount(
+      tester,
+      (request) async {
+        if (request.url.path.endsWith('/2')) {
+          if (++attempts == 1) {
+            return http.Response('{"message":"Unavailable"}', 503);
+          }
+          return http.Response(
+            jsonEncode(message(2, 'Recovered message')),
+            200,
+          );
+        }
+        return http.Response(
+          jsonEncode({
+            'records': [message(1, 'Existing')],
+            'next_before_id': null,
+          }),
+          200,
+        );
+      },
+      liveEvents: events.stream,
+    );
+    events.add(const ChatEvent.message(2));
+    await tester.pumpAndSettle();
+    expect(attempts, 1);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(attempts, 1);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(attempts, 2);
+    expect(find.text('Recovered message'), findsOneWidget);
+    expect(find.textContaining('Couldn’t connect'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    unawaited(events.close());
+    await tester.pump();
+  });
+
+  testWidgets(
+      'persistent sync failure backs off and cancels retries on dispose',
+      (tester) async {
+    final events = StreamController<ChatEvent>();
+    var attempts = 0;
+    await mount(
+      tester,
+      (request) async {
+        if (request.url.path.endsWith('/2')) {
+          attempts++;
+          return http.Response('{"message":"Unavailable"}', 503);
+        }
+        return http.Response('{"records":[],"next_before_id":null}', 200);
+      },
+      liveEvents: events.stream,
+    );
+    events.add(const ChatEvent.message(2));
+    await tester.pumpAndSettle();
+    expect(attempts, 1);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(attempts, 2);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(attempts, 2);
+    await tester.pumpWidget(const SizedBox());
+    unawaited(events.close());
+    await tester.pump(const Duration(seconds: 20));
+    expect(attempts, 2);
+  });
+
+  testWidgets(
+      'sending during older-page fetch automatically completes the requested page',
+      (tester) async {
+    final pending = Completer<http.Response>();
+    var olderRequests = 0;
+    await mount(tester, (request) async {
+      if (request.method == 'POST') {
+        return http.Response(
+          jsonEncode(message(32, 'Sent during paging')),
+          201,
+        );
+      }
+      if (request.url.queryParameters.containsKey('before_id')) {
+        expect(request.url.queryParameters['before_id'], '30');
+        if (++olderRequests == 1) return pending.future;
+        return http.Response(
+          jsonEncode({
+            'records': [message(29, 'Earlier message')],
+            'next_before_id': null,
+          }),
+          200,
+        );
+      }
+      return http.Response(
+        jsonEncode({
+          'records': [message(31, 'Latest'), message(30, 'Boundary')],
+          'next_before_id': 30,
+        }),
+        200,
+      );
+    });
+    await tester.tap(find.text('Load earlier messages'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'Sent during paging');
+    await tester.pump();
+    await tester.tap(find.byTooltip('Send message'));
+    await tester.pumpAndSettle();
+    pending.complete(
+      http.Response(
+        jsonEncode({
+          'records': [message(29, 'Earlier message')],
+          'next_before_id': null,
+        }),
+        200,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(olderRequests, 2);
+    expect(find.text('Earlier message'), findsOneWidget);
+    expect(find.text('Sent during paging'), findsOneWidget);
+    expect(find.text('Boundary'), findsOneWidget);
+    expect(find.text('Load earlier messages'), findsNothing);
+  });
+
   testWidgets('sends a message, edits own message, then deletes it',
       (tester) async {
     final methods = <String>[];

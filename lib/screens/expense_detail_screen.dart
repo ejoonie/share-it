@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -38,6 +39,9 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
   bool _hasLoaded = false;
   String? _draftBeforeEdit;
   final _pendingIds = <int>{};
+  final _syncRetries = <int, Timer>{};
+  final _syncAttempts = <int, int>{};
+  int? _olderCursorPending;
   int _writeVersion = 0;
   bool _sending = false;
   bool _blocked = false;
@@ -61,6 +65,7 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _cancelSyncRetries();
     _draft.dispose();
     _scroll.dispose();
     _focus.dispose();
@@ -91,7 +96,11 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
         (_blocked && !_accessRecheckPending)) {
       return;
     }
-    if (_refreshPending) {
+    if (_olderCursorPending != null) {
+      final cursor = _olderCursorPending!;
+      _olderCursorPending = null;
+      _load(older: true, beforeId: cursor);
+    } else if (_refreshPending) {
       _refreshPending = false;
       _accessRecheckPending = false;
       _load(preserveHistory: true);
@@ -119,9 +128,48 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
   }
 
   void _upsert(EntryMessage message) {
+    // Keep a contiguous loaded range; older unseen edits belong to later pages.
+    final present = _messages.any((item) => item.id == message.id);
+    if (!present && _cursor != null && message.id < _cursor!) return;
     _messages.removeWhere((item) => item.id == message.id);
     _messages.add(message);
     _messages.sort((a, b) => b.id.compareTo(a.id));
+  }
+
+  List<EntryMessage> _mergeMessages(List<EntryMessage> incoming) {
+    final byId = {for (final item in _messages) item.id: item};
+    for (final item in incoming) {
+      final existing = byId[item.id];
+      if (existing == null || item.updatedAt.isAfter(existing.updatedAt)) {
+        byId[item.id] = item;
+      }
+    }
+    return byId.values.toList()..sort((a, b) => b.id.compareTo(a.id));
+  }
+
+  void _cancelSyncRetries() {
+    for (final timer in _syncRetries.values) {
+      timer.cancel();
+    }
+    _syncRetries.clear();
+    _syncAttempts.clear();
+  }
+
+  void _retrySync(int id) {
+    _syncRetries.remove(id)?.cancel();
+    final attempt = _syncAttempts[id] ?? 0;
+    _syncAttempts[id] = (attempt + 1).clamp(0, 4);
+    _syncRetries[id] = Timer(Duration(seconds: 1 << attempt), () {
+      _syncRetries.remove(id);
+      if (!mounted || _blocked) return;
+      _pendingIds.add(id);
+      _drainRefresh();
+    });
+  }
+
+  void _syncSucceeded(int id) {
+    _syncRetries.remove(id)?.cancel();
+    _syncAttempts.remove(id);
   }
 
   Future<void> _syncMessage(int id) async {
@@ -137,8 +185,10 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
         _pendingIds.add(id);
         return;
       }
+      _syncSucceeded(id);
       setState(() {
         _upsert(message);
+        _error = null;
       });
     } catch (error) {
       if (!mounted || accessVersion != _accessVersion) return;
@@ -148,9 +198,17 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
       }
       setState(() {
         if (_messageMissing(error)) {
+          _syncSucceeded(id);
           _removeMessage(id);
         } else {
           _error = _failure(error);
+          if (!_blocked &&
+              (error is! ApiException ||
+                  error.statusCode >= 500 ||
+                  error.statusCode == 408 ||
+                  error.statusCode == 429)) {
+            _retrySync(id);
+          }
         }
       });
     } finally {
@@ -167,6 +225,7 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
     if (error is ApiException) {
       if ([401, 403, 404].contains(error.statusCode)) {
         _accessVersion++;
+        _cancelSyncRetries();
         _blocked = true;
         _messages = [];
         return 'This conversation is no longer available to you.';
@@ -178,17 +237,21 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
     return 'Couldn’t connect. Please try again.';
   }
 
-  Future<void> _load({bool older = false, bool preserveHistory = false}) async {
+  Future<void> _load({
+    bool older = false,
+    bool preserveHistory = false,
+    int? beforeId,
+  }) async {
+    final requestedCursor = older ? (beforeId ?? _cursor) : null;
     final accessVersion = _accessVersion;
     final writeVersion = _writeVersion;
-    if (older && (_loading || _cursor == null)) return;
+    if (older && (_loading || requestedCursor == null)) return;
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      var page =
-          await _repository.list(_entryId, beforeId: older ? _cursor : null);
+      var page = await _repository.list(_entryId, beforeId: requestedCursor);
       final records = [...page.messages];
       final targetCount = preserveHistory ? _messages.length : 0;
       while (records.length < targetCount && page.nextBeforeId != null) {
@@ -197,12 +260,16 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
       }
       if (!mounted || accessVersion != _accessVersion) return;
       if (writeVersion != _writeVersion) {
-        _refreshPending = true;
+        if (older) {
+          _olderCursorPending = requestedCursor;
+        } else {
+          _refreshPending = true;
+        }
         return;
       }
       setState(() {
         _hasLoaded = true;
-        _messages = older ? [..._messages, ...records] : records;
+        _messages = older ? _mergeMessages(records) : records;
         _cursor = page.nextBeforeId;
         _blocked = false;
       });
@@ -372,6 +439,7 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
       if (event == ChatEvent.denied) {
         setState(() {
           _accessVersion++;
+          _cancelSyncRetries();
           _blocked = true;
           _messages = [];
           _error = 'This conversation is no longer available to you.';
