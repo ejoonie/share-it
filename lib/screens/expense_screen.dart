@@ -36,6 +36,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
   }
 
   void _openSummaryDrawer(BuildContext context) {
+    widget.onChromeVisibilityChanged?.call(false);
     Scaffold.of(context).openDrawer();
   }
 
@@ -102,6 +103,9 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
     return Scaffold(
       backgroundColor: LedgerStyle.background,
       drawer: const SummaryDrawer(),
+      onDrawerChanged: (isOpen) {
+        if (!isOpen) widget.onChromeVisibilityChanged?.call(true);
+      },
       appBar: AppBar(
         backgroundColor: LedgerStyle.background,
         surfaceTintColor: Colors.transparent,
