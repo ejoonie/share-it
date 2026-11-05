@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../design_system/components/dialogs.dart';
 import '../providers/shopping_provider.dart';
 import '../widgets/shopping_item_tile.dart';
 import '../widgets/shopping_form.dart';
@@ -10,38 +11,24 @@ class ShoppingScreen extends ConsumerWidget {
   const ShoppingScreen({super.key});
 
   void _showAddForm(BuildContext context) {
-    showModalBottomSheet<void>(
+    showPiggySheet<void>(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (_) => const ShoppingForm(),
     );
   }
 
-  void _confirmDeleteChecked(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
+  Future<void> _confirmDeleteChecked(
+      BuildContext context, WidgetRef ref) async {
+    final confirmed = await showPiggyConfirmation(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Checked Items'),
-        content: const Text('Remove all checked items?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              ref.read(shoppingNotifierProvider.notifier).deleteCheckedItems();
-              Navigator.pop(ctx);
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete Checked Items',
+      message: 'Remove all checked items? This action cannot be undone.',
+      confirmLabel: 'Delete',
+      icon: Icons.delete_outline_rounded,
+      destructive: true,
     );
+    if (confirmed != true || !context.mounted) return;
+    ref.read(shoppingNotifierProvider.notifier).deleteCheckedItems();
   }
 
   @override
@@ -101,8 +88,7 @@ class _ShoppingBody extends StatelessWidget {
             Text(
               'Shopping list is empty\nTap + to add items',
               textAlign: TextAlign.center,
-              style:
-                  TextStyle(color: Colors.grey.shade500, fontSize: 16),
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
             ),
           ],
         ),
@@ -114,8 +100,7 @@ class _ShoppingBody extends StatelessWidget {
         if (state.totalEstimated > 0)
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
               children: [
                 const Icon(Icons.shopping_bag_outlined,
@@ -135,8 +120,7 @@ class _ShoppingBody extends StatelessWidget {
           ),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.symmetric(
-                vertical: 8, horizontal: 12),
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
             children: [
               if (unchecked.isNotEmpty) ...[
                 ...unchecked.map((item) => ShoppingItemTile(item: item)),
@@ -144,12 +128,11 @@ class _ShoppingBody extends StatelessWidget {
               if (checked.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   child: Text(
                     'Done (${checked.length})',
-                    style: TextStyle(
-                        color: Colors.grey.shade600, fontSize: 13),
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                   ),
                 ),
                 ...checked.map((item) => ShoppingItemTile(item: item)),

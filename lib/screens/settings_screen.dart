@@ -9,7 +9,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../design_system/tokens.dart';
 import '../providers/core_providers.dart';
 import '../providers/session_provider.dart';
-import 'login_screen.dart';
 import 'change_password_screen.dart';
 import 'topic_detail_screen.dart';
 import '../providers/settings_provider.dart';
@@ -70,12 +69,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _accountCard() {
     final user = ref.watch(sessionNotifierProvider).data?.user;
-    final signedIn = user != null && !user.isGuest;
     return _SettingsRow(
-      icon: signedIn ? Icons.person_outline : Icons.login_rounded,
-      title: signedIn ? 'My account' : 'Make yourself at home',
-      subtitle:
-          signedIn ? user.email : 'Sign in to keep your piggies with you.',
+      icon: Icons.person_outline,
+      title: 'My account',
+      subtitle: user?.email ?? '',
       background: PiggyColors.accentSoft,
       trailing: const Icon(
         Icons.arrow_forward_rounded,
@@ -83,18 +80,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         color: PiggyColors.accent,
       ),
       onTap: () async {
-        if (signedIn) {
-          await Navigator.push<void>(
-            context,
-            MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
-          );
-        } else {
-          await Navigator.push<void>(
-            context,
-            MaterialPageRoute(builder: (_) => const LoginScreen()),
-          );
-          if (mounted) ref.read(sessionNotifierProvider.notifier).reload();
-        }
+        await Navigator.push<void>(
+          context,
+          MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+        );
       },
     );
   }

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_it/api/api_client.dart';
 import 'package:share_it/models/bootstrap_response.dart';
 import 'package:share_it/models/topic_model.dart';
+import 'package:share_it/models/user_model.dart';
 import 'package:share_it/providers/session_provider.dart';
 import 'package:share_it/repositories/device_token_repository.dart';
 import 'package:share_it/repositories/session_repository.dart';
@@ -33,26 +36,36 @@ class _FakeTokenStorage extends TokenStorage {
 
 /// SessionRepository 의 네트워크 호출을 제어 가능한 stub 으로 대체한다.
 class _FakeSessionRepository extends SessionRepository {
-  bool guestLoginCalled = false;
   int loadDataCallCount = 0;
   bool throwUnauthorizedOnLoad = false;
+  bool offline = false;
+  bool legacyGuest = false;
+  Completer<void>? pendingLoad;
 
   _FakeSessionRepository(TokenStorage storage)
       : super(apiClient: ApiClient(), tokenStorage: storage);
 
   @override
-  Future<void> guestLogin() async {
-    guestLoginCalled = true;
-    // 실제 토큰 저장은 SessionNotifier 가 아닌 이 stub 의 부모가 담당하지 않으므로 생략
-  }
-
-  @override
   Future<BootstrapResponse> loadData() async {
     loadDataCallCount++;
+    if (pendingLoad != null) await pendingLoad!.future;
     if (throwUnauthorizedOnLoad) {
-      throw ApiException(statusCode: 401, message: 'Unauthorized');
+      throw const ApiException(statusCode: 401, message: 'Unauthorized');
     }
-    return _fakeBootstrap();
+    if (offline) throw Exception('offline');
+    return _fakeBootstrap().copyWith(
+      user: legacyGuest
+          ? const UserModel(
+              id: 9,
+              email: 'legacy@example.com',
+              nickName: 'Legacy',
+              isGuest: true,
+              token: 'legacy-token',
+              createdAt: '',
+              updatedAt: '',
+            )
+          : null,
+    );
   }
 }
 
@@ -78,7 +91,7 @@ class _FakeDeviceTokenService extends DeviceTokenService {
 }
 
 BootstrapResponse _fakeBootstrap() {
-  return BootstrapResponse(
+  return const BootstrapResponse(
     bootstrapCreated: false,
     topic: TopicModel(
       id: 1,
@@ -131,16 +144,12 @@ void main() {
   // init() — 앱 시작 플로우
   // ---------------------------------------------------------------------------
   group('SessionNotifier.init()', () {
-    test('토큰 없으면 게스트 로그인 후 데이터 로드 → ready', () async {
-      final (:repo, :storage, :notifier) = _make(); // 토큰 없는 상태
-
-      await notifier.init();
-
-      expect(repo.guestLoginCalled, isTrue,
-          reason: '토큰이 없으므로 게스트 로그인을 호출해야 한다');
-      expect(repo.loadDataCallCount, 1);
-      expect(notifier.state.status, SessionStatus.ready);
-      expect(notifier.state.data, isNotNull);
+    test('no token shows welcome without requesting private data', () async {
+      final result = _make();
+      await result.notifier.init();
+      expect(result.repo.loadDataCallCount, 0);
+      expect(result.notifier.state.status, SessionStatus.unauthorized);
+      expect(result.notifier.state.data, isNull);
     });
 
     test('토큰 있으면 게스트 로그인 건너뛰고 데이터 로드 → ready', () async {
@@ -149,8 +158,6 @@ void main() {
 
       await notifier.init();
 
-      expect(repo.guestLoginCalled, isFalse,
-          reason: '이미 토큰이 있으면 게스트 로그인을 하면 안 된다');
       expect(repo.loadDataCallCount, 1);
       expect(notifier.state.status, SessionStatus.ready);
     });
@@ -165,6 +172,27 @@ void main() {
       expect(notifier.state.data, isNull);
     });
 
+    test('legacy guest token returns to welcome without loading the app',
+        () async {
+      final result = _make(initialToken: 'legacy-token');
+      result.repo.legacyGuest = true;
+      await result.notifier.init();
+      expect(result.notifier.state.status, SessionStatus.unauthorized);
+      expect(result.notifier.state.data, isNull);
+      expect(result.storage.getToken(), isNull);
+    });
+
+    test('network failure preserves token and supports retry', () async {
+      final result = _make(initialToken: 'valid-token');
+      result.repo.offline = true;
+      await result.notifier.init();
+      expect(result.notifier.state.status, SessionStatus.failure);
+      expect(result.storage.getToken(), 'valid-token');
+      result.repo.offline = false;
+      await result.notifier.init();
+      expect(result.notifier.state.status, SessionStatus.ready);
+    });
+
     test('init() 호출 직후 status 가 loading 으로 전환된다', () async {
       final (:repo, :storage, :notifier) = _make(initialToken: 'token');
 
@@ -173,8 +201,11 @@ void main() {
 
       await notifier.init();
 
-      expect(states.first, SessionStatus.loading,
-          reason: 'init() 시작 시 loading 이어야 한다');
+      expect(
+        states.first,
+        SessionStatus.loading,
+        reason: 'init() 시작 시 loading 이어야 한다',
+      );
       expect(states.last, SessionStatus.ready);
     });
   });
@@ -183,6 +214,33 @@ void main() {
   // reload() — 로그인 성공 후 데이터 리프레시
   // ---------------------------------------------------------------------------
   group('SessionNotifier.reload()', () {
+    testWidgets('fast login keeps the splash for at least two seconds',
+        (tester) async {
+      final result = _make(initialToken: 'token');
+      final reload = result.notifier.reload();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1999));
+      expect(result.notifier.state.status, SessionStatus.loading);
+      await tester.pump(const Duration(milliseconds: 1));
+      await reload;
+      expect(result.notifier.state.status, SessionStatus.ready);
+      result.notifier.dispose();
+    });
+
+    testWidgets('slow login waits for data without adding another two seconds',
+        (tester) async {
+      final result = _make(initialToken: 'token');
+      result.repo.pendingLoad = Completer<void>();
+      final reload = result.notifier.reload();
+      await tester.pump(const Duration(seconds: 3));
+      expect(result.notifier.state.status, SessionStatus.loading);
+      result.repo.pendingLoad!.complete();
+      await tester.pump();
+      await reload;
+      expect(result.notifier.state.status, SessionStatus.ready);
+      result.notifier.dispose();
+    });
+
     test('새 토큰이 저장된 상태에서 reload() → ready, 데이터 갱신', () async {
       final (:repo, :storage, :notifier) =
           _make(initialToken: 'new-auth-token');
@@ -191,8 +249,6 @@ void main() {
 
       expect(notifier.state.status, SessionStatus.ready);
       expect(notifier.state.data, isNotNull);
-      expect(repo.guestLoginCalled, isFalse,
-          reason: 'reload() 는 게스트 로그인을 호출하면 안 된다');
     });
 
     test('reload() 중 401 → unauthorized 상태', () async {
@@ -235,30 +291,6 @@ void main() {
       expect(deviceTokenService.authTokenDuringUnregister, 'auth-token');
       expect(storage.getToken(), isNull);
       expect(notifier.state.status, SessionStatus.unauthorized);
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // continueAsGuest() — 게스트로 계속하기
-  // ---------------------------------------------------------------------------
-  group('SessionNotifier.continueAsGuest()', () {
-    test('기존 토큰 삭제 후 새 게스트 로그인 → ready', () async {
-      final (:repo, :storage, :notifier) = _make(initialToken: 'old-token');
-
-      await notifier.continueAsGuest();
-
-      expect(storage.getToken(), isNull,
-          reason: 'continueAsGuest() 는 기존 토큰을 삭제해야 한다');
-      expect(repo.guestLoginCalled, isTrue);
-      expect(notifier.state.status, SessionStatus.ready);
-    });
-
-    test('continueAsGuest() 후 loadData 호출', () async {
-      final (:repo, :storage, :notifier) = _make();
-
-      await notifier.continueAsGuest();
-
-      expect(repo.loadDataCallCount, 1);
     });
   });
 }

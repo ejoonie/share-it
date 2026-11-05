@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../design_system/components/dialogs.dart';
 import '../models/expense_model.dart';
 import '../theme/app_theme.dart';
 import '../utils/arithmetic_parser.dart';
@@ -34,7 +35,7 @@ class _AmountEntryScreenState extends State<AmountEntryScreen> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
+    final picked = await showPiggyDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
@@ -78,7 +79,9 @@ class _AmountEntryScreenState extends State<AmountEntryScreen> {
         if (_cursor > 0 &&
             RegExp(r'[+\-*/]').hasMatch(_input[_cursor - 1]) &&
             key != '-') {
-          _input = _input.substring(0, _cursor - 1) + key + _input.substring(_cursor);
+          _input = _input.substring(0, _cursor - 1) +
+              key +
+              _input.substring(_cursor);
         } else {
           _insert(key);
         }
@@ -90,7 +93,8 @@ class _AmountEntryScreenState extends State<AmountEntryScreen> {
 
   void _onPaste() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
-    final cleaned = (data?.text?.trim() ?? '').replaceAll(RegExp(r'[^\d.+\-*/()]'), '');
+    final cleaned =
+        (data?.text?.trim() ?? '').replaceAll(RegExp(r'[^\d.+\-*/()]'), '');
     if (cleaned.isNotEmpty) {
       setState(() {
         _input = cleaned;
@@ -123,7 +127,8 @@ class _AmountEntryScreenState extends State<AmountEntryScreen> {
       DateTime.now().day,
     );
     final diff = today
-        .difference(DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day))
+        .difference(DateTime(
+            _selectedDate.year, _selectedDate.month, _selectedDate.day))
         .inDays;
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
@@ -148,16 +153,19 @@ class _AmountEntryScreenState extends State<AmountEntryScreen> {
                     onTap: _pickDate,
                     child: Row(
                       children: [
-                        Icon(Icons.arrow_drop_down, color: Colors.grey.shade500),
+                        Icon(Icons.arrow_drop_down,
+                            color: Colors.grey.shade500),
                         const SizedBox(width: 4),
                         Text(
                           '${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.day.toString().padLeft(2, '0')}/${_selectedDate.year}',
-                          style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+                          style: TextStyle(
+                              fontSize: 16, color: Colors.grey.shade700),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           _dateLabel(),
-                          style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+                          style: TextStyle(
+                              fontSize: 13, color: Colors.grey.shade400),
                         ),
                       ],
                     ),
@@ -202,7 +210,8 @@ class _AmountEntryScreenState extends State<AmountEntryScreen> {
                                       style: TextStyle(color: Colors.grey),
                                     )
                                   : TextSpan(children: [
-                                      TextSpan(text: _input.substring(0, _cursor)),
+                                      TextSpan(
+                                          text: _input.substring(0, _cursor)),
                                       // 커서 표시
                                       const TextSpan(
                                         text: '|',
@@ -397,9 +406,14 @@ class _NumPad extends StatelessWidget {
       children: [
         Row(
           children: operatorRow.map((op) {
-            final key = op == '×' ? '*' : op == '÷' ? '/' : op;
+            final key = op == '×'
+                ? '*'
+                : op == '÷'
+                    ? '/'
+                    : op;
             return Expanded(
-              child: _NumKey(label: op, onTap: () => onKey(key), isOperator: true),
+              child:
+                  _NumKey(label: op, onTap: () => onKey(key), isOperator: true),
             );
           }).toList(),
         ),
@@ -422,7 +436,8 @@ class _NumKey extends StatelessWidget {
   final VoidCallback onTap;
   final bool isOperator;
 
-  const _NumKey({required this.label, required this.onTap, this.isOperator = false});
+  const _NumKey(
+      {required this.label, required this.onTap, this.isOperator = false});
 
   @override
   Widget build(BuildContext context) {
@@ -435,7 +450,8 @@ class _NumKey extends StatelessWidget {
         width: double.infinity,
         child: Center(
           child: isBackspace
-              ? Icon(Icons.backspace_outlined, size: 22, color: Colors.grey.shade600)
+              ? Icon(Icons.backspace_outlined,
+                  size: 22, color: Colors.grey.shade600)
               : Text(
                   label,
                   style: TextStyle(

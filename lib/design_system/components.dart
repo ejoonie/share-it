@@ -5,3 +5,4 @@ export 'components/navigation.dart';
 export 'components/summary.dart';
 export 'components/surface.dart';
 export 'components/transaction.dart';
+export 'components/dialogs.dart';

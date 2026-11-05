@@ -42,6 +42,47 @@ class _DesignSystemScreenState extends State<DesignSystemScreen> {
                   '크림색 바탕, 또렷한 블루퍼플, 명랑한 블루와 코랄. 색은 의미를 구분하고 글자는 정보를 선명하게 전달합니다.',
                   style: PiggyType.body,
                 ),
+                _section('Dialogs & sheets', '공통 확인창, 삭제 확인, 날짜 선택을 미리 봅니다.'),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => showPiggyConfirmation(
+                        context: context,
+                        title: 'Never miss an update',
+                        message:
+                            'Get notified when someone adds an expense to a shared space.',
+                        confirmLabel: 'Turn on',
+                        cancelLabel: 'Not now',
+                        icon: Icons.notifications_none_rounded,
+                      ),
+                      child: const Text('Confirmation'),
+                    ),
+                    OutlinedButton(
+                      onPressed: () => showPiggyConfirmation(
+                        context: context,
+                        title: 'Delete this piggy?',
+                        message:
+                            'You and your followers will lose access to this piggy and its entries. You can’t undo this in the app.',
+                        detail: 'Family',
+                        confirmLabel: 'Delete',
+                        destructive: true,
+                        icon: Icons.delete_outline_rounded,
+                      ),
+                      child: const Text('Delete dialog'),
+                    ),
+                    OutlinedButton(
+                      onPressed: () => showPiggyDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2100),
+                      ),
+                      child: const Text('Date picker'),
+                    ),
+                  ],
+                ),
                 _section('01 · Color', '포인트는 선택과 행동에, 블루·코랄은 수입과 지출에 사용합니다.'),
                 const Wrap(
                   spacing: PiggySpace.sm,

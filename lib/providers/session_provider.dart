@@ -8,7 +8,7 @@ import '../repositories/session_repository.dart';
 import '../services/device_token_service.dart';
 import '../storage/token_storage.dart';
 
-enum SessionStatus { loading, ready, unauthorized }
+enum SessionStatus { loading, ready, unauthorized, failure }
 
 class SessionState {
   final SessionStatus status;
@@ -45,43 +45,40 @@ class SessionNotifier extends StateNotifier<SessionState> {
         _deviceTokenService = deviceTokenService,
         super(const SessionState());
 
-  /// 앱 시작 시 호출.
-  /// - 한 번이라도 로그인한 적 있으면 토큰 없을 때 게스트 생성 없이 unauthorized로 전환.
-  /// - 완전 신규 유저면 게스트 로그인 후 데이터 로드.
-  Future<void> init() async {
-    state = state.copyWith(status: SessionStatus.loading);
-    try {
-      if (_tokenStorage.getToken() == null) {
-        if (_tokenStorage.hasLoggedInBefore) {
-          state = state.copyWith(status: SessionStatus.unauthorized);
-          return;
-        }
-        await _repository.guestLogin();
-      }
-      await _loadData();
-    } on ApiException catch (e) {
-      if (e.statusCode == 401) {
-        state = state.copyWith(status: SessionStatus.unauthorized);
-      } else {
-        rethrow;
-      }
+  /// No account or private data is created until the user signs in.
+  Future<void> init() => _restoreSession();
+
+  Future<void> reload() async {
+    await _restoreSession(minimumDuration: const Duration(seconds: 2));
+    if (state.status == SessionStatus.ready) {
+      await _deviceTokenService?.syncCurrentToken();
     }
   }
 
-  /// 로그인 성공 후 호출 — 새 토큰은 이미 저장된 상태.
-  Future<void> reload() async {
-    state = state.copyWith(status: SessionStatus.loading);
+  Future<void> _restoreSession({
+    Duration minimumDuration = Duration.zero,
+  }) async {
+    state = const SessionState();
+    if (_tokenStorage.getToken() == null) {
+      state = const SessionState(status: SessionStatus.unauthorized);
+      return;
+    }
+    final minimumDisplay = Future<void>.delayed(minimumDuration);
+    late SessionState nextState;
     try {
-      await _tokenStorage.markLoggedIn();
-      await _loadData();
-      await _deviceTokenService?.syncCurrentToken();
+      nextState = await _loadData();
     } on ApiException catch (e) {
       if (e.statusCode == 401) {
-        state = state.copyWith(status: SessionStatus.unauthorized);
+        await _tokenStorage.clearToken();
+        nextState = const SessionState(status: SessionStatus.unauthorized);
       } else {
-        rethrow;
+        nextState = const SessionState(status: SessionStatus.failure);
       }
+    } catch (_) {
+      nextState = const SessionState(status: SessionStatus.failure);
     }
+    await minimumDisplay;
+    if (mounted) state = nextState;
   }
 
   /// 로그아웃 — 디바이스 토큰 해제 후 인증 토큰을 삭제한다.
@@ -91,23 +88,21 @@ class SessionNotifier extends StateNotifier<SessionState> {
     state = state.copyWith(status: SessionStatus.unauthorized, clearData: true);
   }
 
-  /// 회원탈퇴 — 서버 계정 삭제 후 로컬 상태 전체 초기화 (게스트 플래그 포함).
+  /// 회원탈퇴 — 서버 계정 삭제 후 로컬 상태 전체 초기화.
   Future<void> deleteAccount() async {
     await _repository.deleteAccount();
     await _tokenStorage.clearAll();
     state = state.copyWith(status: SessionStatus.unauthorized, clearData: true);
   }
 
-  /// unauthorized 화면에서 게스트로 계속하기.
-  Future<void> continueAsGuest() async {
-    state = state.copyWith(status: SessionStatus.loading);
-    await _repository.guestLogin();
-    await _loadData();
-  }
-
-  Future<void> _loadData() async {
+  Future<SessionState> _loadData() async {
     final data = await _repository.loadData();
-    state = state.copyWith(status: SessionStatus.ready, data: data);
+    // Reject legacy guest sessions even when talking to an older API.
+    if (data.user?.isGuest == true) {
+      await _tokenStorage.clearToken();
+      return const SessionState(status: SessionStatus.unauthorized);
+    }
+    return SessionState(status: SessionStatus.ready, data: data);
   }
 
   void removeTopic(int topicId, {TopicModel? replacement}) {

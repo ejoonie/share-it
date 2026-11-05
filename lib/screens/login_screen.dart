@@ -29,10 +29,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String _email = '';
   bool _isNewUser = false;
 
-  // 로그인 전 게스트 상태를 기억해둔다
-  String? _guestTokenBeforeLogin;
-  bool _wasGuest = false;
-
   // 각 단계의 위젯을 교체한다
   Widget _buildStep() {
     return switch (_step) {
@@ -76,14 +72,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _email = email;
     _isNewUser = isNewUser;
 
-    // 이메일 입력 시점에 현재 세션이 게스트인지 기록
-    final sessionData = ref.read(sessionNotifierProvider).data;
-    _wasGuest = sessionData?.user?.isGuest ?? false;
-    if (_wasGuest) {
-      _guestTokenBeforeLogin =
-          ref.read(sessionRepositoryProvider).getCurrentToken();
-    }
-
     if (isNewUser) {
       setState(() => _step = _LoginStep.terms);
     } else if (hasPassword) {
@@ -117,98 +105,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _onLoginSuccess({required bool isNewUser}) {
-    _handleGuestMigration(isNewUser: isNewUser);
-  }
-
-  Future<void> _handleGuestMigration({required bool isNewUser}) async {
-    final guestToken = _guestTokenBeforeLogin;
-
-    if (!_wasGuest || guestToken == null) {
-      if (mounted) Navigator.of(context).pop();
-      return;
-    }
-
-    if (isNewUser) {
-      // 신규 가입 → 게스트 데이터 자동 이전
-      try {
-        await ref.read(sessionRepositoryProvider).mergeGuestData(guestToken);
-      } catch (_) {
-        // 이전 실패는 조용히 무시 (계정은 이미 생성됨)
-      }
-      if (mounted) Navigator.of(context).pop();
-    } else {
-      // 기존 계정 로그인 → 사용자에게 이전 여부 물어본다
-      if (!mounted) return;
-      final move = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Icon(
-                    Icons.savings_outlined,
-                    size: 36,
-                    color: PiggyColors.accent,
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Bring your piggies along?',
-                    style: PiggyType.pageTitle,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Move the piggies and entries from your guest session into this account.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.5,
-                      color: PiggyColors.secondary,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: const Text('Move my data'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      foregroundColor: PiggyColors.secondary,
-                    ),
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('Continue without moving'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-
-      if (move == true) {
-        try {
-          await ref.read(sessionRepositoryProvider).mergeGuestData(guestToken);
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Could not move your guest data. Please try again later.',
-                ),
-              ),
-            );
-          }
-        }
-      }
-
-      if (mounted) Navigator.of(context).pop();
-    }
+    if (mounted) Navigator.of(context).pop(true);
   }
 
   void _goBack() {

@@ -1,6 +1,9 @@
 require "rails_helper"
 
 RSpec.describe "Entries API", type: :request do
+  # Permission scenarios use a signed-in collaborator; guests can no longer authenticate.
+  before { users(:guest_user).update!(is_guest: false) }
+
   # GET /api/v1/entries
   describe "GET /api/v1/entries" do
     it "lists entries from all topics the user owns (owner is always a follower)" do

@@ -49,7 +49,8 @@ abstract final class PiggyRadius {
   static const small = 12.0;
   static const card = 16.0;
   static const summary = 18.0;
-  static const sheet = 24.0;
+  static const sheet = 28.0;
+  static const dialog = 28.0;
 }
 
 abstract final class PiggySize {
