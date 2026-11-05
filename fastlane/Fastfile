@@ -33,9 +33,20 @@ end
 # ── 빌드 ──────────────────────────────────────────────────────────────────────
 
 lane :build_ios do
+  build_started_at = Time.now
   sh "cd #{ROOT} && flutter build ipa --release " \
      "-t #{ENV.fetch('FLUTTER_TARGET', 'lib/main.dart')} " \
      "--dart-define=APP_ENV=prod"
+
+  # Flutter can exit successfully when archiving succeeds but IPA export fails.
+  ipa = latest_ipa
+  unless ipa && File.mtime(ipa) >= build_started_at
+    UI.user_error!(
+      "Flutter did not export a new IPA to #{ROOT}/build/ios/ipa. " \
+      "Check the Flutter export errors above and Xcode distribution logs for " \
+      "signing, provisioning, or Apple Developer agreement issues."
+    )
+  end
 end
 
 lane :build_android do
