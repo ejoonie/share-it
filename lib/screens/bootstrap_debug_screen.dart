@@ -97,9 +97,8 @@ class BootstrapDebugScreen extends ConsumerWidget {
         _ValueTile(
           label: 'is_default',
           value: t.isDefault.toString(),
-          valueColor: t.isDefault
-              ? const Color(0xFFA6E3A1)
-              : const Color(0xFFCDD6F4),
+          valueColor:
+              t.isDefault ? const Color(0xFFA6E3A1) : const Color(0xFFCDD6F4),
         ),
         _ValueTile(label: 'created_at', value: t.createdAt),
         _ValueTile(label: 'updated_at', value: t.updatedAt),
@@ -108,6 +107,7 @@ class BootstrapDebugScreen extends ConsumerWidget {
   Color _statusColor(SessionStatus s) => switch (s) {
         SessionStatus.loading => const Color(0xFFF9E2AF),
         SessionStatus.ready => const Color(0xFFA6E3A1),
+        SessionStatus.failure => const Color(0xFFF38BA8),
         SessionStatus.unauthorized => const Color(0xFFF38BA8),
       };
 }
@@ -219,9 +219,11 @@ class _EntryCard extends StatelessWidget {
           const SizedBox(height: 8),
           _ValueTile(label: 'id', value: entry.id.toString()),
           _ValueTile(label: 'topic_id', value: entry.topicId.toString()),
-          _ValueTile(label: 'created_by_id', value: entry.createdById.toString()),
+          _ValueTile(
+              label: 'created_by_id', value: entry.createdById.toString()),
           if (entry.updatedById != null)
-            _ValueTile(label: 'updated_by_id', value: entry.updatedById.toString()),
+            _ValueTile(
+                label: 'updated_by_id', value: entry.updatedById.toString()),
           _ValueTile(
             label: 'kind',
             value: entry.kind ?? 'null',
@@ -250,5 +252,3 @@ class _EntryCard extends StatelessWidget {
     );
   }
 }
-
-

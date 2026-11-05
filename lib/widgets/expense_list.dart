@@ -236,11 +236,8 @@ class _ExpenseListTile extends ConsumerWidget {
   });
 
   void _showEditForm(BuildContext context) {
-    showModalBottomSheet<void>(
+    showPiggySheet<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
       builder: (_) => ExpenseForm(
         expense: expense,
         initYear: expense.occurredAt.year,
@@ -250,32 +247,18 @@ class _ExpenseListTile extends ConsumerWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showPiggyConfirmation(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Confirm Delete'),
-        content: Text(
-          'Delete "${expense.title.isEmpty ? 'No title' : expense.title}"?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              ref
-                  .read(expenseNotifierProvider.notifier)
-                  .deleteExpense(expense.id!);
-              Navigator.pop(ctx);
-            },
-            style: TextButton.styleFrom(foregroundColor: PiggyColors.error),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete this entry?',
+      message: 'This entry will be removed from your ledger.',
+      detail: expense.title.isEmpty ? 'No title' : expense.title,
+      confirmLabel: 'Delete',
+      icon: Icons.delete_outline_rounded,
+      destructive: true,
     );
+    if (confirmed != true || !context.mounted) return;
+    ref.read(expenseNotifierProvider.notifier).deleteExpense(expense.id!);
   }
 
   @override

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../design_system/components/dialogs.dart';
+
 const _kDefaultCategories = [
   'Food',
   'Transport',
@@ -31,12 +33,8 @@ class CategoryField extends StatefulWidget {
 
 class _CategoryFieldState extends State<CategoryField> {
   Future<void> _openPicker() async {
-    final result = await showModalBottomSheet<String>(
+    final result = await showPiggySheet<String>(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
       builder: (_) => _CategoryPickerSheet(initial: widget.controller.text),
     );
     if (result != null) {
@@ -111,20 +109,11 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
           (c) => c.toLowerCase() == _searchController.text.trim().toLowerCase(),
         );
 
-    return Padding(
+    return SingleChildScrollView(
       padding: EdgeInsets.only(bottom: bottomInset),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: TextField(

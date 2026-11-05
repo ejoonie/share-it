@@ -1,22 +1,9 @@
 module V1
   class UsersAPI < Grape::API
     resource :guest_login do
-      # POST /api/v1/guest_login
-      desc '게스트 로그인'
-      params do
-        requires :guest_token, type: String, regexp: /\S/
-      end
+      desc 'Guest login has been retired'
       post do
-        guest_token = params[:guest_token].strip
-        email = "#{guest_token}@example.com"
-        nick_name = "Guest-#{guest_token.first(8)}"
-
-        error!({ message: 'Guest already registered' }, 409) if User.exists?(email: email)
-
-        user = User.create!(email: email, nick_name: nick_name, is_guest: true)
-
-        status 201
-        present user, with: Entities::UserEntity
+        error!({ message: 'Guest login is no longer available. Please sign in.' }, 410)
       end
     end
 

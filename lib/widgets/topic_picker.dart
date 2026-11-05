@@ -28,10 +28,8 @@ Future<TopicModel?> showTopicPickerSheet(
   required List<TopicModel> topics,
   int? selectedTopicId,
 }) {
-  return showModalBottomSheet<TopicModel>(
+  return showPiggySheet<TopicModel>(
     context: context,
-    useSafeArea: true,
-    showDragHandle: true,
     builder: (context) => _TopicPickerSheet(
       topics: topics,
       selectedTopicId: selectedTopicId,
@@ -49,7 +47,7 @@ class _TopicPickerSheet extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Padding(
+  Widget build(BuildContext context) => SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
           PiggySpace.page,
           PiggySpace.xs,

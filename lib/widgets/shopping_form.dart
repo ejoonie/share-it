@@ -83,7 +83,7 @@ class _ShoppingFormState extends ConsumerState<ShoppingForm> {
     final isEditing = widget.item != null;
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
 
-    return Padding(
+    return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomPadding),
       child: Form(
         key: _formKey,

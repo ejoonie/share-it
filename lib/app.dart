@@ -5,18 +5,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_it/services/device_token_service.dart';
 
+import 'design_system/components/dialogs.dart';
 import 'navigation/deep_link_parser.dart';
 import 'providers/core_providers.dart';
 import 'providers/expense_provider.dart';
 import 'providers/followed_piggies_provider.dart';
 import 'providers/session_provider.dart';
-import 'screens/login_screen.dart';
+import 'screens/welcome_screen.dart';
 import 'screens/subscribe_screen.dart';
 import 'services/deep_link_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/main_navigation_shell.dart';
-import 'widgets/auth_step_layout.dart';
-import 'design_system/tokens.dart';
+import 'widgets/app_loading_indicator.dart';
+
+// Keep links received on the public welcome screen until authentication succeeds.
+final _pendingLinkProvider = StateProvider<Uri?>((ref) => null);
 
 class ShareItApp extends StatelessWidget {
   const ShareItApp({super.key});
@@ -41,10 +44,41 @@ class _SessionGate extends ConsumerStatefulWidget {
 }
 
 class _SessionGateState extends ConsumerState<_SessionGate> {
+  StreamSubscription<Uri>? _linkSubscription;
+
+  Future<void> _captureLinks() async {
+    try {
+      final service = DeepLinkService();
+      _linkSubscription = service.uriStream.listen(
+        (uri) {
+          if (mounted) ref.read(_pendingLinkProvider.notifier).state = uri;
+        },
+        onError: (Object error) {
+          debugPrint('[deeplink] $error');
+        },
+      );
+      final initial = await service.getInitialUri();
+      if (mounted &&
+          initial != null &&
+          ref.read(_pendingLinkProvider) == null) {
+        ref.read(_pendingLinkProvider.notifier).state = initial;
+      }
+    } catch (error) {
+      debugPrint('[deeplink] $error');
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_linkSubscription?.cancel());
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      unawaited(_captureLinks());
       // iOS 14+: UIWindow가 준비된 첫 프레임에서 ATT 권한 요청
       // runApp() 전에 호출하면 window가 없어 다이얼로그가 표시되지 않는다
       try {
@@ -73,8 +107,24 @@ class _SessionGateState extends ConsumerState<_SessionGate> {
 
     return switch (state.status) {
       SessionStatus.loading => const _LoadingScreen(),
+      SessionStatus.failure => Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Could not connect. Please try again.'),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () =>
+                      ref.read(sessionNotifierProvider.notifier).init(),
+                  child: const Text('Try again'),
+                ),
+              ],
+            ),
+          ),
+        ),
       SessionStatus.ready => const MainScreen(),
-      SessionStatus.unauthorized => const _UnauthorizedScreen(),
+      SessionStatus.unauthorized => const WelcomeScreen(),
     };
   }
 }
@@ -84,69 +134,8 @@ class _LoadingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Image.asset('assets/playstore.png', width: 256, height: 256),
-      ),
-    );
-  }
-}
-
-class _UnauthorizedScreen extends ConsumerWidget {
-  const _UnauthorizedScreen();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('Sharable Piggy', style: PiggyType.label),
-      ),
-      body: SafeArea(
-        child: AuthStepLayout(
-          icon: Icons.lock_outline_rounded,
-          title: 'Sign in again',
-          subtitle:
-              'Your session has ended. Sign in to return to your piggies, or start a guest session.',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-                ),
-                onPressed: () async {
-                  await Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  );
-                  if (context.mounted) {
-                    ref.read(sessionNotifierProvider.notifier).reload();
-                  }
-                },
-                child: const Text('Sign in'),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                style: TextButton.styleFrom(
-                  backgroundColor: PiggyColors.card,
-                  foregroundColor: PiggyColors.ink,
-                  minimumSize: const Size.fromHeight(52),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),),
-                ),
-                onPressed: () => ref
-                    .read(sessionNotifierProvider.notifier)
-                    .continueAsGuest(),
-                child: const Text('Continue as guest'),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return const Scaffold(
+      body: AppLoadingIndicator(),
     );
   }
 }
@@ -163,8 +152,6 @@ class _MainScreenState extends ConsumerState<MainScreen>
   int _currentIndex = 0;
   String? _openInviteToken;
   final _deepLinkParser = const DeepLinkParser();
-  late final DeepLinkService _deepLinkService;
-  StreamSubscription<Uri>? _deepLinkSubscription;
   late final DeviceTokenService _deviceTokenService;
 
   @override
@@ -172,23 +159,21 @@ class _MainScreenState extends ConsumerState<MainScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    _deepLinkService = DeepLinkService();
     _deviceTokenService = ref.read(deviceTokenServiceProvider);
 
-    _initDeepLinks();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // permission 은 앱 실행시 바로 요청하지 않는다.
       // if (Platform.isIOS) {
       //   _deviceTokenService?.requestPermissionAndSync();
       // }
       _deviceTokenService.initialize();
+      _openPendingLink();
     });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    unawaited(_deepLinkSubscription?.cancel());
     unawaited(_deviceTokenService.dispose());
     super.dispose();
   }
@@ -200,18 +185,12 @@ class _MainScreenState extends ConsumerState<MainScreen>
     // }
   }
 
-  Future<void> _initDeepLinks() async {
-    debugPrint('[deeplink] initDeepLinks');
-
-    _deepLinkSubscription = _deepLinkService.uriStream.listen(
-      (uri) => unawaited(_handleDeepLink(uri)),
-      onError: (Object error) {
-        debugPrint('[deeplink] Failed to receive link: $error');
-      },
-    );
-
-    final initialUri = await _deepLinkService.getInitialUri();
-    if (initialUri != null) await _handleDeepLink(initialUri);
+  void _openPendingLink() {
+    if (!mounted) return;
+    final uri = ref.read(_pendingLinkProvider);
+    if (uri == null) return;
+    ref.read(_pendingLinkProvider.notifier).state = null;
+    unawaited(_handleDeepLink(uri));
   }
 
   Future<void> _handleDeepLink(Uri uri) async {
@@ -277,26 +256,16 @@ class _MainScreenState extends ConsumerState<MainScreen>
       return;
     }
 
-    final allow = await showDialog<bool>(
+    final allow = await showPiggyConfirmation(
       context: context,
+      title: 'Never miss an update',
+      message: 'Get notified when someone adds an expense to a shared space.',
+      confirmLabel: 'Turn on',
+      cancelLabel: 'Not now',
+      icon: Icons.notifications_none_rounded,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Never miss an update'),
-        content: const Text(
-          'Get notified when someone adds an expense to a shared space.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Not now'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Turn on'),
-          ),
-        ],
-      ),
     );
+    if (!mounted) return;
 
     // 사용자가 응답을 했는지 로컬에 기록
     storage.markAsResponded();
@@ -315,6 +284,11 @@ class _MainScreenState extends ConsumerState<MainScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(_pendingLinkProvider, (_, uri) {
+      if (uri != null) {
+        _openPendingLink();
+      }
+    });
     return Scaffold(
       body: MainNavigationShell(
         currentIndex: _currentIndex,

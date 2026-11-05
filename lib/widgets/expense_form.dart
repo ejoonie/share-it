@@ -79,7 +79,7 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
+    final picked = await showPiggyDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2000),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../design_system/components/dialogs.dart';
 import '../models/topic_model.dart';
 import '../design_system/tokens.dart';
 import '../providers/settings_provider.dart';
@@ -57,95 +58,15 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
   }
 
   Future<void> _delete(TopicModel topic) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showPiggyConfirmation(
       context: context,
-      builder: (context) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-        backgroundColor: PiggyColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                      color: PiggyColors.errorSoft,
-                      borderRadius: BorderRadius.circular(14),),
-                  child: const Icon(Icons.delete_outline_rounded,
-                      color: PiggyColors.error, size: 23,),
-                ),
-                const SizedBox(height: 18),
-                Semantics(
-                    namesRoute: true,
-                    header: true,
-                    child: const Text('Delete this piggy?',
-                        style: PiggyType.pageTitle,),),
-                const SizedBox(height: 10),
-                Text(topic.title,
-                    style: PiggyType.itemTitle,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,),
-                const SizedBox(height: 8),
-                const Text(
-                    'You and your followers will lose access to this piggy and its entries.',
-                    style: TextStyle(
-                        fontSize: 14,
-                        height: 1.5,
-                        color: PiggyColors.secondary,),),
-                const SizedBox(height: 8),
-                const Text('You can’t undo this in the app.',
-                    style: PiggyType.caption,),
-                const SizedBox(height: 24),
-                LayoutBuilder(builder: (context, constraints) {
-                  final cancel = TextButton(
-                    style: TextButton.styleFrom(
-                      backgroundColor: PiggyColors.card,
-                      foregroundColor: PiggyColors.ink,
-                      minimumSize: const Size.fromHeight(48),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),),
-                      textStyle: PiggyType.itemTitle,
-                    ),
-                    onPressed: () => Navigator.pop(context, false),
-                    child: const Text('Cancel'),
-                  );
-                  final delete = FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: PiggyColors.error,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(48),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12,),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),),
-                      textStyle: PiggyType.itemTitle,
-                    ),
-                    onPressed: () => Navigator.pop(context, true),
-                    child: const Text('Delete'),
-                  );
-                  if (MediaQuery.textScalerOf(context).scale(14) > 20 ||
-                      constraints.maxWidth < 240) {
-                    return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [delete, const SizedBox(height: 10), cancel],);
-                  }
-                  return Row(children: [
-                    Expanded(child: cancel),
-                    const SizedBox(width: 12),
-                    Expanded(child: delete),
-                  ],);
-                },),
-              ],
-            ),
-          ),
-        ),
-      ),
+      title: 'Delete this piggy?',
+      message:
+          'You and your followers will lose access to this piggy and its entries. You can’t undo this in the app.',
+      detail: topic.title,
+      confirmLabel: 'Delete',
+      icon: Icons.delete_outline_rounded,
+      destructive: true,
     );
     if (confirmed != true || !mounted) return;
     setState(() => _deleting = true);

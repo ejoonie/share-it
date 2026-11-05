@@ -47,6 +47,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/playstore.png
+    - assets/welcome_piggy.png
 
 flutter_native_splash:
   color: "#FFFFFF"

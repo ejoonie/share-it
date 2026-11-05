@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../design_system/components/dialogs.dart';
 import '../providers/shopping_provider.dart';
 import '../models/shopping_item_model.dart';
 import 'shopping_form.dart';
@@ -12,40 +13,24 @@ class ShoppingItemTile extends ConsumerWidget {
   const ShoppingItemTile({super.key, required this.item});
 
   void _showEditForm(BuildContext context) {
-    showModalBottomSheet<void>(
+    showPiggySheet<void>(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (_) => ShoppingForm(item: item),
     );
   }
 
-  void _confirmDelete(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showPiggyConfirmation(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Confirm Delete'),
-        content: Text('Delete "${item.title}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              ref
-                  .read(shoppingNotifierProvider.notifier)
-                  .deleteItem(item.id!);
-              Navigator.pop(ctx);
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete this item?',
+      message: 'This item will be removed from your shopping list.',
+      detail: item.title,
+      confirmLabel: 'Delete',
+      icon: Icons.delete_outline_rounded,
+      destructive: true,
     );
+    if (confirmed != true || !context.mounted) return;
+    ref.read(shoppingNotifierProvider.notifier).deleteItem(item.id!);
   }
 
   @override
@@ -55,17 +40,15 @@ class ShoppingItemTile extends ConsumerWidget {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 3),
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
         leading: Checkbox(
           value: item.isChecked,
           activeColor: Theme.of(context).colorScheme.primary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(4),
           ),
-          onChanged: (_) => ref
-              .read(shoppingNotifierProvider.notifier)
-              .toggleItem(item),
+          onChanged: (_) =>
+              ref.read(shoppingNotifierProvider.notifier).toggleItem(item),
         ),
         title: Text(
           item.title,
@@ -101,9 +84,8 @@ class ShoppingItemTile extends ConsumerWidget {
             ),
           ],
         ),
-        onTap: () => ref
-            .read(shoppingNotifierProvider.notifier)
-            .toggleItem(item),
+        onTap: () =>
+            ref.read(shoppingNotifierProvider.notifier).toggleItem(item),
       ),
     );
   }

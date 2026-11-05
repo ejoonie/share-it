@@ -95,55 +95,6 @@ class User < ApplicationRecord
     end
   end
 
-  # 게스트 계정의 데이터를 target_user로 이전하고 자신을 삭제한다.
-  # - 내 topic: target_user로 소유권 이전 (기존 유저여도 topic을 추가로 가져감)
-  # - 내가 팔로우하던 topic: target_user로 이전 (충돌 시 target_user 것 유지)
-  # - 나를 팔로우하던 구독: topic_id가 그대로이므로 자연스럽게 유지됨
-  # - 샘플 entry: 삭제
-  # - entry (created_by / updated_by): target_user로 이전
-  # 반드시 is_guest? == true 인 유저에서 호출해야 한다.
-  def merge_into!(target_user)
-    raise ArgumentError, 'Only guest accounts can be merged' unless is_guest?
-
-    ActiveRecord::Base.transaction do
-      my_topic_ids = topics.pluck(:id)
-
-      # 샘플 entry 삭제
-      Entry.where(topic_id: my_topic_ids, is_sample: true).delete_all if my_topic_ids.any?
-
-      # 게스트 topic 소유권 이전 (기존 유저에게 topic이 추가됨)
-      # target_user에 이미 topic이 있으면 is_default 충돌을 막기 위해 false로 설정
-      already_has_topics = target_user.topics.exists?
-      topics.update_all(user_id: target_user.id)
-      Topic.where(id: my_topic_ids).update_all(is_default: false) if already_has_topics && my_topic_ids.any?
-
-      # 내가 팔로우하던 topic → target_user로 이전 (이미 팔로우 중이면 스킵)
-      topic_follows.each do |tf|
-        unless TopicFollow.exists?(user_id: target_user.id, topic_id: tf.topic_id)
-          tf.update_columns(user_id: target_user.id)
-        end
-      end
-      topic_follows.reload.delete_all
-
-      # entry 이전 (샘플 데이터 제외)
-      Entry.where(created_by_id: id, is_sample: false).update_all(created_by_id: target_user.id)
-      Entry.where(updated_by_id: id, is_sample: false).update_all(updated_by_id: target_user.id)
-
-      # 디바이스 토큰 이전 (같은 기기이므로 target_user 소유로 넘긴다)
-      device_tokens.update_all(user_id: target_user.id)
-
-      # 읽음 상태 이전 (target_user가 이미 읽은 entry는 게스트 쪽 걸 버린다)
-      entry_reads.each do |r|
-        unless EntryRead.exists?(user_id: target_user.id, entry_id: r.entry_id)
-          r.update_columns(user_id: target_user.id)
-        end
-      end
-      entry_reads.reload.delete_all
-
-      destroy!
-    end
-  end
-
   private
 
   def generate_token

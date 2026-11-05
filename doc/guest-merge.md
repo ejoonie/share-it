@@ -1,3 +1,6 @@
+> Retired (2026-11-05): guest creation and merge are no longer supported.
+> The following describes the historical behavior only. Existing database records are preserved.
+
 # Guest Account Merge
 
 **적용일**: 2026-07-21

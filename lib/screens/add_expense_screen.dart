@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../design_system/components/dialogs.dart';
 import '../models/expense_model.dart';
 import '../models/topic_model.dart';
 import '../providers/core_providers.dart';
@@ -60,7 +61,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
+    final picked = await showPiggyDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
@@ -86,10 +87,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final topicsValue = ref.read(myViewableTopicsProvider);
     if (!topicsValue.hasValue) return;
 
-    final amountCents = ((double.tryParse(_amountController.text) ?? 0) * 100).round();
+    final amountCents =
+        ((double.tryParse(_amountController.text) ?? 0) * 100).round();
     final now = DateTime.now();
     final topics = topicsValue.value ?? const [];
-    final lastUsedTopicId = ref.read(lastUsedTopicStorageProvider).getLastUsedTopicId();
+    final lastUsedTopicId =
+        ref.read(lastUsedTopicStorageProvider).getLastUsedTopicId();
     final topicId = _selectedTopicId ??
         resolveDefaultTopicId(topics, lastUsedTopicId: lastUsedTopicId);
     if (topicId != null) {
@@ -97,19 +100,27 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     }
 
     ref.read(expenseNotifierProvider.notifier).addExpense(
-      ExpenseModel(
-        topicId: topicId,
-        title: _titleController.text.trim(),
-        amount: amountCents,
-        content: _contentController.text.trim().isEmpty ? null : _contentController.text.trim(),
-        category: _categoryController.text.trim().isEmpty ? null : _categoryController.text.trim(),
-        type: _type,
-        occurredAt: DateTime(
-          _selectedDate.year, _selectedDate.month, _selectedDate.day,
-          now.hour, now.minute, now.second,
-        ),
-      ),
-    );
+          ExpenseModel(
+            topicId: topicId,
+            title: _titleController.text.trim(),
+            amount: amountCents,
+            content: _contentController.text.trim().isEmpty
+                ? null
+                : _contentController.text.trim(),
+            category: _categoryController.text.trim().isEmpty
+                ? null
+                : _categoryController.text.trim(),
+            type: _type,
+            occurredAt: DateTime(
+              _selectedDate.year,
+              _selectedDate.month,
+              _selectedDate.day,
+              now.hour,
+              now.minute,
+              now.second,
+            ),
+          ),
+        );
 
     // AmountEntryScreen까지 pop
     Navigator.of(context)
@@ -207,10 +218,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       labelText: 'Amount (USD)',
                       prefixIcon: Icon(Icons.attach_money),
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     validator: (v) {
                       final amount = double.tryParse(v ?? '');
-                      if (amount == null || amount <= 0) return 'Please enter a valid amount';
+                      if (amount == null || amount <= 0)
+                        return 'Please enter a valid amount';
                       return null;
                     },
                     textInputAction: TextInputAction.next,

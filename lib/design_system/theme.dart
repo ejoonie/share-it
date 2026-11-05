@@ -179,7 +179,37 @@ abstract final class PiggyTheme {
       elevation: 0,
       highlightElevation: 0,
     ),
+    datePickerTheme: DatePickerThemeData(
+      backgroundColor: PiggyColors.surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(PiggyRadius.dialog),
+      ),
+      headerBackgroundColor: PiggyColors.card,
+      headerForegroundColor: PiggyColors.ink,
+      headerHeadlineStyle: PiggyType.pageTitle.copyWith(fontSize: 28),
+      headerHelpStyle: PiggyType.label.copyWith(color: PiggyColors.accent),
+      dividerColor: PiggyColors.line,
+      todayBorder: const BorderSide(color: PiggyColors.accent),
+      dayShape: WidgetStatePropertyAll(
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      cancelButtonStyle: TextButton.styleFrom(
+        foregroundColor: PiggyColors.secondary,
+        minimumSize: const Size(64, 48),
+      ),
+      confirmButtonStyle: TextButton.styleFrom(
+        foregroundColor: Colors.white,
+        backgroundColor: PiggyColors.accent,
+        minimumSize: const Size(64, 48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+    ),
     bottomSheetTheme: const BottomSheetThemeData(
+      showDragHandle: true,
+      dragHandleColor: PiggyColors.line,
+      dragHandleSize: Size(36, 4),
       backgroundColor: PiggyColors.surface,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
@@ -188,10 +218,13 @@ abstract final class PiggyTheme {
       ),
     ),
     dialogTheme: DialogThemeData(
+      elevation: 0,
+      titleTextStyle: PiggyType.pageTitle,
+      contentTextStyle: PiggyType.body,
       backgroundColor: PiggyColors.surface,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(PiggyRadius.sheet),
+        borderRadius: BorderRadius.circular(PiggyRadius.dialog),
       ),
     ),
     snackBarTheme: SnackBarThemeData(

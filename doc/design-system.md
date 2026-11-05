@@ -150,3 +150,18 @@ flutter run -t lib/design_system_preview.dart
 ```
 
 색상 대비 검사는 본문·금액·행동 색의 지정 조합을 검사한다. 화면 검증에서는 작은 화면과 글자 확대, 오늘+선택 중첩, 필터 빈 상태와 긴 금액을 확인한다. 자동 검사를 전체 접근성 인증으로 간주하지 않는다.
+
+## Dialogs and modal sheets
+
+Use `showPiggyConfirmation` for all confirmation prompts. It returns `true` only
+for the primary action, `false` for Cancel, and `null` for route dismissal.
+Use `destructive: true` for deletion; ordinary actions such as signing out and
+notification opt-in use the brand color. The shared component owns the icon tile,
+heading, message, optional detail card, and responsive actions. It scrolls on short
+screens and stacks buttons for narrow screens or enlarged text.
+
+Use `showPiggySheet<T>` for bottom sheets and `showPiggyDatePicker` for dates.
+The shell owns the scrim, safe area, drag handle, width cap, and rounded surface;
+form content owns keyboard insets and scrolling. Avoid custom handles and local
+modal shapes. `PiggyTheme.light.datePickerTheme` owns the calendar appearance.
+Preview confirmation, deletion, and date selection in Settings → Design system.

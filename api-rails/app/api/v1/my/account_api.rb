@@ -33,25 +33,6 @@ module V1
           { message: 'Verification code sent to your email.' }
         end
 
-        # POST /api/v1/my/account/merge_guest
-        desc '게스트 계정의 토픽을 현재 계정으로 이전 후 게스트 계정 삭제'
-        params do
-          requires :guest_token, type: String
-        end
-        post :merge_guest do
-          guest = User.find_by(token: params[:guest_token], is_guest: true)
-          error!({ message: 'Guest data not found.' }, 404) unless guest
-
-          begin
-            guest.merge_into!(current_user)
-          rescue ActiveRecord::StatementInvalid, ActiveRecord::RecordNotDestroyed
-            error!({ message: 'Failed to merge guest data.' }, 500)
-          end
-
-          status 200
-          { message: 'Guest data merged successfully.' }
-        end
-
         # GET /api/v1/my/account/notifications
         desc '알림 수신 설정 조회'
         get :notifications do

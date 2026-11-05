@@ -106,3 +106,19 @@ flutter run -t lib/design_system_preview.dart
 
 Import `package:share_it/design_system/design_system.dart` for shared tokens,
 components, and `PiggyTheme.light`.
+
+## Signed-out experience
+
+Signed-out users see `WelcomeScreen` without creating an account or requesting
+bootstrap data. Both welcome buttons open the existing email login/signup flow;
+only successful authentication loads the app. Logout and expired/legacy guest
+tokens return to the welcome screen. Connection failures preserve the token and
+show a retry action. Incoming links are held until the authenticated screen opens.
+
+Guest creation now returns HTTP 410, and the merge endpoint has been removed.
+Historical guest records and the `is_guest` column remain for data preservation
+and legacy-token rejection; no database deletion or automatic migration is run.
+The app no longer offers access to or merging of historical guest data.
+
+The welcome illustration is bundled at `assets/welcome_piggy.png`. Generation
+provenance and the prompt are in [welcome-image.md](doc/welcome-image.md).

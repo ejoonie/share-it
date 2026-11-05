@@ -1,3 +1,4 @@
+import '../widgets/app_loading_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -53,7 +54,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
   }
 
   Future<void> _pickMonth(DateTime current) async {
-    final picked = await showDatePicker(
+    final picked = await showPiggyDatePicker(
       context: context,
       initialDate: current,
       firstDate: DateTime(2000),
@@ -68,11 +69,8 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
   }
 
   void _showFilterDialog() {
-    showModalBottomSheet<void>(
+    showPiggySheet<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
       builder: (_) => const ExpenseFilterSheet(),
     );
   }
@@ -170,9 +168,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
 
   Widget _buildBody(ExpenseState state, DateTime focusedMonth) {
     if (state.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: LedgerStyle.accent),
-      );
+      return const AppLoadingIndicator();
     }
     if (state.error != null) {
       return Center(
