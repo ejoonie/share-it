@@ -31,9 +31,11 @@ class DeepLinkParser {
   const DeepLinkParser();
 
   AppDestination? parse(Uri uri) {
-    if (uri.scheme != 'https' || uri.host != _host) return null;
+    final isWeb = uri.scheme == 'https' && uri.host == _host;
+    final isApp = uri.scheme == 'sharablepiggy' && uri.host == 'topics';
+    if (!isWeb && !isApp) return null;
 
-    final segments = uri.pathSegments;
+    final segments = isApp ? ['topics', ...uri.pathSegments] : uri.pathSegments;
     if (segments.length == 3 &&
         segments[0] == 'topics' &&
         segments[2] == 'entries') {
@@ -56,7 +58,9 @@ class DeepLinkParser {
       return EntryDestination(topicId: topicId, entryId: entryId);
     }
 
-    if (segments.length == 2 && segments[0] == 'topics') {
+    if (segments.length == 2 &&
+        segments[0] == 'topics' &&
+        RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(segments[1])) {
       return TopicSubscriptionDestination(segments[1]);
     }
 

@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/session_provider.dart';
+import '../design_system/tokens.dart';
+import '../widgets/verification_code_field.dart';
+import '../widgets/auth_step_layout.dart';
 
 // ---------------------------------------------------------------------------
 // 로그인 플로우 단계
 // ---------------------------------------------------------------------------
 enum _LoginStep {
-  email,        // 1단계: 이메일 입력
-  terms,        // 2단계(신규): 약관 동의
+  email, // 1단계: 이메일 입력
+  terms, // 2단계(신규): 약관 동의
   chooseMethod, // 2단계(기존, 패스워드 있음): OTP vs 패스워드 선택
-  otp,          // 3단계: OTP 코드 입력
-  password,     // 3단계: 패스워드 입력
+  otp, // 3단계: OTP 코드 입력
+  password, // 3단계: 패스워드 입력
 }
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -35,6 +37,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildStep() {
     return switch (_step) {
       _LoginStep.email => _EmailStep(
+          initialEmail: _email,
           onNext: _onEmailNext,
         ),
       _LoginStep.terms => _TermsStep(
@@ -51,19 +54,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _LoginStep.otp => _OtpStep(
           email: _email,
           isNewUser: _isNewUser,
-          onSuccess: ({required bool isNewUser}) => _onLoginSuccess(isNewUser: isNewUser),
+          onSuccess: ({required bool isNewUser}) =>
+              _onLoginSuccess(isNewUser: isNewUser),
           onBack: _goBack,
         ),
       _LoginStep.password => _PasswordStep(
           email: _email,
-          onSuccess: ({required bool isNewUser}) => _onLoginSuccess(isNewUser: isNewUser),
+          onSuccess: ({required bool isNewUser}) =>
+              _onLoginSuccess(isNewUser: isNewUser),
           onSwitchToOtp: _onChooseOtp,
           onBack: _goBack,
         ),
     };
   }
 
-  Future<void> _onEmailNext(String email, {required bool isNewUser, required bool hasPassword}) async {
+  Future<void> _onEmailNext(
+    String email, {
+    required bool isNewUser,
+    required bool hasPassword,
+  }) async {
     _email = email;
     _isNewUser = isNewUser;
 
@@ -71,7 +80,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final sessionData = ref.read(sessionNotifierProvider).data;
     _wasGuest = sessionData?.user?.isGuest ?? false;
     if (_wasGuest) {
-      _guestTokenBeforeLogin = ref.read(sessionRepositoryProvider).getCurrentToken();
+      _guestTokenBeforeLogin =
+          ref.read(sessionRepositoryProvider).getCurrentToken();
     }
 
     if (isNewUser) {
@@ -91,8 +101,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _sendOtpAndGoToStep() async {
     final authRepo = ref.read(sessionRepositoryProvider);
+    final requestedStep = _step;
     await authRepo.requestLoginCode(_email);
-    if (mounted) setState(() => _step = _LoginStep.otp);
+    if (mounted && _step == requestedStep) {
+      setState(() => _step = _LoginStep.otp);
+    }
   }
 
   Future<void> _onChooseOtp() async {
@@ -128,21 +141,53 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
       final move = await showDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Move your data?'),
-          content: const Text(
-            'You have data from your guest session. Would you like to move it to your account?',
+        builder: (ctx) => Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Icon(
+                    Icons.savings_outlined,
+                    size: 36,
+                    color: PiggyColors.accent,
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Bring your piggies along?',
+                    style: PiggyType.pageTitle,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Move the piggies and entries from your guest session into this account.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.5,
+                      color: PiggyColors.secondary,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Move my data'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      foregroundColor: PiggyColors.secondary,
+                    ),
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Continue without moving'),
+                  ),
+                ],
+              ),
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('No, discard'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Yes, move it'),
-            ),
-          ],
         ),
       );
 
@@ -152,7 +197,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         } catch (e) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to move data: $e')),
+              const SnackBar(
+                content: Text(
+                  'Could not move your guest data. Please try again later.',
+                ),
+              ),
             );
           }
         }
@@ -169,11 +218,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: PiggyColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: Colors.black87,
+        title: const Text('Sharable Piggy', style: PiggyType.label),
+        foregroundColor: PiggyColors.ink,
         leading: _step == _LoginStep.email
             ? const CloseButton()
             : BackButton(onPressed: _goBack),
@@ -192,9 +242,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 // 1단계: 이메일 입력
 // ---------------------------------------------------------------------------
 class _EmailStep extends ConsumerStatefulWidget {
-  final Future<void> Function(String email, {required bool isNewUser, required bool hasPassword}) onNext;
+  final Future<void> Function(
+    String email, {
+    required bool isNewUser,
+    required bool hasPassword,
+  }) onNext;
 
-  const _EmailStep({required this.onNext});
+  final String initialEmail;
+  const _EmailStep({required this.onNext, required this.initialEmail});
 
   @override
   ConsumerState<_EmailStep> createState() => _EmailStepState();
@@ -202,7 +257,8 @@ class _EmailStep extends ConsumerStatefulWidget {
 
 class _EmailStepState extends ConsumerState<_EmailStep> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  late final _emailController =
+      TextEditingController(text: widget.initialEmail);
   bool _isLoading = false;
   String? _error;
 
@@ -213,28 +269,38 @@ class _EmailStepState extends ConsumerState<_EmailStep> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() { _isLoading = true; _error = null; });
+    if (_isLoading || !_formKey.currentState!.validate()) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
     try {
       final authRepo = ref.read(sessionRepositoryProvider);
       final result = await authRepo.checkEmail(_emailController.text.trim());
+      if (!mounted) return;
       await widget.onNext(
         _emailController.text.trim(),
         isNewUser: result.isNewUser,
         hasPassword: result.hasPassword,
       );
     } catch (e) {
-      if (mounted) setState(() { _isLoading = false; _error = e.toString(); });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Could not continue. Please try again.';
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return _StepScaffold(
+    return AuthStepLayout(
       key: const ValueKey('email'),
+      icon: Icons.savings_outlined,
       title: 'Sign in',
-      subtitle: 'Enter your email to continue',
+      subtitle: 'Sign in or create an account with your email.',
       child: Form(
         key: _formKey,
         child: Column(
@@ -248,19 +314,24 @@ class _EmailStepState extends ConsumerState<_EmailStep> {
                 prefixIcon: Icon(Icons.email_outlined),
                 hintText: 'example@email.com',
               ),
+              autofillHints: const [AutofillHints.email],
+              autocorrect: false,
+              enabled: !_isLoading,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.done,
               autofocus: true,
               onFieldSubmitted: (_) => _submit(),
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Please enter your email';
+                if (v == null || v.trim().isEmpty) {
+                  return 'Please enter your email';
+                }
                 if (!v.contains('@')) return 'Please enter a valid email';
                 return null;
               },
             ),
             const SizedBox(height: 24),
             _PrimaryButton(
-              label: 'Next',
+              label: 'Continue',
               isLoading: _isLoading,
               onPressed: _submit,
             ),
@@ -276,10 +347,14 @@ class _EmailStepState extends ConsumerState<_EmailStep> {
 // ---------------------------------------------------------------------------
 class _TermsStep extends StatefulWidget {
   final String email;
-  final VoidCallback onAgree;
+  final Future<void> Function() onAgree;
   final VoidCallback onBack;
 
-  const _TermsStep({required this.email, required this.onAgree, required this.onBack});
+  const _TermsStep({
+    required this.email,
+    required this.onAgree,
+    required this.onBack,
+  });
 
   @override
   State<_TermsStep> createState() => _TermsStepState();
@@ -288,19 +363,32 @@ class _TermsStep extends StatefulWidget {
 class _TermsStepState extends State<_TermsStep> {
   bool _agreed = false;
   bool _isLoading = false;
+  String? _error;
 
   Future<void> _submit() async {
-    if (!_agreed) return;
-    setState(() => _isLoading = true);
-    widget.onAgree();
+    if (!_agreed || _isLoading) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      await widget.onAgree();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Could not send the code. Please try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return _StepScaffold(
+    return AuthStepLayout(
       key: const ValueKey('terms'),
-      title: 'Welcome!',
-      subtitle: 'Please agree to the terms to create your account',
+      icon: Icons.favorite_border_rounded,
+      title: 'Create account',
+      subtitle: 'One last thing before we create your account.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -309,7 +397,7 @@ class _TermsStepState extends State<_TermsStep> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: PiggyColors.line),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -319,28 +407,30 @@ class _TermsStepState extends State<_TermsStep> {
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 12),
-                Text(
+                const Text(
                   'An account will be created for this email.',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  style: TextStyle(color: PiggyColors.secondary, fontSize: 13),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 20),
+          if (_error != null) _ErrorBanner(message: _error!),
           CheckboxListTile(
             value: _agreed,
-            onChanged: (v) => setState(() => _agreed = v ?? false),
+            onChanged:
+                _isLoading ? null : (v) => setState(() => _agreed = v ?? false),
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
             title: RichText(
-              text: TextSpan(
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade800),
-                children: const [
+              text: const TextSpan(
+                style: TextStyle(fontSize: 14, color: PiggyColors.ink),
+                children: [
                   TextSpan(text: 'I agree to the '),
                   TextSpan(
                     text: 'Terms of Service',
                     style: TextStyle(
-                      color: Color(0xFF3dbfa8),
+                      color: PiggyColors.accent,
                       decoration: TextDecoration.underline,
                     ),
                   ),
@@ -348,7 +438,7 @@ class _TermsStepState extends State<_TermsStep> {
                   TextSpan(
                     text: 'Privacy Policy',
                     style: TextStyle(
-                      color: Color(0xFF3dbfa8),
+                      color: PiggyColors.accent,
                       decoration: TextDecoration.underline,
                     ),
                   ),
@@ -358,7 +448,7 @@ class _TermsStepState extends State<_TermsStep> {
           ),
           const SizedBox(height: 24),
           _PrimaryButton(
-            label: 'Create Account & Send Code',
+            label: 'Agree & continue',
             isLoading: _isLoading,
             enabled: _agreed,
             onPressed: _submit,
@@ -372,9 +462,9 @@ class _TermsStepState extends State<_TermsStep> {
 // ---------------------------------------------------------------------------
 // 2단계(기존, 패스워드 있음): 인증 방법 선택
 // ---------------------------------------------------------------------------
-class _ChooseMethodStep extends StatelessWidget {
+class _ChooseMethodStep extends StatefulWidget {
   final String email;
-  final VoidCallback onChooseOtp;
+  final Future<void> Function() onChooseOtp;
   final VoidCallback onChoosePassword;
   final VoidCallback onBack;
 
@@ -386,26 +476,52 @@ class _ChooseMethodStep extends StatelessWidget {
   });
 
   @override
+  State<_ChooseMethodStep> createState() => _ChooseMethodStepState();
+}
+
+class _ChooseMethodStepState extends State<_ChooseMethodStep> {
+  bool _sending = false;
+  String? _error;
+  Future<void> _send() async {
+    if (_sending) return;
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    try {
+      await widget.onChooseOtp();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Could not send the code. Please try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return _StepScaffold(
+    return AuthStepLayout(
       key: const ValueKey('chooseMethod'),
+      icon: Icons.waving_hand_outlined,
       title: 'Welcome back',
-      subtitle: email,
+      subtitle: widget.email,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (_error != null) _ErrorBanner(message: _error!),
           _MethodTile(
             icon: Icons.lock_outlined,
             title: 'Use Password',
             subtitle: 'Sign in with your password',
-            onTap: onChoosePassword,
+            onTap: _sending ? null : widget.onChoosePassword,
           ),
           const SizedBox(height: 12),
           _MethodTile(
             icon: Icons.mail_outlined,
-            title: 'Send Login Code',
+            title: _sending ? 'Sending code…' : 'Email me a code',
             subtitle: 'Get a one-time code via email',
-            onTap: onChooseOtp,
+            onTap: _sending ? null : _send,
           ),
         ],
       ),
@@ -417,7 +533,7 @@ class _MethodTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _MethodTile({
     required this.icon,
@@ -436,7 +552,7 @@ class _MethodTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: PiggyColors.line),
         ),
         child: Row(
           children: [
@@ -444,22 +560,31 @@ class _MethodTile extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: const Color(0xFF3dbfa8).withAlpha(25),
+                color: PiggyColors.accent.withAlpha(25),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: const Color(0xFF3dbfa8)),
+              child: Icon(icon, color: PiggyColors.accent),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: PiggyColors.secondary,
+                    ),
+                  ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: Colors.grey.shade400),
+            const Icon(Icons.chevron_right, color: PiggyColors.muted),
           ],
         ),
       ),
@@ -500,23 +625,36 @@ class _OtpStepState extends ConsumerState<_OtpStep> {
   }
 
   Future<void> _submit() async {
+    if (_isLoading || _resending) return;
     final code = _codeController.text.trim();
     if (code.length != 6) {
       setState(() => _error = 'Please enter the 6-digit code');
       return;
     }
-    setState(() { _isLoading = true; _error = null; });
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final authRepo = ref.read(sessionRepositoryProvider);
       final result = await authRepo.verifyLoginCode(widget.email, code);
-      widget.onSuccess(isNewUser: result.isNewUser);
+      if (mounted) widget.onSuccess(isNewUser: result.isNewUser);
     } catch (e) {
-      if (mounted) setState(() { _isLoading = false; _error = 'Invalid or expired code'; });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Invalid or expired code';
+        });
+      }
     }
   }
 
   Future<void> _resend() async {
-    setState(() => _resending = true);
+    if (_resending || _isLoading) return;
+    setState(() {
+      _resending = true;
+      _error = null;
+    });
     try {
       final authRepo = ref.read(sessionRepositoryProvider);
       await authRepo.requestLoginCode(widget.email);
@@ -527,49 +665,50 @@ class _OtpStepState extends ConsumerState<_OtpStep> {
         );
       }
     } catch (_) {
-      if (mounted) setState(() => _resending = false);
+      if (mounted) {
+        setState(() {
+          _resending = false;
+          _error = 'Could not resend the code. Try again.';
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return _StepScaffold(
+    return AuthStepLayout(
       key: const ValueKey('otp'),
-      title: 'Enter the code',
+      icon: Icons.mark_email_read_outlined,
+      title: 'Verify email',
       subtitle: 'We sent a 6-digit code to\n${widget.email}',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (_error != null) _ErrorBanner(message: _error!),
-          TextFormField(
+          VerificationCodeField(
             controller: _codeController,
-            decoration: const InputDecoration(
-              labelText: 'Login code',
-              prefixIcon: Icon(Icons.pin_outlined),
-              hintText: '000000',
-            ),
-            keyboardType: TextInputType.number,
-            textInputAction: TextInputAction.done,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(6),
-            ],
-            autofocus: true,
-            onChanged: (_) { if (_error != null) setState(() => _error = null); },
-            onFieldSubmitted: (_) => _submit(),
+            enabled: !_isLoading && !_resending,
+            onChanged: (_) {
+              if (_error != null) setState(() => _error = null);
+            },
+            onSubmitted: (_) => _submit(),
           ),
           const SizedBox(height: 24),
           _PrimaryButton(
-            label: 'Verify',
+            label: 'Verify & continue',
             isLoading: _isLoading,
             onPressed: _submit,
           ),
           const SizedBox(height: 16),
           Center(
             child: TextButton(
-              onPressed: _resending ? null : _resend,
+              onPressed: (_resending || _isLoading) ? null : _resend,
               child: _resending
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Text("Didn't receive it? Send again"),
             ),
           ),
@@ -585,7 +724,7 @@ class _OtpStepState extends ConsumerState<_OtpStep> {
 class _PasswordStep extends ConsumerStatefulWidget {
   final String email;
   final void Function({required bool isNewUser}) onSuccess;
-  final VoidCallback onSwitchToOtp;
+  final Future<void> Function() onSwitchToOtp;
   final VoidCallback onBack;
 
   const _PasswordStep({
@@ -603,6 +742,7 @@ class _PasswordStepState extends ConsumerState<_PasswordStep> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscure = true;
+  bool _sendingCode = false;
   String? _error;
 
   @override
@@ -612,25 +752,35 @@ class _PasswordStepState extends ConsumerState<_PasswordStep> {
   }
 
   Future<void> _submit() async {
+    if (_isLoading || _sendingCode) return;
     final pw = _passwordController.text;
     if (pw.isEmpty) {
       setState(() => _error = 'Please enter your password');
       return;
     }
-    setState(() { _isLoading = true; _error = null; });
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final authRepo = ref.read(sessionRepositoryProvider);
       final result = await authRepo.loginWithPassword(widget.email, pw);
-      widget.onSuccess(isNewUser: result.isNewUser);
+      if (mounted) widget.onSuccess(isNewUser: result.isNewUser);
     } catch (e) {
-      if (mounted) setState(() { _isLoading = false; _error = 'Incorrect password'; });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Incorrect password';
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return _StepScaffold(
+    return AuthStepLayout(
       key: const ValueKey('password'),
+      icon: Icons.lock_outline_rounded,
       title: 'Enter password',
       subtitle: widget.email,
       child: Column(
@@ -639,18 +789,28 @@ class _PasswordStepState extends ConsumerState<_PasswordStep> {
           if (_error != null) _ErrorBanner(message: _error!),
           TextFormField(
             controller: _passwordController,
+            autofillHints: const [AutofillHints.password],
+            autocorrect: false,
+            enableSuggestions: false,
+            enabled: !_isLoading && !_sendingCode,
             decoration: InputDecoration(
               labelText: 'Password',
               prefixIcon: const Icon(Icons.lock_outlined),
               suffixIcon: IconButton(
-                icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                icon: Icon(
+                  _obscure
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                ),
                 onPressed: () => setState(() => _obscure = !_obscure),
               ),
             ),
             obscureText: _obscure,
             textInputAction: TextInputAction.done,
             autofocus: true,
-            onChanged: (_) { if (_error != null) setState(() => _error = null); },
+            onChanged: (_) {
+              if (_error != null) setState(() => _error = null);
+            },
             onFieldSubmitted: (_) => _submit(),
           ),
           const SizedBox(height: 24),
@@ -662,8 +822,29 @@ class _PasswordStepState extends ConsumerState<_PasswordStep> {
           const SizedBox(height: 16),
           Center(
             child: TextButton(
-              onPressed: widget.onSwitchToOtp,
-              child: const Text('Use a login code instead'),
+              onPressed: (_isLoading || _sendingCode)
+                  ? null
+                  : () async {
+                      setState(() {
+                        _sendingCode = true;
+                        _error = null;
+                      });
+                      try {
+                        await widget.onSwitchToOtp();
+                      } catch (_) {
+                        if (mounted) {
+                          setState(
+                            () => _error =
+                                'Could not send the code. Please try again.',
+                          );
+                        }
+                      } finally {
+                        if (mounted) setState(() => _sendingCode = false);
+                      }
+                    },
+              child: Text(
+                _sendingCode ? 'Sending code…' : 'Email me a code instead',
+              ),
             ),
           ),
         ],
@@ -675,97 +856,76 @@ class _PasswordStepState extends ConsumerState<_PasswordStep> {
 // ---------------------------------------------------------------------------
 // 공통 레이아웃
 // ---------------------------------------------------------------------------
-class _StepScaffold extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final Widget child;
-
-  const _StepScaffold({
-    super.key,
-    required this.title,
-    required this.subtitle,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 12),
-          Text(title, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text(subtitle, style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
-          const SizedBox(height: 32),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
 class _PrimaryButton extends StatelessWidget {
   final String label;
   final bool isLoading;
   final bool enabled;
   final VoidCallback onPressed;
-
   const _PrimaryButton({
     required this.label,
     required this.onPressed,
     this.isLoading = false,
     this.enabled = true,
   });
-
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 50,
-      child: ElevatedButton(
+  Widget build(BuildContext context) => FilledButton(
         onPressed: (isLoading || !enabled) ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF3dbfa8),
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        style: FilledButton.styleFrom(
+          minimumSize: const Size.fromHeight(52),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         ),
         child: isLoading
             ? const SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
               )
-            : Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-      ),
-    );
-  }
+            : Text(
+                label,
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+      );
 }
 
 class _ErrorBanner extends StatelessWidget {
   final String message;
-
   const _ErrorBanner({required this.message});
-
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.shade200),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline, color: Colors.red.shade600, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(message, style: TextStyle(color: Colors.red.shade700, fontSize: 13)),
+  Widget build(BuildContext context) => Semantics(
+        liveRegion: true,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: PiggyColors.errorSoft,
+            borderRadius: BorderRadius.circular(12),
           ),
-        ],
-      ),
-    );
-  }
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                color: PiggyColors.error,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(
+                    color: PiggyColors.error,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 }

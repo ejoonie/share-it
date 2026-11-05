@@ -81,7 +81,8 @@ class PiggyDailySummaryCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
                     children: [
                       Text(
                         date,
@@ -90,14 +91,11 @@ class PiggyDailySummaryCard extends StatelessWidget {
                       ),
                       const SizedBox(width: PiggySpace.xs),
                       Flexible(
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 2),
-                          child: Text(
-                            metadata.toUpperCase(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: PiggyType.metadata,
-                          ),
+                        child: Text(
+                          metadata.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: PiggyType.metadata,
                         ),
                       ),
                     ],

@@ -1,315 +1,159 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
-
+import '../providers/followed_piggies_provider.dart';
 import '../providers/session_provider.dart';
-import '../models/topic_model.dart';
-import '../providers/core_providers.dart';
-import '../screens/subscribe_screen.dart';
-import 'piggy_qr_code.dart';
-import 'share_url_card.dart';
+import '../screens/piggy_invite_screen.dart';
+import '../screens/topic_detail_screen.dart';
 
-class ShareBody extends ConsumerStatefulWidget {
+class ShareBody extends ConsumerWidget {
   const ShareBody({super.key});
 
   @override
-  ConsumerState<ShareBody> createState() => _ShareBodyState();
-}
-
-class _ShareBodyState extends ConsumerState<ShareBody> {
-  TopicModel? _topic;
-  bool _saving = false;
-  bool _scannerOpen = false;
-  bool _handled = false;
-  final _scannerController = MobileScannerController();
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _topic ??= ref.read(sessionNotifierProvider).data?.topic;
-  }
-
-  @override
-  void dispose() {
-    _scannerController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _editTitle(String currentTitle, int topicId) async {
-    final controller = TextEditingController(text: currentTitle);
-    final newTitle = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rename Piggy'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Piggy name'),
-          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final topic = ref.watch(sessionNotifierProvider).data?.topic;
+    final follows = ref.watch(followedPiggiesProvider);
+    Future<void> openInvite(InviteMode mode) async {
+      if (topic == null) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PiggyInviteScreen(topic: topic, initialMode: mode),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-
-    if (newTitle == null || newTitle.isEmpty || newTitle == currentTitle) return;
-
-    setState(() => _saving = true);
-    try {
-      await ref.read(topicRepositoryProvider).update(topicId, title: newTitle);
-
-      if (mounted) setState(() => _topic = _topic!.copyWith(title: newTitle));
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save. Please try again.')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  void _onDetect(BarcodeCapture capture) {
-    if (_handled) return;
-    final url = capture.barcodes.firstOrNull?.rawValue;
-    if (url == null) return;
-    final token = _extractToken(url);
-    if (token == null) return;
-
-    _handled = true;
-    _scannerController.stop();
-    setState(() => _scannerOpen = false);
-
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => SubscribeScreen(topicToken: token)),
-    );
-  }
-
-  String? _extractToken(String url) {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return null;
-    final segments = uri.pathSegments;
-    if (segments.length >= 2 && segments[0] == 'topics') return segments[1];
-    return null;
-  }
-
-  Future<void> _debugSubscribe() async {
-    final controller = TextEditingController();
-    final token = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('[Debug] Enter Topic Token'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'topic token'),
-          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Go'),
-          ),
-        ],
-      ),
-    );
-    if (token == null || token.isEmpty) return;
-    if (mounted) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => SubscribeScreen(topicToken: token)),
       );
-    }
-  }
-
-  void _toggleScanner() {
-    setState(() {
-      _scannerOpen = !_scannerOpen;
-      _handled = false;
-      // start()는 MobileScanner 위젯의 autoStart가 처리하므로 stop()만 직접 호출
-      if (!_scannerOpen) {
-        _scannerController.stop();
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final topic = _topic;
-    if (topic == null) {
-      return const Center(child: Text('Unable to load piggy information.'));
+      ref.invalidate(followedPiggiesProvider);
     }
 
-    const baseUrl = 'https://sharablepiggy.com';
-    final shareUrl = '$baseUrl/topics/${topic.token}';
-
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        _ScanSection(
-          isOpen: _scannerOpen,
-          controller: _scannerController,
-          onToggle: _toggleScanner,
-          onDetect: _onDetect,
-        ),
-        if (kDebugMode) ...[
-          const SizedBox(height: 8),
-          TextButton.icon(
-            icon: const Icon(Icons.bug_report_outlined, size: 16),
-            label: const Text('[Debug] Enter token manually'),
-            onPressed: _debugSubscribe,
-            style: TextButton.styleFrom(foregroundColor: Colors.grey),
-          ),
-        ],
-        const SizedBox(height: 16),
-        const Divider(indent: 16, endIndent: 16),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              topic.title,
-              style: Theme.of(context)
-                  .textTheme
-                  .headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(width: 4),
-            _saving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 20),
-                    color: Colors.grey,
-                    tooltip: 'Rename',
-                    onPressed: () => _editTitle(topic.title, topic.id),
-                  ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Invite others to join this piggy',
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
-              ?.copyWith(color: Colors.grey),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 24),
-        PiggyQrCode(data: shareUrl),
-        const SizedBox(height: 16),
-        ShareUrlCard(url: shareUrl),
-      ],
-    );
-  }
-}
-
-class _ScanSection extends StatelessWidget {
-  final bool isOpen;
-  final MobileScannerController controller;
-  final VoidCallback onToggle;
-  final void Function(BarcodeCapture) onDetect;
-
-  const _ScanSection({
-    required this.isOpen,
-    required this.controller,
-    required this.onToggle,
-    required this.onDetect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(followedPiggiesProvider);
+        await ref.read(followedPiggiesProvider.future);
+      },
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.qr_code_scanner,
-                    color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'Scan to Subscribe',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ],
+        children: [
+          Card(
+            child: ListTile(
+              contentPadding: const EdgeInsets.all(16),
+              leading: const Icon(Icons.qr_code_2, size: 36),
+              title: Text(topic?.title ?? 'Your Piggy'),
+              subtitle: const Text('Share your piggy with a QR code'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: topic == null ? null : () => openInvite(InviteMode.yours),
             ),
-            const SizedBox(height: 12),
-            if (isOpen) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  height: 260,
-                  child: Stack(
-                    children: [
-                      MobileScanner(
-                        controller: controller,
-                        onDetect: onDetect,
-                      ),
-                      Center(
-                        child: Container(
-                          width: 200,
-                          height: 200,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                                color: Colors.orange, width: 3),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+          ),
+          const SizedBox(height: 28),
+          Text('Add Piggy', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _AddButton(
+                  icon: Icons.text_fields,
+                  label: 'Text',
+                  onTap: () => openInvite(InviteMode.text),
                 ),
               ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: onToggle,
-                  child: const Text('Close Scanner'),
-                ),
-              ),
-            ] else ...[
-              Text(
-                "Scan someone else's QR code to subscribe.",
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: Colors.grey),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  icon: const Icon(Icons.camera_alt_outlined),
-                  label: const Text('Open Camera'),
-                  onPressed: onToggle,
+              const SizedBox(width: 12),
+              Expanded(
+                child: _AddButton(
+                  icon: Icons.qr_code_scanner,
+                  label: 'QR',
+                  onTap: () => openInvite(InviteMode.scan),
                 ),
               ),
             ],
-          ],
-        ),
+          ),
+          const SizedBox(height: 32),
+          Text('Following', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          follows.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_, __) => Column(
+              children: [
+                const Text('Could not load your piggies.'),
+                TextButton(
+                  onPressed: () => ref.invalidate(followedPiggiesProvider),
+                  child: const Text('Try again'),
+                ),
+              ],
+            ),
+            data: (items) => items.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 32),
+                    child: Column(
+                      children: [
+                        Icon(Icons.savings_outlined, size: 48),
+                        SizedBox(height: 12),
+                        Text('Your shared piggies will appear here.'),
+                        SizedBox(height: 8),
+                        Text('Add one using a code or QR.'),
+                      ],
+                    ),
+                  )
+                : Column(
+                    children: items
+                        .map(
+                          (item) => Card(
+                            margin: const EdgeInsets.symmetric(vertical: 6),
+                            child: ListTile(
+                              leading: const CircleAvatar(
+                                child: Icon(Icons.savings_outlined),
+                              ),
+                              title: Text(item.topic.title),
+                              subtitle: const Text('Following'),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () async {
+                                await Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => TopicDetailScreen(
+                                      topicId: item.topic.id,
+                                    ),
+                                  ),
+                                );
+                                if (context.mounted) {
+                                  ref.invalidate(followedPiggiesProvider);
+                                }
+                              },
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+          ),
+        ],
       ),
     );
   }
+}
+
+class _AddButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _AddButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  @override
+  Widget build(BuildContext context) => Card(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 28),
+            child: Column(
+              children: [
+                Icon(
+                  icon,
+                  size: 36,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: 12),
+                Text(label, style: Theme.of(context).textTheme.titleMedium),
+              ],
+            ),
+          ),
+        ),
+      );
 }

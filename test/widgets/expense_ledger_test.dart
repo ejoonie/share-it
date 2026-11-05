@@ -184,9 +184,9 @@ void main() {
     expect(todayBorder.top.color, LedgerStyle.expense);
     expect(find.text('\$0.00'), findsOneWidget);
     expect(find.text('\$22.01'), findsOneWidget);
-    expect(find.text('−\$22'), findsOneWidget);
+    expect(find.text('−\$12.00'), findsOneWidget);
     expect(
-      tester.widget<Text>(find.text('−\$22')).style!.color,
+      tester.widget<Text>(find.text('−\$12.00')).style!.color,
       LedgerStyle.expense,
     );
     expect(tester.takeException(), isNull);

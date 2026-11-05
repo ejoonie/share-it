@@ -10,8 +10,9 @@ class DeepLinkService {
 
   Future<Uri?> getInitialUri() async {
     final appLink = await _appLinks.getInitialLink();
+    if (appLink != null) return appLink;
     final message = await FirebaseMessaging.instance.getInitialMessage();
-    return appLink ?? _uriFromMessage(message);
+    return _uriFromMessage(message);
   }
 
   Stream<Uri> get uriStream {

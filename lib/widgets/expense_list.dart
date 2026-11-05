@@ -180,7 +180,7 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
                     Text(
                       filtered
                           ? 'No matching transactions'
-                          : 'A fresh page for this day',
+                          : 'No transactions for this day',
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -191,7 +191,7 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
                     Text(
                       filtered
                           ? 'Try another search or change your filters.'
-                          : 'Tap + to record your first transaction.',
+                          : 'Tap + to add one.',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 12,

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/session_provider.dart';
+import '../widgets/verification_code_field.dart';
+import '../widgets/auth_step_layout.dart';
+import '../design_system/tokens.dart';
 
 /// Three-step password change flow:
 ///   1. Request OTP (step 0)
@@ -20,10 +22,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   int _step = 0;
 
   // Step 1 – code entry
-  final List<TextEditingController> _codeControllers =
-      List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _codeFocusNodes =
-      List.generate(6, (_) => FocusNode());
+  final _codeController = TextEditingController();
 
   // Step 2 – new password
   final _passwordFormKey = GlobalKey<FormState>();
@@ -35,17 +34,11 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
-  String get _enteredCode =>
-      _codeControllers.map((c) => c.text).join();
+  String get _enteredCode => _codeController.text;
 
   @override
   void dispose() {
-    for (final c in _codeControllers) {
-      c.dispose();
-    }
-    for (final f in _codeFocusNodes) {
-      f.dispose();
-    }
+    _codeController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
     super.dispose();
@@ -54,6 +47,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   // ── Step 0: request OTP ─────────────────────────────────────────────────
 
   Future<void> _requestCode() async {
+    if (_isLoading) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -66,6 +60,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         _isLoading = false;
       });
     } on Exception catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
         _errorMessage = _friendlyError(e);
@@ -76,6 +71,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   // ── Step 1: verify code ──────────────────────────────────────────────────
 
   Future<void> _verifyCode() async {
+    if (_isLoading) return;
     if (_enteredCode.length != 6) {
       setState(() => _errorMessage = 'Please enter all 6 digits.');
       return;
@@ -96,6 +92,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   // ── Step 2: change password ──────────────────────────────────────────────
 
   Future<void> _changePassword() async {
+    if (_isLoading) return;
     if (!_passwordFormKey.currentState!.validate()) return;
 
     setState(() {
@@ -116,6 +113,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       );
       Navigator.pop(context);
     } on Exception catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
         _errorMessage = _friendlyError(e);
@@ -142,21 +140,32 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: PiggyColors.background,
       appBar: AppBar(
         title: const Text('Change Password'),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: Colors.black87,
+        foregroundColor: PiggyColors.ink,
       ),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: _buildStep(),
-            ),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: AuthStepLayout(
+            key: ValueKey(_step),
+            icon: _step == 1
+                ? Icons.mark_email_read_outlined
+                : Icons.lock_outline_rounded,
+            title: switch (_step) {
+              0 => 'Change password',
+              1 => 'Verify email',
+              _ => 'New password'
+            },
+            subtitle: switch (_step) {
+              0 => 'We’ll send a verification code to your account email.',
+              1 => 'Enter the 6-digit code from your email.',
+              _ => 'Choose a password with at least 6 characters.',
+            },
+            child: _buildStep(),
           ),
         ),
       ),
@@ -179,39 +188,28 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       key: const ValueKey('step0'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Icon(Icons.lock_reset_outlined,
-            size: 60, color: Color(0xFF5E81AC)),
-        const SizedBox(height: 20),
-        const Text(
-          'Change Password',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'We will send a verification code to your registered email address.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-        ),
         if (_errorMessage != null) ...[
           const SizedBox(height: 16),
           _errorBanner(_errorMessage!),
         ],
         const SizedBox(height: 32),
         SizedBox(
-          height: 48,
-          child: ElevatedButton(
+          width: double.infinity,
+          child: FilledButton(
             onPressed: _isLoading ? null : _requestCode,
             child: _isLoading
                 ? const SizedBox(
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2),
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
                   )
-                : const Text('Send Verification Code',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600)),
+                : const Text(
+                    'Send Verification Code',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
           ),
         ),
         const SizedBox(height: 24),
@@ -301,36 +299,15 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       key: const ValueKey('step1'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Icon(Icons.mark_email_read_outlined,
-            size: 60, color: Color(0xFF5E81AC)),
-        const SizedBox(height: 20),
-        const Text(
-          'Enter Verification Code',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Enter the 6-digit code sent to your email.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-        ),
-        const SizedBox(height: 32),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(6, (i) {
-            return _CodeBox(
-              controller: _codeControllers[i],
-              focusNode: _codeFocusNodes[i],
-              onChanged: (val) {
-                if (val.length == 1 && i < 5) {
-                  _codeFocusNodes[i + 1].requestFocus();
-                } else if (val.isEmpty && i > 0) {
-                  _codeFocusNodes[i - 1].requestFocus();
-                }
-              },
-            );
-          }),
+        VerificationCodeField(
+          controller: _codeController,
+          enabled: !_isLoading,
+          onChanged: (_) {
+            if (_errorMessage != null) setState(() => _errorMessage = null);
+          },
+          onSubmitted: (_) {
+            if (!_isLoading) _verifyCode();
+          },
         ),
         if (_errorMessage != null) ...[
           const SizedBox(height: 16),
@@ -338,19 +315,22 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         ],
         const SizedBox(height: 24),
         SizedBox(
-          height: 48,
-          child: ElevatedButton(
+          width: double.infinity,
+          child: FilledButton(
             onPressed: _isLoading ? null : _verifyCode,
             child: _isLoading
                 ? const SizedBox(
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2),
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
                   )
-                : const Text('Next',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600)),
+                : const Text(
+                    'Next',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
           ),
         ),
         const SizedBox(height: 12),
@@ -374,29 +354,17 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         key: const ValueKey('step2'),
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(Icons.lock_outlined, size: 60, color: Color(0xFF5E81AC)),
-          const SizedBox(height: 20),
-          const Text(
-            'Set New Password',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Choose a strong password (at least 6 characters).',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 32),
           TextFormField(
             controller: _passwordController,
             decoration: InputDecoration(
               labelText: 'New Password',
               prefixIcon: const Icon(Icons.lock_outlined),
               suffixIcon: IconButton(
-                icon: Icon(_obscurePassword
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined),
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                ),
                 onPressed: () =>
                     setState(() => _obscurePassword = !_obscurePassword),
               ),
@@ -420,9 +388,11 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
               labelText: 'Confirm Password',
               prefixIcon: const Icon(Icons.lock_outlined),
               suffixIcon: IconButton(
-                icon: Icon(_obscureConfirm
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined),
+                icon: Icon(
+                  _obscureConfirm
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                ),
                 onPressed: () =>
                     setState(() => _obscureConfirm = !_obscureConfirm),
               ),
@@ -446,19 +416,23 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
           ],
           const SizedBox(height: 24),
           SizedBox(
-            height: 48,
-            child: ElevatedButton(
+            width: double.infinity,
+            child: FilledButton(
               onPressed: _isLoading ? null : _changePassword,
               child: _isLoading
                   ? const SizedBox(
                       width: 22,
                       height: 22,
                       child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2),
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
                     )
-                  : const Text('Change Password',
-                      style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w600)),
+                  : const Text(
+                      'Change Password',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
             ),
           ),
         ],
@@ -481,49 +455,10 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
           Expanded(
             child: Text(
               message,
-              style:
-                  TextStyle(color: Colors.red.shade700, fontSize: 13),
+              style: TextStyle(color: Colors.red.shade700, fontSize: 13),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _CodeBox extends StatelessWidget {
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final ValueChanged<String> onChanged;
-
-  const _CodeBox({
-    required this.controller,
-    required this.focusNode,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 44,
-      height: 54,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        textAlign: TextAlign.center,
-        keyboardType: TextInputType.number,
-        maxLength: 1,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        decoration: InputDecoration(
-          counterText: '',
-          contentPadding: EdgeInsets.zero,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        onChanged: onChanged,
       ),
     );
   }

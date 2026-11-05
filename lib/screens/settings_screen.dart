@@ -6,12 +6,11 @@ import 'design_system_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '../models/subscription_model.dart';
+import '../design_system/tokens.dart';
 import '../providers/core_providers.dart';
 import '../providers/session_provider.dart';
 import 'login_screen.dart';
 import 'change_password_screen.dart';
-import 'share_screen.dart';
 import 'topic_detail_screen.dart';
 import '../providers/settings_provider.dart';
 
@@ -22,13 +21,11 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-// ConsumerStatefulWidget is kept for local UI state (_currency, _version)
-// and to listen to settingsRefreshProvider
+// Keep version and notification interaction state local to this screen.
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  String _currency = 'USD';
   String _version = '';
 
-  final List<String> _currencies = ['USD'];
+  bool _notificationBusy = false;
 
   get notifier => ref.read(settingsNotifierProvider.notifier);
 
@@ -43,6 +40,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _onNotificationToggle(bool value) async {
+    if (_notificationBusy) return;
+    setState(() => _notificationBusy = true);
     try {
       await ref
           .read(sessionNotifierProvider.notifier)
@@ -52,6 +51,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _showSnackBar(value ? 'Notification Enabled' : 'Notification Disabled');
     } catch (e) {
       _showSnackBar('Failed to update notification setting.');
+    } finally {
+      if (mounted) setState(() => _notificationBusy = false);
     }
   }
 
@@ -67,85 +68,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
   }
 
-  List<Widget> _buildAccountTiles(BuildContext context, WidgetRef ref) {
-    final sessionData = ref.watch(sessionNotifierProvider).data;
-    final user = sessionData?.user;
-    final isLoggedIn = user != null && !user.isGuest;
-
-    if (isLoggedIn) {
-      return [
-        ListTile(
-          leading: const Icon(Icons.account_circle_outlined),
-          title: const Text('My Account'),
-          subtitle: Text('Signed in as ${user.email}'),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () {
-            Navigator.push<void>(
-              context,
-              MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
-            );
-          },
-        ),
-      ];
-    }
-
-    return [
-      ListTile(
-        leading: const Icon(Icons.login),
-        title: const Text('Sign In'),
-        subtitle: const Text('Sign in to keep your data safe'),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () async {
+  Widget _accountCard() {
+    final user = ref.watch(sessionNotifierProvider).data?.user;
+    final signedIn = user != null && !user.isGuest;
+    return _SettingsRow(
+      icon: signedIn ? Icons.person_outline : Icons.login_rounded,
+      title: signedIn ? 'My account' : 'Make yourself at home',
+      subtitle:
+          signedIn ? user.email : 'Sign in to keep your piggies with you.',
+      background: PiggyColors.accentSoft,
+      trailing: const Icon(
+        Icons.arrow_forward_rounded,
+        size: 20,
+        color: PiggyColors.accent,
+      ),
+      onTap: () async {
+        if (signedIn) {
+          await Navigator.push<void>(
+            context,
+            MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+          );
+        } else {
           await Navigator.push<void>(
             context,
             MaterialPageRoute(builder: (_) => const LoginScreen()),
           );
-          // Refresh session after successful login
-          if (context.mounted) {
-            ref.read(sessionNotifierProvider.notifier).reload();
-          }
-        },
-      ),
-    ];
-  }
-
-  Future<void> _confirmUnsubscribe(int topicId, String title) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Unsubscribe'),
-        content: Text('Unsubscribe from "$title"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('No'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Unsubscribe'),
-          ),
-        ],
-      ),
+          if (mounted) ref.read(sessionNotifierProvider.notifier).reload();
+        }
+      },
     );
-
-    if (confirmed != true) return;
-
-    final success = await notifier.unsubscribe(topicId);
-    if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to unsubscribe. Please try again.'),
-        ),
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     ref.listen(settingsRefreshProvider, (_, __) {
       notifier.loadMyPiggies();
-      notifier.loadSubscriptions();
       ref.read(sessionNotifierProvider.notifier).refreshNotificationEnabled();
     });
 
@@ -176,225 +133,225 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
         ],
       ),
-      body: ListView(
-        children: [
-          const _SectionHeader(title: 'General'),
-          ListTile(
-            leading: const Icon(Icons.attach_money),
-            title: const Text('Default Currency'),
-            trailing: DropdownButton<String>(
-              value: _currency,
-              underline: const SizedBox.shrink(),
-              items: _currencies
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) setState(() => _currency = v);
-              },
+      body: SafeArea(
+        top: false,
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints:
+                const BoxConstraints(maxWidth: PiggySize.contentMaxWidth),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+              children: [
+                const Text(
+                  'A little more you.',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -.7,
+                    color: PiggyColors.ink,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Your account, your piggies, your preferences.',
+                  style: PiggyType.caption,
+                ),
+                const SizedBox(height: 24),
+                _accountCard(),
+                const _SectionHeader(title: 'Preferences'),
+                const _SettingsRow(
+                  icon: Icons.attach_money_rounded,
+                  title: 'Default currency',
+                  subtitle: 'US Dollar',
+                  trailing: _Badge(label: 'USD'),
+                ),
+                const SizedBox(height: 10),
+                _SettingsRow(
+                  icon: Icons.notifications_none_rounded,
+                  title: 'Notifications',
+                  subtitle: 'Updates when expenses are added.',
+                  trailing: Switch.adaptive(
+                    value: notificationsEnabled,
+                    onChanged: _notificationBusy ? null : _onNotificationToggle,
+                  ),
+                ),
+                _SectionHeader(
+                  title: 'My piggies',
+                  count: state.myPiggies.valueOrNull?.length,
+                ),
+                ..._buildMyPiggies(state),
+                const SizedBox(height: 32),
+                const Center(
+                  child: Icon(
+                    Icons.savings_outlined,
+                    size: 26,
+                    color: PiggyColors.muted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Center(
+                  child: Text('Sharable Piggy', style: PiggyType.label),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _version.isEmpty ? 'Version …' : 'Version $_version',
+                  textAlign: TextAlign.center,
+                  style: PiggyType.metadata,
+                ),
+              ],
             ),
           ),
-          const Divider(indent: 16, endIndent: 16),
-          const _SectionHeader(title: 'Notifications'),
-          SwitchListTile(
-            secondary: const Icon(Icons.notifications_outlined),
-            title: const Text('Notifications'),
-            subtitle: const Text('Get notified when expenses are added'),
-            value: notificationsEnabled,
-            onChanged: _onNotificationToggle,
-          ),
-          const _SectionHeader(title: 'Share'),
-          ListTile(
-            leading: const Icon(Icons.share),
-            title: const Text('Share Expenses'),
-            subtitle: const Text('Share your expenses with others.'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push<void>(
-                context,
-                MaterialPageRoute(builder: (_) => const ShareScreen()),
-              );
-            },
-          ),
-          const _SectionHeader(title: 'My Piggies'),
-          ..._buildMyPiggies(state),
-          const _SectionHeader(title: 'My Subscriptions'),
-          ..._buildSubscriptions(state),
-          const _SectionHeader(title: 'Account'),
-          ..._buildAccountTiles(context, ref),
-          const _SectionHeader(title: 'About'),
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text('Version'),
-            trailing: Text(_version.isEmpty ? '...' : _version),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  List<Widget> _buildMyPiggies(SettingsState state) {
-    return state.myPiggies.when(
-      loading: () => [
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 16),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      ],
-      error: (_, __) => [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Text(
-            'Failed to load piggies.',
-            style: TextStyle(color: Colors.red),
+  List<Widget> _buildMyPiggies(SettingsState state) => state.myPiggies.when(
+        loading: () => [
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: CircularProgressIndicator()),
           ),
-        ),
-      ],
-      data: (piggies) => piggies.isEmpty
-          ? [
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Text(
-                  'No piggies yet.',
-                  style: TextStyle(color: Colors.grey),
+        ],
+        error: (_, __) => [
+          _SettingsRow(
+            icon: Icons.cloud_off_outlined,
+            title: 'Could not load piggies',
+            subtitle: 'Tap to try again.',
+            onTap: () => notifier.loadMyPiggies(),
+            trailing: const Icon(Icons.refresh, color: PiggyColors.secondary),
+          ),
+        ],
+        data: (piggies) => piggies.isEmpty
+            ? [
+                const _SettingsRow(
+                  icon: Icons.savings_outlined,
+                  title: 'Room for a piggy',
+                  subtitle: 'Your own piggies will appear here.',
                 ),
-              ),
-            ]
-          : piggies
-              .map(
-                (topic) => ListTile(
-                  leading: const Icon(Icons.savings_outlined),
-                  title: Text(topic.title),
-                  subtitle: topic.isDefault ? const Text('Default') : null,
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.push<void>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => TopicDetailScreen(topicId: topic.id),
+              ]
+            : piggies
+                .map(
+                  (topic) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _SettingsRow(
+                      icon: Icons.savings_outlined,
+                      title: topic.title,
+                      subtitle: 'Owner (you)',
+                      badge: topic.isDefault ? 'Default' : null,
+                      trailing: const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 20,
+                        color: PiggyColors.secondary,
                       ),
-                    );
-                  },
-                ),
-              )
-              .toList(),
-    );
-  }
-
-  List<Widget> _buildSubscriptions(SettingsState state) {
-    return state.subscriptions.when(
-      loading: () => [
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 16),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      ],
-      error: (_, __) => [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Text(
-            'Failed to load subscriptions.',
-            style: TextStyle(color: Colors.red),
-          ),
-        ),
-      ],
-      data: (subs) => subs.isEmpty
-          ? [
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Text(
-                  'No subscriptions yet.',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-            ]
-          : subs
-              .map(
-                (sub) => _SubscriptionTile(
-                  sub: sub,
-                  onToggleNotification: (enabled) async {
-                    final success = await notifier
-                        .toggleNotification(sub.topic.id, enabled: enabled);
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          success
-                              ? (enabled
-                                  ? 'Notifications enabled.'
-                                  : 'Notifications muted.')
-                              : 'Failed to update notification setting.',
+                      onTap: () => Navigator.push<void>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => TopicDetailScreen(topicId: topic.id),
                         ),
                       ),
-                    );
-                  },
-                  onUnsubscribe: () =>
-                      _confirmUnsubscribe(sub.topic.id, sub.topic.title),
-                ),
-              )
-              .toList(),
-    );
-  }
-}
-
-class _SubscriptionTile extends StatelessWidget {
-  final SubscriptionModel sub;
-  final ValueChanged<bool> onToggleNotification;
-  final VoidCallback onUnsubscribe;
-
-  const _SubscriptionTile({
-    required this.sub,
-    required this.onToggleNotification,
-    required this.onUnsubscribe,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: const Icon(Icons.people_outline),
-      title: Text(sub.topic.title),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: Icon(
-              sub.notificationsEnabled
-                  ? Icons.notifications_outlined
-                  : Icons.notifications_off_outlined,
-              color: sub.notificationsEnabled ? null : Colors.grey,
-            ),
-            tooltip: sub.notificationsEnabled
-                ? 'Mute notifications'
-                : 'Unmute notifications',
-            onPressed: () => onToggleNotification(!sub.notificationsEnabled),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, size: 18, color: Colors.grey),
-            tooltip: 'Unsubscribe',
-            onPressed: onUnsubscribe,
-          ),
-        ],
-      ),
-    );
-  }
+                    ),
+                  ),
+                )
+                .toList(),
+      );
 }
 
 class _SectionHeader extends StatelessWidget {
   final String title;
+  final int? count;
+  const _SectionHeader({required this.title, this.count});
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 28, bottom: 12, left: 2),
+        child: Row(
+          children: [
+            Flexible(child: Text(title, style: PiggyType.sectionTitle)),
+            if (count != null) ...[
+              const SizedBox(width: 8),
+              _Badge(label: '$count'),
+            ],
+          ],
+        ),
+      );
+}
 
-  const _SectionHeader({required this.title});
+class _Badge extends StatelessWidget {
+  final String label;
+  const _Badge({required this.label});
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: PiggyColors.accentSoft,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: PiggyType.label.copyWith(color: PiggyColors.accent),
+        ),
+      );
+}
+
+class _SettingsRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String? badge;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+  final Color background;
+  const _SettingsRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.badge,
+    this.trailing,
+    this.onTap,
+    this.background = PiggyColors.card,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.primary,
+  Widget build(BuildContext context) => Material(
+        color: background,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: PiggyColors.surface,
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Icon(icon, size: 22, color: PiggyColors.accent),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: PiggyType.itemTitle),
+                      const SizedBox(height: 4),
+                      Text(subtitle, style: PiggyType.caption),
+                      if (badge != null) ...[
+                        const SizedBox(height: 8),
+                        _Badge(label: badge!),
+                      ],
+                    ],
+                  ),
+                ),
+                if (trailing != null) ...[const SizedBox(width: 10), trailing!],
+              ],
+            ),
+          ),
         ),
-      ),
-    );
-  }
+      );
 }
