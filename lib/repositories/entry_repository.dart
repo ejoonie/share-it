@@ -92,10 +92,11 @@ class EntryRepository {
   }
 
   /// 엔트리를 수정한다 (PATCH /api/v1/entries/:id).
-  /// 어느 토픽에 속하든 서버가 entry로부터 토픽을 찾아 follow의 edit 권한을 확인하므로,
-  /// 호출하는 쪽에서 topicId를 알 필요가 없다.
+  /// 서버는 기존 엔트리의 토픽을 기준으로 수정 권한을 확인한다. [topicId]를 보내면
+  /// 권한이 있는 다른 토픽으로 엔트리를 옮긴다.
   Future<EntryModel> updateEntry(
     int id, {
+    int? topicId,
     DateTime? occurredAt,
     String? kind,
     String? currency,
@@ -106,6 +107,7 @@ class EntryRepository {
     bool? checked,
   }) async {
     final body = <String, dynamic>{
+      if (topicId != null) 'topic_id': topicId,
       if (occurredAt != null)
         'occurred_at': occurredAt.toUtc().toIso8601String(),
       if (kind != null) 'kind': kind,

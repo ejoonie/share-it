@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 
-import '../theme/app_theme.dart';
+import '../theme/ledger_style.dart';
+import '../design_system/design_system.dart';
 import '../providers/expense_provider.dart';
 
 class ExpenseCalendar extends ConsumerWidget {
@@ -13,79 +14,54 @@ class ExpenseCalendar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final selected = DateTime(state.year, state.month, state.day);
+    final scale = MediaQuery.textScalerOf(context).scale(12) / 12;
+
+    Widget cell(DateTime day, {bool outside = false}) => _CalendarCell(
+          day: day,
+          summary: outside
+              ? null
+              : state.monthlySummary[DateTime(day.year, day.month, day.day)],
+          isSelected: isSameDay(day, selected),
+          isToday: isSameDay(day, DateTime.now()),
+          outside: outside,
+        );
+
     return TableCalendar<Object>(
       firstDay: DateTime(2000),
       lastDay: DateTime(2100),
       focusedDay: state.focusedMonth,
-      selectedDayPredicate: (day) => isSameDay(day, DateTime.utc(state.year, state.month, state.day)),
+      selectedDayPredicate: (day) => isSameDay(day, selected),
       calendarFormat: CalendarFormat.month,
       availableCalendarFormats: const {CalendarFormat.month: 'Month'},
-      // 세로 스와이프(월 포맷 전환용 제스처)를 꺼서, 달력 높이를 줄였을 때
-      // 감싸는 SingleChildScrollView가 세로 드래그를 받아 스크롤할 수 있게 한다.
       availableGestures: AvailableGestures.horizontalSwipe,
       headerVisible: false,
-      daysOfWeekHeight: 32,
-      daysOfWeekStyle: DaysOfWeekStyle(
-        weekdayStyle: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-        weekendStyle: TextStyle(fontSize: 12, color: Colors.red.shade400),
+      rowHeight: PiggySize.calendarRow + (scale - 1).clamp(0, 2) * 30,
+      daysOfWeekHeight: 30 + (scale - 1).clamp(0, 2) * 14,
+      daysOfWeekStyle: const DaysOfWeekStyle(
+        weekdayStyle: TextStyle(fontSize: 11, color: LedgerStyle.secondary),
+        weekendStyle: TextStyle(fontSize: 11, color: LedgerStyle.secondary),
       ),
-      calendarStyle: CalendarStyle(
+      calendarStyle: const CalendarStyle(
         outsideDaysVisible: true,
-        selectedDecoration: BoxDecoration(
-          color: Colors.transparent,
-          border: Border.all(color: AppTheme.primaryColor, width: 2),
-        ),
-        todayDecoration: BoxDecoration(
-          color: AppTheme.primaryLight.withValues(alpha: 0.9),
-          shape: BoxShape.rectangle,
-        ),
-        markerDecoration: const BoxDecoration(
-          color: Colors.transparent,
-        ),
-        cellMargin: const EdgeInsets.all(2),
+        cellMargin: EdgeInsets.zero,
       ),
-      // calendar day selected
-      onDaySelected: (selectedUtc, focusedUtc) {
-        print('selectedDay: ${selectedUtc.toIso8601String()}, timezone: ${selectedUtc.timeZoneName}');
-        print('focusedDay: ${focusedUtc.toIso8601String()}, timezone: ${focusedUtc.timeZoneName}');
-        ref.read(expenseNotifierProvider.notifier).selectDate(selectedUtc.year, selectedUtc.month, selectedUtc.day);
-      },
-      onPageChanged: (focusedDay) {
-        ref
-            .read(expenseNotifierProvider.notifier)
-            .changeMonth(DateTime.utc(focusedDay.year, focusedDay.month));
+      onDaySelected: (day, _) => ref
+          .read(expenseNotifierProvider.notifier)
+          .selectDate(day.year, day.month, day.day),
+      onPageChanged: (day) {
+        // Selecting an adjacent-month day also moves the calendar page.
+        // Avoid issuing a second request when selectDate already moved it.
+        final current = ref.read(expenseNotifierProvider).focusedMonth;
+        if (current.year != day.year || current.month != day.month) {
+          ref.read(expenseNotifierProvider.notifier).changeMonth(day);
+        }
       },
       calendarBuilders: CalendarBuilders(
-        defaultBuilder: (context, utc, focusedDay) {
-          // print('defaultBuilder: ${utc.toIso8601String()}, timezone: ${utc.timeZoneName}');
-          return _CalendarCell(
-            day: utc,
-            summary: state.monthlySummary[
-                DateTime(utc.year, utc.month, utc.day)],
-            isSelected: false,
-            isToday: false,
-          );
-        },
-        selectedBuilder: (context, utc, focusedDay) {
-          // print('selectedBuilder: ${day.toIso8601String()}, timezone: ${day.timeZoneName}');
-          return _CalendarCell(
-            day: utc,
-            summary: state.monthlySummary[
-                DateTime(utc.year, utc.month, utc.day)],
-            isSelected: true,
-            isToday: false,
-          );
-        },
-        todayBuilder: (context, utc, focusedDay) {
-          // print('todayBuilder: ${utc.toIso8601String()}, timezone: ${utc.timeZoneName}');
-          return _CalendarCell(
-            day: utc,
-            summary: state.monthlySummary[
-                DateTime(utc.year, utc.month, utc.day)],
-            isSelected: isSameDay(utc, DateTime.utc(state.year, state.month, state.day)),
-            isToday: true,
-          );
-        },
+        defaultBuilder: (_, day, __) => cell(day),
+        selectedBuilder: (_, day, __) => cell(day),
+        todayBuilder: (_, day, __) => cell(day),
+        outsideBuilder: (_, day, __) => cell(day, outside: true),
       ),
     );
   }
@@ -96,87 +72,70 @@ class _CalendarCell extends StatelessWidget {
   final Map<String, int>? summary;
   final bool isSelected;
   final bool isToday;
+  final bool outside;
 
   const _CalendarCell({
     required this.day,
     required this.summary,
     required this.isSelected,
     required this.isToday,
+    required this.outside,
   });
 
   @override
   Widget build(BuildContext context) {
     final income = summary?['income'] ?? 0;
     final expense = summary?['expense'] ?? 0;
-    final primary = Theme.of(context).colorScheme.primary;
-    const incomeColor = AppTheme.incomeColor;
-    const expenseColor = AppTheme.expenseColor;
-
-
-    Color bgColor = Colors.transparent;
-    Color textColor =
-        day.weekday == DateTime.sunday || day.weekday == DateTime.saturday
-            ? Colors.red.shade400
-            : Colors.black87;
-    Border? border;
-
-    if (isSelected) {
-      border = Border.all(color: AppTheme.primaryColor, width: 1);
-      textColor = AppTheme.primaryColor;
-    } else if (isToday) {
-      bgColor = AppTheme.primaryColor.withValues(alpha: 0.12);
-    }
-
-    return Container(
-      margin: const EdgeInsets.all(1),
-      decoration: BoxDecoration(
-        color: bgColor,
-        shape: BoxShape.circle,
-        border: border,
-      ),
+    return Semantics(
+      label: '${DateFormat.yMMMMd().format(day)}${isToday ? ', Today' : ''}'
+          '${income > 0 ? ', income ${_money(income)}' : ''}'
+          '${expense > 0 ? ', expense ${_money(expense)}' : ''}',
+      selected: isSelected,
+      excludeSemantics: true,
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            '${day.day}',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight:
-                  isSelected || isToday ? FontWeight.bold : FontWeight.normal,
-              color: textColor,
+          PiggyDayMarker(
+            containerKey: ValueKey(
+              'calendar-day-${DateFormat('yyyy-MM-dd').format(day)}',
+            ),
+            day: day.day,
+            selected: isSelected,
+            today: isToday,
+            outside: outside,
+          ),
+          const SizedBox(height: 3),
+          SizedBox(
+            height: 12,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (income > 0) _amount(income, LedgerStyle.income),
+                  if (income > 0 && expense > 0) const SizedBox(width: 3),
+                  if (expense > 0) _amount(expense, LedgerStyle.expense),
+                ],
+              ),
             ),
           ),
-          if (income > 0)
-            Text(
-              _formatShort(income),
-              style: TextStyle(
-                fontSize: 7,
-                color: isSelected ? Colors.white : incomeColor,
-                height: 1,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          if (expense > 0)
-            Text(
-              _formatShort(expense),
-              style: TextStyle(
-                fontSize: 7,
-                color:
-                    isSelected ? Colors.white70 : expenseColor,
-                height: 1,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
         ],
       ),
     );
   }
 
-  String _formatShort(int cents) {
-    final dollars = cents / 100.0;
-    if (dollars >= 1000) {
-      return '\$${(dollars / 1000).toStringAsFixed(1)}k';
-    }
-    return NumberFormat.simpleCurrency(decimalDigits: 0).format(dollars);
+  Widget _amount(int cents, Color color) => Text(
+        _short(cents),
+        maxLines: 1,
+        style: PiggyType.calendarAmount.copyWith(color: color),
+      );
+
+  String _money(int cents) =>
+      NumberFormat.currency(symbol: '\$', decimalDigits: 2).format(cents / 100);
+
+  String _short(int cents) {
+    final value = cents / 100;
+    if (value >= 1000000) return '\$${(value / 1000000).toStringAsFixed(1)}m';
+    if (value >= 1000) return '\$${(value / 1000).toStringAsFixed(1)}k';
+    return NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(value);
   }
 }
