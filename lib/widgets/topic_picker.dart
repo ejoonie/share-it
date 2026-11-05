@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../design_system/design_system.dart';
 import '../models/topic_model.dart';
 
-/// 토픽 목록에서 "기본" 토픽을 고른다.
-/// 1) is_default인 토픽 중 첫 번째.
-/// 2) 없으면 [lastUsedTopicId]가 목록에 있을 때 그 토픽.
-/// 3) 그것도 없으면 목록의 첫 번째 토픽.
-/// 목록이 비어 있으면 null.
 int? resolveDefaultTopicId(List<TopicModel> topics, {int? lastUsedTopicId}) {
   if (topics.isEmpty) return null;
   for (final topic in topics) {
     if (topic.isDefault) return topic.id;
   }
-  if (lastUsedTopicId != null && topics.any((t) => t.id == lastUsedTopicId)) {
+  if (lastUsedTopicId != null &&
+      topics.any((topic) => topic.id == lastUsedTopicId)) {
     return lastUsedTopicId;
   }
   return topics.first.id;
@@ -26,7 +23,6 @@ TopicModel? findTopicById(List<TopicModel> topics, int? id) {
   return null;
 }
 
-/// 토픽 선택 바텀시트. 선택하면 [TopicModel]을 반환하고, 닫으면 null.
 Future<TopicModel?> showTopicPickerSheet(
   BuildContext context, {
   required List<TopicModel> topics,
@@ -34,89 +30,172 @@ Future<TopicModel?> showTopicPickerSheet(
 }) {
   return showModalBottomSheet<TopicModel>(
     context: context,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (_) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                'Topic',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (topics.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Text('No topics', style: TextStyle(color: Colors.black45)),
-              )
-            else
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.5,
-                ),
-                child: ListView(
-                  shrinkWrap: true,
-                  children: topics.map((topic) {
-                    final selected = topic.id == selectedTopicId;
-                    return ListTile(
-                      title: Text(topic.title),
-                      trailing: selected
-                          ? const Icon(Icons.check, color: Color(0xFF4CAF50))
-                          : null,
-                      onTap: () => Navigator.pop(context, topic),
-                    );
-                  }).toList(),
-                ),
-              ),
-          ],
-        ),
-      ),
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (context) => _TopicPickerSheet(
+      topics: topics,
+      selectedTopicId: selectedTopicId,
     ),
   );
 }
 
-/// 선택된 토픽 이름을 보여주고 탭하면 [showTopicPickerSheet]를 여는 작은 칩.
+class _TopicPickerSheet extends StatelessWidget {
+  final List<TopicModel> topics;
+  final int? selectedTopicId;
+
+  const _TopicPickerSheet({
+    required this.topics,
+    required this.selectedTopicId,
+  });
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(
+          PiggySpace.page,
+          PiggySpace.xs,
+          PiggySpace.page,
+          PiggySpace.xl,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Choose a topic', style: PiggyType.sectionTitle),
+            const SizedBox(height: PiggySpace.xs),
+            const Text(
+              'This transaction will appear in the selected piggy.',
+              style: PiggyType.caption,
+            ),
+            const SizedBox(height: PiggySpace.lg),
+            if (topics.isEmpty)
+              const PiggySurface(
+                color: PiggyColors.card,
+                child: Row(
+                  children: [
+                    Icon(Icons.folder_off_outlined, color: PiggyColors.muted),
+                    SizedBox(width: PiggySpace.md),
+                    Text('No topics available', style: PiggyType.body),
+                  ],
+                ),
+              )
+            else
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.52,
+                ),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: topics.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: PiggySpace.sm),
+                  itemBuilder: (context, index) {
+                    final topic = topics[index];
+                    final selected = topic.id == selectedTopicId;
+                    return _TopicOption(
+                      topic: topic,
+                      selected: selected,
+                      onTap: () => Navigator.pop(context, topic),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      );
+}
+
+class _TopicOption extends StatelessWidget {
+  final TopicModel topic;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _TopicOption({
+    required this.topic,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: selected ? PiggyColors.accentSoft : PiggyColors.card,
+        borderRadius: BorderRadius.circular(PiggyRadius.card),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(PiggyRadius.card),
+          child: Padding(
+            padding: const EdgeInsets.all(PiggySpace.lg),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: selected ? Colors.white : PiggyColors.surface,
+                    borderRadius: BorderRadius.circular(PiggyRadius.small),
+                  ),
+                  child: Icon(
+                    Icons.savings_outlined,
+                    size: 20,
+                    color:
+                        selected ? PiggyColors.accent : PiggyColors.secondary,
+                  ),
+                ),
+                const SizedBox(width: PiggySpace.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(topic.title, style: PiggyType.itemTitle),
+                      if (topic.isDefault) ...[
+                        const SizedBox(height: 2),
+                        const Text('Default topic', style: PiggyType.metadata),
+                      ],
+                    ],
+                  ),
+                ),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: selected ? PiggyColors.accent : Colors.transparent,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: selected ? PiggyColors.accent : PiggyColors.muted,
+                    ),
+                  ),
+                  child: selected
+                      ? const Icon(
+                          Icons.check_rounded,
+                          size: 16,
+                          color: Colors.white,
+                        )
+                      : null,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+}
+
 class TopicSelectorChip extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const TopicSelectorChip({super.key, required this.label, required this.onTap});
+  const TopicSelectorChip({
+    super.key,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.folder_outlined, size: 16, color: Colors.grey.shade500),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-            ),
-            Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey.shade500),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => ActionChip(
+        onPressed: onTap,
+        avatar: const Icon(Icons.savings_outlined, size: 17),
+        label: Text(label, overflow: TextOverflow.ellipsis),
+        labelStyle: PiggyType.label.copyWith(color: PiggyColors.accent),
+        side: BorderSide.none,
+        backgroundColor: PiggyColors.accentSoft,
+      );
 }

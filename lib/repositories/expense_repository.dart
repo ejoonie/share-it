@@ -9,10 +9,15 @@ class ExpenseRepository {
   ExpenseRepository({required EntryRepository entryRepository})
       : _entryRepository = entryRepository;
 
-  static const _kindFilter = {'q[kind_in][]': ['income', 'expense']};
+  static const _kindFilter = {
+    'q[kind_in][]': ['income', 'expense'],
+  };
 
   Future<List<ExpenseModel>> getAllExpenses({List<int>? topicIds}) async {
-    final entries = await _entryRepository.listAllEntries(topicIds: topicIds, q: _kindFilter);
+    final entries = await _entryRepository.listAllEntries(
+      topicIds: topicIds,
+      q: _kindFilter,
+    );
     return entries.map(ExpenseModel.fromEntry).toList();
   }
 
@@ -59,7 +64,9 @@ class ExpenseRepository {
   }
 
   Future<ExpenseModel> addExpense(ExpenseModel expense) async {
-    debugPrint('[addExpense] 전송 occurredAt: ${expense.occurredAt} (local: ${expense.occurredAt.toLocal()}, utc: ${expense.occurredAt.toUtc()})');
+    debugPrint(
+      '[addExpense] 전송 occurredAt: ${expense.occurredAt} (local: ${expense.occurredAt.toLocal()}, utc: ${expense.occurredAt.toUtc()})',
+    );
     final entry = await _entryRepository.createEntry(
       topicId: expense.topicId,
       occurredAt: expense.occurredAt,
@@ -70,14 +77,19 @@ class ExpenseRepository {
       content: expense.content,
     );
     final saved = ExpenseModel.fromEntry(entry);
-    debugPrint('[addExpense] 서버 저장 occurredAt: ${saved.occurredAt} (local: ${saved.occurredAt.toLocal()}, utc: ${saved.occurredAt.toUtc()})');
+    debugPrint(
+      '[addExpense] 서버 저장 occurredAt: ${saved.occurredAt} (local: ${saved.occurredAt.toLocal()}, utc: ${saved.occurredAt.toUtc()})',
+    );
     return saved;
   }
 
   Future<ExpenseModel> updateExpense(ExpenseModel expense) async {
-    debugPrint('[updateExpense] 전송 occurredAt: ${expense.occurredAt} (local: ${expense.occurredAt.toLocal()}, utc: ${expense.occurredAt.toUtc()})');
+    debugPrint(
+      '[updateExpense] 전송 occurredAt: ${expense.occurredAt} (local: ${expense.occurredAt.toLocal()}, utc: ${expense.occurredAt.toUtc()})',
+    );
     final entry = await _entryRepository.updateEntry(
       expense.id!,
+      topicId: expense.topicId,
       occurredAt: expense.occurredAt,
       kind: expense.type.name,
       amount: expense.amount,
@@ -86,7 +98,9 @@ class ExpenseRepository {
       content: expense.content,
     );
     final saved = ExpenseModel.fromEntry(entry);
-    debugPrint('[updateExpense] 서버 저장 occurredAt: ${saved.occurredAt} (local: ${saved.occurredAt.toLocal()}, utc: ${saved.occurredAt.toUtc()})');
+    debugPrint(
+      '[updateExpense] 서버 저장 occurredAt: ${saved.occurredAt} (local: ${saved.occurredAt.toLocal()}, utc: ${saved.occurredAt.toUtc()})',
+    );
     return saved;
   }
 
@@ -94,7 +108,9 @@ class ExpenseRepository {
     await _entryRepository.deleteEntry(id);
   }
 
-  Map<DateTime, Map<String, int>> buildMonthlySummary(List<ExpenseModel> expenses) {
+  Map<DateTime, Map<String, int>> buildMonthlySummary(
+    List<ExpenseModel> expenses,
+  ) {
     final Map<DateTime, Map<String, int>> summary = {};
 
     for (final e in expenses) {

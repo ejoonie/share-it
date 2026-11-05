@@ -1,20 +1,28 @@
 import 'package:flutter/material.dart';
 
 const _kDefaultCategories = [
-  'Food', 'Transport', 'Shopping', 'Medical',
-  'Entertainment', 'Utilities', 'Housing', 'Other',
+  'Food',
+  'Transport',
+  'Shopping',
+  'Medical',
+  'Entertainment',
+  'Utilities',
+  'Housing',
+  'Other',
 ];
 
 class CategoryField extends StatefulWidget {
   final TextEditingController controller;
   final TextInputAction textInputAction;
   final VoidCallback? onEditingComplete;
+  final InputDecoration? decoration;
 
   const CategoryField({
     super.key,
     required this.controller,
     this.textInputAction = TextInputAction.next,
     this.onEditingComplete,
+    this.decoration,
   });
 
   @override
@@ -44,12 +52,13 @@ class _CategoryFieldState extends State<CategoryField> {
       child: AbsorbPointer(
         child: TextFormField(
           controller: widget.controller,
-          decoration: const InputDecoration(
-            labelText: 'Category',
-            prefixIcon: Icon(Icons.category_outlined),
-            hintText: 'Optional',
-            suffixIcon: Icon(Icons.expand_more),
-          ),
+          decoration: widget.decoration ??
+              const InputDecoration(
+                labelText: 'Category',
+                prefixIcon: Icon(Icons.category_outlined),
+                hintText: 'Optional',
+                suffixIcon: Icon(Icons.expand_more),
+              ),
           textInputAction: widget.textInputAction,
         ),
       ),
@@ -154,7 +163,8 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                 ..._filtered.map(
                   (c) => ListTile(
                     title: Text(c),
-                    trailing: _searchController.text.trim().toLowerCase() == c.toLowerCase()
+                    trailing: _searchController.text.trim().toLowerCase() ==
+                            c.toLowerCase()
                         ? const Icon(Icons.check)
                         : null,
                     onTap: () => _select(c),

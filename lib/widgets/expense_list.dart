@@ -239,9 +239,8 @@ class _ExpenseListTile extends ConsumerWidget {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      useSafeArea: true,
+      showDragHandle: true,
       builder: (_) => ExpenseForm(
         expense: expense,
         initYear: expense.occurredAt.year,
