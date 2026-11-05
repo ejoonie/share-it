@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import '../design_system/design_system.dart';
 import '../models/topic_filter.dart';
 import '../providers/expense_provider.dart';
+import '../providers/core_providers.dart';
+import '../widgets/create_piggy_dialog.dart';
 import '../theme/ledger_style.dart';
 import '../widgets/expense/expense_filter_sheet.dart';
 import '../widgets/expense/expense_overview.dart';
@@ -96,6 +98,8 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(expenseNotifierProvider);
     final focusedMonth = state.focusedMonth;
+    final topics = ref.watch(myViewableTopicsProvider);
+    final hasTopics = topics.valueOrNull?.isNotEmpty ?? false;
     final hasFilter =
         state.activeFilter != null || state.topicFilter is! TopicFilterAll;
 
@@ -120,7 +124,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
         title: _isSearching
             ? _SearchField(controller: _searchController)
             : TextButton(
-                onPressed: () => _pickMonth(focusedMonth),
+                onPressed: hasTopics ? () => _pickMonth(focusedMonth) : null,
                 style: TextButton.styleFrom(
                   foregroundColor: LedgerStyle.ink,
                   padding: EdgeInsets.zero,
@@ -148,23 +152,77 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
               _isSearching ? Icons.close : Icons.search_rounded,
               size: 23,
             ),
-            onPressed: _toggleSearch,
+            onPressed: hasTopics ? _toggleSearch : null,
           ),
           IconButton(
             tooltip: 'Filter transactions',
             icon: Badge(
-              isLabelVisible: hasFilter,
+              isLabelVisible: hasTopics && hasFilter,
               backgroundColor: LedgerStyle.accent,
               child: const Icon(Icons.tune_rounded, size: 21),
             ),
-            onPressed: _showFilterDialog,
+            onPressed: hasTopics ? _showFilterDialog : null,
           ),
           const SizedBox(width: 8),
         ],
       ),
-      body: _buildBody(state, focusedMonth),
+      body: topics.when(
+        loading: () => const AppLoadingIndicator(),
+        error: (_, __) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Couldn’t load your piggies.'),
+              TextButton(
+                onPressed: () => ref.invalidate(myViewableTopicsProvider),
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
+        data: (items) =>
+            items.isEmpty ? _buildNoPiggies() : _buildBody(state, focusedMonth),
+      ),
     );
   }
+
+  Widget _buildNoPiggies() => Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(32, 24, 32, 120),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircleAvatar(
+                radius: 44,
+                backgroundColor: PiggyColors.accentSoft,
+                child: Icon(
+                  Icons.savings_outlined,
+                  size: 44,
+                  color: PiggyColors.accent,
+                ),
+              ),
+              const SizedBox(height: PiggySpace.xl),
+              const Text(
+                'A fresh start for your spending',
+                style: PiggyType.pageTitle,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: PiggySpace.sm),
+              const Text(
+                'You don’t have any piggies yet.\nCreate one to start tracking your expenses.',
+                style: PiggyType.body,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: PiggySpace.xl),
+              FilledButton.icon(
+                onPressed: () => showCreatePiggyDialog(context),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Create a piggy'),
+              ),
+            ],
+          ),
+        ),
+      );
 
   Widget _buildBody(ExpenseState state, DateTime focusedMonth) {
     if (state.isLoading) {
@@ -177,7 +235,10 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(state.error!, textAlign: TextAlign.center),
+              Text(
+                state.error!,
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: PiggySpace.lg),
               FilledButton(
                 onPressed: () =>

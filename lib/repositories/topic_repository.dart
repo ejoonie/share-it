@@ -7,6 +7,12 @@ class TopicRepository {
 
   TopicRepository({required ApiClient apiClient}) : _apiClient = apiClient;
 
+  Future<TopicModel> create(String title) async {
+    final json =
+        await _apiClient.post('/api/v1/my/topics', {'title': title.trim()});
+    return TopicModel.fromJson(json);
+  }
+
   Future<List<TopicModel>> fetchOwned() async {
     final json = await _apiClient.get('/api/v1/my/topics/owned');
     final list = json['records'] as List<dynamic>? ?? [];

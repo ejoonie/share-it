@@ -105,6 +105,11 @@ class SessionNotifier extends StateNotifier<SessionState> {
     return SessionState(status: SessionStatus.ready, data: data);
   }
 
+  void useTopic(TopicModel topic) {
+    final data = state.data;
+    if (data != null) state = state.copyWith(data: data.copyWith(topic: topic));
+  }
+
   void removeTopic(int topicId, {TopicModel? replacement}) {
     final data = state.data;
     if (data == null || data.topic?.id != topicId) return;

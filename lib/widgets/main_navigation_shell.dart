@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../design_system/design_system.dart';
 import '../providers/expense_provider.dart';
+import '../providers/core_providers.dart';
 import '../screens/amount_entry_screen.dart';
 import '../screens/expense_screen.dart';
 import '../screens/settings_screen.dart';
@@ -73,7 +74,9 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
           ],
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-        floatingActionButton: widget.currentIndex == 0
+        floatingActionButton: widget.currentIndex == 0 &&
+                (ref.watch(myViewableTopicsProvider).valueOrNull?.isNotEmpty ??
+                    false)
             ? PiggySlideVisibility(
                 visible: _chromeVisible,
                 hiddenOffset: const Offset(0, 1.4),

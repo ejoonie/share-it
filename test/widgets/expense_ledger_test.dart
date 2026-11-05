@@ -99,6 +99,7 @@ void main() {
     Size size = const Size(402, 874),
     double scale = 1,
     ExpenseState? state,
+    bool noPiggies = false,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -135,17 +136,19 @@ void main() {
             (ref) => PreviewNotifier(storage, state ?? fixture),
           ),
           myViewableTopicsProvider.overrideWith(
-            (ref) async => [
-              const TopicModel(
-                id: 1,
-                token: '',
-                userId: 1,
-                title: 'My First Piggy',
-                isDefault: true,
-                createdAt: '',
-                updatedAt: '',
-              ),
-            ],
+            (ref) async => noPiggies
+                ? []
+                : [
+                    const TopicModel(
+                      id: 1,
+                      token: '',
+                      userId: 1,
+                      title: 'My First Piggy',
+                      isDefault: true,
+                      createdAt: '',
+                      updatedAt: '',
+                    ),
+                  ],
           ),
         ],
         child: MaterialApp(
@@ -169,6 +172,27 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('no piggies replaces a stuck loader with a working create action',
+      (tester) async {
+    await mount(
+      tester,
+      noPiggies: true,
+      state: fixture.copyWith(isLoading: true),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Create a piggy'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    await tester.tap(find.text('Create a piggy'));
+    await tester.pumpAndSettle();
+    expect(find.text('Piggy name'), findsOneWidget);
+    await tester.tap(find.text('Create piggy'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter a name for your piggy'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Create a piggy'), findsOneWidget);
+  });
 
   testWidgets(
       'selected date and today have distinct indicators; both totals remain readable',

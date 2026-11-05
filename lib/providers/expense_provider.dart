@@ -125,6 +125,7 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
       : super(
           ExpenseState.initial().copyWith(
             topicFilter: _topicFilterStorage.getFilter(),
+            isLoading: _repository != null,
           ),
         ) {
     if (_repository != null) load();

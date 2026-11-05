@@ -70,7 +70,8 @@ final currentTopicIdProvider = Provider<int?>((ref) {
 });
 
 final entryRepositoryProvider = Provider<EntryRepository?>((ref) {
-  final topicId = ref.watch(currentTopicIdProvider);
+  final topicId = ref.watch(currentTopicIdProvider) ??
+      ref.watch(myViewableTopicsProvider).valueOrNull?.firstOrNull?.id;
   if (topicId == null) return null;
   return EntryRepository(
     apiClient: ref.watch(apiClientProvider),
