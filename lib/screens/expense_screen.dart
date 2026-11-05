@@ -309,21 +309,28 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: IgnorePointer(
         ignoring: !widget.chromeVisible,
-        child: AnimatedSlide(
+        child: AnimatedPadding(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
-          offset: widget.chromeVisible ? Offset.zero : const Offset(0, 1.4),
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 160),
-            opacity: widget.chromeVisible ? 1 : 0,
-            child: FloatingActionButton(
-              heroTag: 'expense_add_fab',
-              tooltip: 'Add transaction',
-              elevation: 3,
-              highlightElevation: 1,
-              onPressed: () =>
-                  _showAddExpenseForm(state.year, state.month, state.day),
-              child: const Icon(Icons.add_rounded, size: 27),
+          padding: EdgeInsets.only(
+            bottom: widget.chromeVisible ? PiggySize.navigation : 0,
+          ),
+          child: AnimatedSlide(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            offset: widget.chromeVisible ? Offset.zero : const Offset(0, 1.4),
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 160),
+              opacity: widget.chromeVisible ? 1 : 0,
+              child: FloatingActionButton(
+                heroTag: 'expense_add_fab',
+                tooltip: 'Add transaction',
+                elevation: 3,
+                highlightElevation: 1,
+                onPressed: () =>
+                    _showAddExpenseForm(state.year, state.month, state.day),
+                child: const Icon(Icons.add_rounded, size: 27),
+              ),
             ),
           ),
         ),

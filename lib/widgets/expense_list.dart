@@ -94,6 +94,13 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
     widget.onChromeVisibilityChanged?.call(visible);
   }
 
+  Future<void> _refresh() async {
+    _direction = 0;
+    _directionDistance = 0;
+    _setChromeVisible(true);
+    await ref.read(expenseNotifierProvider.notifier).refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
     final items = widget.state.filteredSelectedDateExpenses;
@@ -102,7 +109,11 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
 
     return RefreshIndicator(
       color: LedgerStyle.accent,
-      onRefresh: () => ref.read(expenseNotifierProvider.notifier).refresh(),
+      displacement: 32,
+      edgeOffset: 4,
+      strokeWidth: 2.4,
+      triggerMode: RefreshIndicatorTriggerMode.onEdge,
+      onRefresh: _refresh,
       child: CustomScrollView(
         controller: _scrollController,
         key: const PageStorageKey('expense-ledger'),

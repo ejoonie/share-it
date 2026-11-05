@@ -43,6 +43,7 @@ class _BottomNavBarState extends State<BottomNavBar> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBody: true,
       body: IndexedStack(
         index: widget.currentIndex,
         children: [
@@ -54,20 +55,20 @@ class _BottomNavBarState extends State<BottomNavBar> {
           const SettingsScreen(),
         ],
       ),
-      bottomNavigationBar: TweenAnimationBuilder<double>(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        tween: Tween(end: _chromeVisible ? 1 : 0),
-        builder: (context, factor, child) => ClipRect(
-          child: Align(
-            alignment: Alignment.topCenter,
-            heightFactor: factor,
-            child: Opacity(opacity: factor, child: child),
+      bottomNavigationBar: IgnorePointer(
+        ignoring: !_chromeVisible,
+        child: AnimatedSlide(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          offset: _chromeVisible ? Offset.zero : const Offset(0, 1.08),
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 160),
+            opacity: _chromeVisible ? 1 : 0,
+            child: LedgerNavigationBar(
+              currentIndex: widget.currentIndex,
+              onTap: _onTap,
+            ),
           ),
-        ),
-        child: LedgerNavigationBar(
-          currentIndex: widget.currentIndex,
-          onTap: _onTap,
         ),
       ),
     );
