@@ -42,7 +42,10 @@ class ExpenseCalendar extends ConsumerWidget {
         weekdayStyle: TextStyle(fontSize: 11, color: LedgerStyle.secondary),
         weekendStyle: TextStyle(fontSize: 11, color: LedgerStyle.secondary),
       ),
-      calendarStyle: const CalendarStyle(outsideDaysVisible: true),
+      calendarStyle: const CalendarStyle(
+        outsideDaysVisible: true,
+        cellMargin: EdgeInsets.zero,
+      ),
       onDaySelected: (day, _) => ref
           .read(expenseNotifierProvider.notifier)
           .selectDate(day.year, day.month, day.day),
@@ -91,7 +94,6 @@ class _CalendarCell extends StatelessWidget {
       excludeSemantics: true,
       child: Column(
         children: [
-          const SizedBox(height: 2),
           PiggyDayMarker(
             containerKey: ValueKey(
               'calendar-day-${DateFormat('yyyy-MM-dd').format(day)}',
@@ -102,21 +104,29 @@ class _CalendarCell extends StatelessWidget {
             outside: outside,
           ),
           const SizedBox(height: 3),
-          if (income > 0) _amount(income, LedgerStyle.income, '+'),
-          if (expense > 0) _amount(expense, LedgerStyle.expense, '−'),
+          SizedBox(
+            height: 12,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (income > 0) _amount(income, LedgerStyle.income, '+'),
+                  if (income > 0 && expense > 0) const SizedBox(width: 3),
+                  if (expense > 0) _amount(expense, LedgerStyle.expense, '−'),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _amount(int cents, Color color, String sign) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 1),
-        child: Text(
-          '$sign${_short(cents)}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: PiggyType.calendarAmount.copyWith(color: color),
-        ),
+  Widget _amount(int cents, Color color, String sign) => Text(
+        '$sign${_short(cents)}',
+        maxLines: 1,
+        style: PiggyType.calendarAmount.copyWith(color: color),
       );
 
   String _money(int cents) =>
