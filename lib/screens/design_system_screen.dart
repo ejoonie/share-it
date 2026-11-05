@@ -49,6 +49,7 @@ class _DesignSystemScreenState extends State<DesignSystemScreen> {
                   children: [
                     _Swatch('Canvas', PiggyColors.background),
                     _Swatch('Surface', PiggyColors.surface),
+                    _Swatch('Card', PiggyColors.card),
                     _Swatch('Ink', PiggyColors.ink),
                     _Swatch('Secondary', PiggyColors.secondary),
                     _Swatch('Brand', PiggyColors.accent),
@@ -86,32 +87,15 @@ class _DesignSystemScreenState extends State<DesignSystemScreen> {
                   ),
                 ),
                 _section(
-                  '03 · Summary cards',
-                  '정보의 역할에 맞는 연한 배경과 진한 금액을 한 쌍으로 사용합니다.',
+                  '03 · Daily summary',
+                  '선택 날짜와 그날의 수입·지출을 한 카드에서 보여줍니다.',
                 ),
-                const IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: PiggySummaryCard(
-                          label: 'Income',
-                          amount: '\$2,800.00',
-                          tone: PiggyTone.income,
-                          icon: Icons.south_west_rounded,
-                        ),
-                      ),
-                      SizedBox(width: PiggySpace.md),
-                      Expanded(
-                        child: PiggySummaryCard(
-                          label: 'Expenses',
-                          amount: '\$144.01',
-                          tone: PiggyTone.expense,
-                          icon: Icons.north_east_rounded,
-                        ),
-                      ),
-                    ],
-                  ),
+                const PiggyDailySummaryCard(
+                  eyebrow: 'Today',
+                  date: 'Nov 5',
+                  metadata: 'Thursday · 2026',
+                  income: '\$2,800.00',
+                  expenses: '\$144.01',
                 ),
                 _section(
                   '04 · Actions',

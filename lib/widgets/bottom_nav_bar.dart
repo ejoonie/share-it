@@ -5,7 +5,7 @@ import '../design_system/design_system.dart';
 import '../screens/settings_screen.dart';
 import '../screens/share_screen.dart';
 
-class BottomNavBar extends StatelessWidget {
+class BottomNavBar extends StatefulWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
@@ -15,21 +15,61 @@ class BottomNavBar extends StatelessWidget {
     required this.onTap,
   });
 
-  static const List<Widget> _screens = [
-    ExpenseScreen(),
-    ShareScreen(),
-    SettingsScreen(),
-  ];
+  @override
+  State<BottomNavBar> createState() => _BottomNavBarState();
+}
+
+class _BottomNavBarState extends State<BottomNavBar> {
+  bool _chromeVisible = true;
+
+  @override
+  void didUpdateWidget(covariant BottomNavBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentIndex != widget.currentIndex) {
+      _chromeVisible = true;
+    }
+  }
+
+  void _setChromeVisible(bool visible) {
+    if (_chromeVisible == visible || widget.currentIndex != 0) return;
+    setState(() => _chromeVisible = visible);
+  }
+
+  void _onTap(int index) {
+    if (!_chromeVisible) setState(() => _chromeVisible = true);
+    widget.onTap(index);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
-        index: currentIndex,
-        children: _screens,
+        index: widget.currentIndex,
+        children: [
+          ExpenseScreen(
+            chromeVisible: _chromeVisible,
+            onChromeVisibilityChanged: _setChromeVisible,
+          ),
+          const ShareScreen(),
+          const SettingsScreen(),
+        ],
       ),
-      bottomNavigationBar:
-          LedgerNavigationBar(currentIndex: currentIndex, onTap: onTap),
+      bottomNavigationBar: TweenAnimationBuilder<double>(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        tween: Tween(end: _chromeVisible ? 1 : 0),
+        builder: (context, factor, child) => ClipRect(
+          child: Align(
+            alignment: Alignment.topCenter,
+            heightFactor: factor,
+            child: Opacity(opacity: factor, child: child),
+          ),
+        ),
+        child: LedgerNavigationBar(
+          currentIndex: widget.currentIndex,
+          onTap: _onTap,
+        ),
+      ),
     );
   }
 }

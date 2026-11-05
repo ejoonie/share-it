@@ -77,6 +77,8 @@ void main() {
       350,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(find.text('Show validation error'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Show validation error'));
     await tester.pumpAndSettle();
     expect(find.text('Add a title to continue.'), findsOneWidget);

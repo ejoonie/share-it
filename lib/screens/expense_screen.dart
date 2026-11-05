@@ -15,7 +15,14 @@ import '../widgets/summary_drawer.dart';
 import 'amount_entry_screen.dart';
 
 class ExpenseScreen extends ConsumerStatefulWidget {
-  const ExpenseScreen({super.key});
+  final bool chromeVisible;
+  final ValueChanged<bool>? onChromeVisibilityChanged;
+
+  const ExpenseScreen({
+    super.key,
+    this.chromeVisible = true,
+    this.onChromeVisibilityChanged,
+  });
 
   @override
   ConsumerState<ExpenseScreen> createState() => _ExpenseScreenState();
@@ -299,6 +306,28 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
           const SizedBox(width: 8),
         ],
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: IgnorePointer(
+        ignoring: !widget.chromeVisible,
+        child: AnimatedSlide(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          offset: widget.chromeVisible ? Offset.zero : const Offset(0, 1.4),
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 160),
+            opacity: widget.chromeVisible ? 1 : 0,
+            child: FloatingActionButton(
+              heroTag: 'expense_add_fab',
+              tooltip: 'Add transaction',
+              elevation: 3,
+              highlightElevation: 1,
+              onPressed: () =>
+                  _showAddExpenseForm(state.year, state.month, state.day),
+              child: const Icon(Icons.add_rounded, size: 27),
+            ),
+          ),
+        ),
+      ),
       body: state.isLoading
           ? const Center(
               child: CircularProgressIndicator(color: LedgerStyle.accent),
@@ -324,8 +353,8 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                 )
               : ExpenseList(
                   state: state,
-                  onAdd: () =>
-                      _showAddExpenseForm(state.year, state.month, state.day),
+                  chromeVisible: widget.chromeVisible,
+                  onChromeVisibilityChanged: widget.onChromeVisibilityChanged,
                   headerSlivers: [
                     SliverToBoxAdapter(
                       child: Padding(
@@ -337,13 +366,13 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                         ),
                         child: Column(
                           children: [
-                            _MonthlySummaryBar(state: state),
+                            _DailySummary(state: state),
                             const SizedBox(height: 8),
                             Row(
                               children: [
                                 const Expanded(
                                   child: Text(
-                                    'Your month',
+                                    'Calendar',
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
@@ -408,36 +437,31 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
   }
 }
 
-class _MonthlySummaryBar extends StatelessWidget {
+class _DailySummary extends StatelessWidget {
   final ExpenseState state;
-  const _MonthlySummaryBar({required this.state});
+  const _DailySummary({required this.state});
 
   @override
   Widget build(BuildContext context) {
     final formatter = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: PiggySummaryCard(
-              label: 'Income',
-              amount: formatter.format(state.monthlyIncomeTotal / 100),
-              tone: PiggyTone.income,
-              icon: Icons.south_west_rounded,
-            ),
-          ),
-          const SizedBox(width: PiggySpace.md),
-          Expanded(
-            child: PiggySummaryCard(
-              label: 'Expenses',
-              amount: formatter.format(state.monthlyExpenseTotal / 100),
-              tone: PiggyTone.expense,
-              icon: Icons.north_east_rounded,
-            ),
-          ),
-        ],
-      ),
+    final date = DateTime(state.year, state.month, state.day);
+    final now = DateTime.now();
+    final today = DateUtils.isSameDay(date, now);
+    final income = state.selectedDateExpenses
+        .where((entry) => entry.isIncome)
+        .fold<int>(0, (sum, entry) => sum + entry.amount);
+    final expenses = state.selectedDateExpenses
+        .where((entry) => entry.isExpense)
+        .fold<int>(0, (sum, entry) => sum + entry.amount);
+
+    return PiggyDailySummaryCard(
+      eyebrow: today ? 'Today' : DateFormat('EEEE').format(date),
+      date: DateFormat('MMM d').format(date),
+      metadata: today
+          ? DateFormat('EEEE · yyyy').format(date)
+          : DateFormat('yyyy').format(date),
+      income: formatter.format(income / 100),
+      expenses: formatter.format(expenses / 100),
     );
   }
 }

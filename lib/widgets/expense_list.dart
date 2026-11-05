@@ -10,106 +10,132 @@ import '../models/expense_model.dart';
 import 'expense_form.dart';
 import 'topic_picker.dart';
 
-class ExpenseList extends ConsumerWidget {
+class ExpenseList extends ConsumerStatefulWidget {
   final ExpenseState state;
   final List<Widget> headerSlivers;
-  final VoidCallback onAdd;
+  final bool chromeVisible;
+  final ValueChanged<bool>? onChromeVisibilityChanged;
 
   const ExpenseList({
     super.key,
     required this.state,
-    required this.onAdd,
+    this.chromeVisible = true,
+    this.onChromeVisibilityChanged,
     this.headerSlivers = const [],
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final items = state.filteredSelectedDateExpenses;
-    final date = DateTime(state.year, state.month, state.day);
-    final now = DateTime.now();
-    final today =
-        date.year == now.year && date.month == now.month && date.day == now.day;
-    final net = items.fold<int>(
-      0,
-      (sum, item) => sum + (item.isIncome ? item.amount : -item.amount),
-    );
-    final money = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
-    final filtered = state.searchQuery.isNotEmpty || state.activeFilter != null;
+  ConsumerState<ExpenseList> createState() => _ExpenseListState();
+}
+
+class _ExpenseListState extends ConsumerState<ExpenseList> {
+  static const _hideThreshold = 28.0;
+  static const _showThreshold = 16.0;
+  final ScrollController _scrollController = ScrollController();
+  double _lastOffset = 0;
+  double _directionDistance = 0;
+  int _direction = 0;
+  late bool _chromeVisible;
+
+  @override
+  void initState() {
+    super.initState();
+    _chromeVisible = widget.chromeVisible;
+    _scrollController.addListener(_handleScroll);
+  }
+
+  @override
+  void didUpdateWidget(covariant ExpenseList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.chromeVisible != _chromeVisible) {
+      _chromeVisible = widget.chromeVisible;
+      _directionDistance = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+    final pixels = _scrollController.position.pixels;
+    final delta = pixels - _lastOffset;
+    _lastOffset = pixels;
+
+    if (pixels <= 0) {
+      _direction = 0;
+      _directionDistance = 0;
+      _setChromeVisible(true);
+      return;
+    }
+    if (delta.abs() < 0.5) return;
+
+    final direction = delta > 0 ? 1 : -1;
+    if (_direction != direction) {
+      _direction = direction;
+      _directionDistance = 0;
+    }
+    _directionDistance += delta.abs();
+    final threshold = direction > 0 ? _hideThreshold : _showThreshold;
+    if (_directionDistance >= threshold) {
+      _setChromeVisible(direction < 0);
+      _directionDistance = 0;
+    }
+  }
+
+  void _setChromeVisible(bool visible) {
+    if (_chromeVisible == visible) return;
+    _chromeVisible = visible;
+    widget.onChromeVisibilityChanged?.call(visible);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = widget.state.filteredSelectedDateExpenses;
+    final filtered = widget.state.searchQuery.isNotEmpty ||
+        widget.state.activeFilter != null;
 
     return RefreshIndicator(
       color: LedgerStyle.accent,
       onRefresh: () => ref.read(expenseNotifierProvider.notifier).refresh(),
       child: CustomScrollView(
+        controller: _scrollController,
         key: const PageStorageKey('expense-ledger'),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
-          ...headerSlivers,
+          ...widget.headerSlivers,
           SliverToBoxAdapter(
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: PiggySpace.page),
-              padding: const EdgeInsets.only(top: 20, bottom: 16),
+              padding: const EdgeInsets.only(top: 18, bottom: 12),
               decoration: const BoxDecoration(
                 border: Border(top: BorderSide(color: LedgerStyle.line)),
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${today ? 'Today · ' : ''}${DateFormat('MMM d').format(date)}',
-                          style: PiggyType.sectionTitle,
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          '${DateFormat('EEEE').format(date)} · ${items.length} ${items.length == 1 ? 'transaction' : 'transactions'}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: LedgerStyle.secondary,
-                          ),
-                        ),
-                      ],
+                  const Expanded(
+                    child: Text(
+                      'Transactions',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.2,
+                        color: LedgerStyle.secondary,
+                      ),
                     ),
                   ),
-                  if (items.isNotEmpty)
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: MediaQuery.sizeOf(context).width * 0.28,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '${net < 0 ? '−' : net > 0 ? '+' : ''}${money.format(net.abs() / 100)}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures(),
-                              ],
-                              color: net < 0
-                                  ? LedgerStyle.expense
-                                  : LedgerStyle.income,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            filtered ? 'Filtered net' : 'Daily net',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: LedgerStyle.secondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(width: 12),
-                  PiggyAddButton(onPressed: onAdd),
+                  Text(
+                    filtered
+                        ? '${items.length} shown'
+                        : '${items.length} ${items.length == 1 ? 'item' : 'items'}',
+                    style: PiggyType.metadata,
+                  ),
                 ],
               ),
             ),
@@ -174,7 +200,7 @@ class ExpenseList extends ConsumerWidget {
                 ),
               ),
             ),
-          const SliverToBoxAdapter(child: SizedBox(height: 28)),
+          const SliverToBoxAdapter(child: SizedBox(height: 96)),
         ],
       ),
     );

@@ -24,6 +24,28 @@ class PreviewNotifier extends ExpenseNotifier {
   }
 }
 
+class ExpenseChromeHarness extends StatefulWidget {
+  const ExpenseChromeHarness({super.key});
+
+  @override
+  State<ExpenseChromeHarness> createState() => _ExpenseChromeHarnessState();
+}
+
+class _ExpenseChromeHarnessState extends State<ExpenseChromeHarness> {
+  bool visible = true;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        body: ExpenseScreen(
+          chromeVisible: visible,
+          onChromeVisibilityChanged: (next) => setState(() => visible = next),
+        ),
+        bottomNavigationBar: visible
+            ? LedgerNavigationBar(currentIndex: 0, onTap: (_) {})
+            : null,
+      );
+}
+
 void main() {
   final boundaryKey = GlobalKey();
   final now = DateTime.now();
@@ -134,11 +156,7 @@ void main() {
           ),
           home: RepaintBoundary(
             key: boundaryKey,
-            child: Scaffold(
-              body: const ExpenseScreen(),
-              bottomNavigationBar:
-                  LedgerNavigationBar(currentIndex: 0, onTap: (_) {}),
-            ),
+            child: const ExpenseChromeHarness(),
           ),
         ),
       ),
@@ -158,6 +176,8 @@ void main() {
     expect((selected.decoration! as BoxDecoration).color, LedgerStyle.accent);
     final todayBorder = (today.decoration! as BoxDecoration).border! as Border;
     expect(todayBorder.top.color, LedgerStyle.expense);
+    expect(find.text('\$0.00'), findsOneWidget);
+    expect(find.text('\$22.01'), findsOneWidget);
     expect(find.text('−\$22'), findsOneWidget);
     expect(
       tester.widget<Text>(find.text('−\$22')).style!.color,
@@ -175,6 +195,25 @@ void main() {
         image.dispose();
       });
     }
+  });
+
+  testWidgets('scroll direction hides and restores the FAB and navigation',
+      (tester) async {
+    await mount(tester, size: const Size(320, 640));
+    final add = find.byTooltip('Add transaction');
+    final navigation = find.byType(NavigationBar);
+    expect(add.hitTestable(), findsOneWidget);
+    expect(navigation.hitTestable(), findsOneWidget);
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -140));
+    await tester.pumpAndSettle();
+    expect(add.hitTestable(), findsNothing);
+    expect(navigation.hitTestable(), findsNothing);
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, 80));
+    await tester.pumpAndSettle();
+    expect(add.hitTestable(), findsOneWidget);
+    expect(navigation.hitTestable(), findsOneWidget);
   });
 
   testWidgets(

@@ -77,6 +77,144 @@ class PiggySummaryCard extends StatelessWidget {
       );
 }
 
+/// A selected day's identity and totals in one compact overview.
+/// Values are already formatted by the feature, including their currency.
+class PiggyDailySummaryCard extends StatelessWidget {
+  final String eyebrow;
+  final String date;
+  final String metadata;
+  final String income;
+  final String expenses;
+
+  const PiggyDailySummaryCard({
+    super.key,
+    required this.eyebrow,
+    required this.date,
+    required this.metadata,
+    required this.income,
+    required this.expenses,
+  });
+
+  @override
+  Widget build(BuildContext context) => PiggySurface(
+        color: PiggyColors.card,
+        radius: PiggyRadius.summary,
+        child: Column(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        eyebrow.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: PiggyType.metadata.copyWith(
+                          color: PiggyColors.accent,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.7,
+                        ),
+                      ),
+                      const SizedBox(height: PiggySpace.xs),
+                      Text(date, style: PiggyType.pageTitle),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: PiggySpace.md),
+                Flexible(
+                  child: Text(
+                    metadata,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: PiggyType.caption,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: PiggySpace.lg),
+            Row(
+              children: [
+                Expanded(
+                  child: _DailyAmount(
+                    label: 'Income',
+                    amount: income,
+                    tone: PiggyTone.income,
+                    icon: Icons.south_west_rounded,
+                  ),
+                ),
+                const SizedBox(width: PiggySpace.sm),
+                Expanded(
+                  child: _DailyAmount(
+                    label: 'Expenses',
+                    amount: expenses,
+                    tone: PiggyTone.expense,
+                    icon: Icons.north_east_rounded,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+}
+
+class _DailyAmount extends StatelessWidget {
+  final String label;
+  final String amount;
+  final PiggyTone tone;
+  final IconData icon;
+
+  const _DailyAmount({
+    required this.label,
+    required this.amount,
+    required this.tone,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(PiggySpace.md),
+        decoration: BoxDecoration(
+          color: tone.background,
+          borderRadius: BorderRadius.circular(PiggyRadius.small),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 13, color: tone.foreground),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: PiggyType.caption,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: PiggySpace.sm),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                amount,
+                style: PiggyType.summaryAmount.copyWith(
+                  color: tone.foreground,
+                  fontSize: 19,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
 class PiggyCategoryIcon extends StatelessWidget {
   final IconData icon;
   final PiggyTone tone;
