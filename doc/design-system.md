@@ -9,7 +9,8 @@
 - 새 화면은 `lib/design_system/design_system.dart` 하나를 import한다.
 - 디자인 값의 원본: `lib/design_system/tokens.dart`.
 - Flutter 기본 컨트롤과 상태: `lib/design_system/theme.dart`.
-- 재사용 컴포넌트: `lib/design_system/components.dart`.
+- 재사용 컴포넌트의 공개 진입점: `lib/design_system/components.dart`.
+- 컴포넌트 구현: `lib/design_system/components/`의 역할별 파일. 화면에서는 개별 파일 대신 공개 진입점을 사용한다.
 - 실제 위젯을 보여주는 카탈로그: `lib/screens/design_system_screen.dart`.
 - 기존 `AppTheme`, `LedgerStyle`은 호환용 이름이다. 값을 별도로 복제하지 않는다.
 
@@ -83,6 +84,8 @@
 | `PiggyDailySummaryCard` | 선택 날짜와 해당 날짜의 수입·지출 통합 요약 |
 | `PiggyCategoryIcon` | 의미에 맞는 아이콘과 연한 배경 |
 | `PiggyAddButton` | 툴팁과 44 pt 터치 영역을 가진 추가 행동 |
+| `PiggyFloatingAddButton` | 목록 위에 놓이는 플로팅 추가 행동 |
+| `PiggySlideVisibility` | 레이아웃 크기를 바꾸지 않고 플로팅 UI를 숨기고 표시하는 전환 |
 | `PiggyDayMarker` | 기본·오늘·선택·다른 달의 시각적 상태 |
 | `PiggyTransactionRow` | 제목·보조 설명·부호 있는 금액·선택적 메뉴 |
 | `PiggyNavigationBar` | 반투명 블러 면·선택 탭·탭 전환 콜백 |
@@ -113,6 +116,8 @@ PiggyTransactionRow(
 ```
 
 화면에서는 Riverpod·저장·삭제 확인·날짜 선택·통화 포맷을 관리하고, 디자인 시스템은 표시와 콜백만 담당한다. 디자인 시스템 코드에서 API나 저장소에 접근하지 않는다.
+
+`components.dart`는 외부 import 경로를 고정하는 배럴 파일이다. 구현 파일은 `actions`, `calendar`, `motion`, `navigation`, `summary`, `surface`, `transaction`으로 나눈다. 화면에만 필요한 조합은 디자인 시스템에 넣지 않는다. 예를 들어 `ExpenseOverview`, `ExpenseFilterSheet`는 지출 기능의 상태와 문구를 아는 기능 위젯이므로 `lib/widgets/expense/`에 둔다.
 
 ## 5. 상태 규칙
 

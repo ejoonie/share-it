@@ -13,7 +13,7 @@ import 'screens/login_screen.dart';
 import 'screens/subscribe_screen.dart';
 import 'services/deep_link_service.dart';
 import 'theme/app_theme.dart';
-import 'widgets/bottom_nav_bar.dart';
+import 'widgets/main_navigation_shell.dart';
 
 class ShareItApp extends StatelessWidget {
   const ShareItApp({super.key});
@@ -337,7 +337,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: BottomNavBar(
+      body: MainNavigationShell(
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
       ),

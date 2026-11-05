@@ -15,7 +15,7 @@ import 'package:share_it/screens/expense_screen.dart';
 import 'package:share_it/storage/topic_filter_storage.dart';
 import 'package:share_it/theme/app_theme.dart';
 import 'package:share_it/theme/ledger_style.dart';
-import 'package:share_it/widgets/bottom_nav_bar.dart';
+import 'package:share_it/widgets/main_navigation_shell.dart';
 
 class PreviewNotifier extends ExpenseNotifier {
   PreviewNotifier(TopicFilterStorage storage, ExpenseState initial)
@@ -47,9 +47,8 @@ class _ExpenseChromeHarnessState extends State<ExpenseChromeHarness> {
                 child: const Icon(Icons.add_rounded),
               )
             : null,
-        bottomNavigationBar: visible
-            ? LedgerNavigationBar(currentIndex: 0, onTap: (_) {})
-            : null,
+        bottomNavigationBar:
+            visible ? AppNavigationBar(currentIndex: 0, onTap: (_) {}) : null,
       );
 }
 
