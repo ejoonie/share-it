@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 
-/// Sharable Piggy v1: warm surfaces, expressive accents, readable amounts.
+/// Sharable Piggy v1: clear white canvas, cheerful cards, readable amounts.
 abstract final class PiggyColors {
-  static const background = Color(0xFFFFFBF6);
+  static const background = Color(0xFFFFFFFF);
   static const surface = Colors.white;
-  static const ink = Color(0xFF303047);
-  static const secondary = Color(0xFF6D6A80);
-  static const muted = Color(0xFF9C97A7);
-  static const line = Color(0xFFEDE6E0);
-  static const accent = Color(0xFF5355D9);
-  static const accentSoft = Color(0xFFF0EDFF);
+  static const card = Color(0xFFF8F7FC);
+  static const ink = Color(0xFF252334);
+  static const secondary = Color(0xFF747080);
+  static const muted = Color(0xFFA39EAD);
+  static const line = Color(0xFFECEAF2);
+  static const accent = Color(0xFF5B57E8);
+  static const accentSoft = Color(0xFFF0EFFF);
   static const income = Color(0xFF3966CE);
-  static const incomeSoft = Color(0xFFEDF2FF);
+  static const incomeSoft = Color(0xFFEEF4FF);
   static const expense = Color(0xFFB9473E);
-  static const expenseSoft = Color(0xFFFFEEE5);
+  static const expenseSoft = Color(0xFFFFF0EA);
   // Feedback is independent of transaction type: spending is not an error.
   static const error = Color(0xFFB52D45);
   static const errorSoft = Color(0xFFFFEDEF);
@@ -27,7 +28,7 @@ enum PiggyTone {
   brand(PiggyColors.accent, PiggyColors.accentSoft),
   income(PiggyColors.income, PiggyColors.incomeSoft),
   expense(PiggyColors.expense, PiggyColors.expenseSoft),
-  neutral(PiggyColors.secondary, PiggyColors.background);
+  neutral(PiggyColors.secondary, PiggyColors.card);
 
   const PiggyTone(this.foreground, this.background);
   final Color foreground;

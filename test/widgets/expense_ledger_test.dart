@@ -156,7 +156,8 @@ void main() {
         tester.widget<Container>(find.byKey(ValueKey(keyFor(chosen))));
     final today = tester.widget<Container>(find.byKey(ValueKey(keyFor(now))));
     expect((selected.decoration! as BoxDecoration).color, LedgerStyle.accent);
-    expect((today.decoration! as BoxDecoration).border, isNotNull);
+    final todayBorder = (today.decoration! as BoxDecoration).border! as Border;
+    expect(todayBorder.top.color, LedgerStyle.expense);
     expect(find.text('−\$22'), findsOneWidget);
     expect(
       tester.widget<Text>(find.text('−\$22')).style!.color,
@@ -181,8 +182,11 @@ void main() {
       (tester) async {
     await mount(tester, size: const Size(320, 640), scale: 1.6);
     expect(tester.takeException(), isNull);
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
-    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Lunch with friends'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Lunch with friends'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await Scrollable.ensureVisible(

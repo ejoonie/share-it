@@ -86,7 +86,7 @@ abstract final class PiggyTheme {
       iconTheme: IconThemeData(color: PiggyColors.ink, size: 22),
     ),
     cardTheme: CardThemeData(
-      color: PiggyColors.surface,
+      color: PiggyColors.card,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       margin: EdgeInsets.zero,

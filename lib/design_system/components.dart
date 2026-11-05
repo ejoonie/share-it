@@ -152,7 +152,7 @@ class PiggyDayMarker extends StatelessWidget {
           color: selected ? PiggyColors.accent : Colors.transparent,
           shape: BoxShape.circle,
           border: today && !selected
-              ? Border.all(color: PiggyColors.accent, width: 1.2)
+              ? Border.all(color: PiggyColors.expense, width: 1.4)
               : null,
         ),
         child: FittedBox(
@@ -226,7 +226,7 @@ class PiggyTransactionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: PiggyColors.surface,
+        color: PiggyColors.card,
         borderRadius: BorderRadius.vertical(
           top: first ? const Radius.circular(PiggyRadius.card) : Radius.zero,
           bottom: last ? const Radius.circular(PiggyRadius.card) : Radius.zero,

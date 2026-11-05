@@ -9,6 +9,8 @@ void main() {
       (PiggyColors.ink, PiggyColors.background),
       (PiggyColors.secondary, PiggyColors.background),
       (PiggyColors.secondary, PiggyColors.surface),
+      (PiggyColors.ink, PiggyColors.card),
+      (PiggyColors.secondary, PiggyColors.card),
       (Colors.white, PiggyColors.accent),
       (PiggyColors.accent, PiggyColors.accentSoft),
       (PiggyColors.income, PiggyColors.incomeSoft),

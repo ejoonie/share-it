@@ -3,6 +3,7 @@ import '../design_system/tokens.dart';
 /// Compatibility names for ledger code. New screens import design_system.dart.
 abstract final class LedgerStyle {
   static const background = PiggyColors.background;
+  static const card = PiggyColors.card;
   static const ink = PiggyColors.ink;
   static const secondary = PiggyColors.secondary;
   static const muted = PiggyColors.muted;
