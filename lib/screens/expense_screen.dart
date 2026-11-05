@@ -360,14 +360,14 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(
                           PiggySpace.page,
-                          PiggySpace.md,
+                          PiggySpace.sm,
                           PiggySpace.page,
                           0,
                         ),
                         child: Column(
                           children: [
                             _DailySummary(state: state),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: PiggySpace.xs),
                             Row(
                               children: [
                                 const Expanded(
@@ -426,7 +426,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                               ],
                             ),
                             ExpenseCalendar(state: state),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: PiggySpace.sm),
                           ],
                         ),
                       ),

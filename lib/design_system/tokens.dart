@@ -40,7 +40,7 @@ abstract final class PiggySpace {
   static const sm = 8.0;
   static const md = 12.0;
   static const lg = 16.0;
-  static const page = 20.0;
+  static const page = 16.0;
   static const xl = 24.0;
   static const xxl = 32.0;
 }
@@ -58,7 +58,7 @@ abstract final class PiggySize {
   static const categoryTile = 38.0;
   static const categoryIcon = 19.0;
   static const dayMarker = 30.0;
-  static const calendarRow = 56.0;
+  static const calendarRow = 52.0;
   static const navigation = 64.0;
   static const contentMaxWidth = 640.0;
 }

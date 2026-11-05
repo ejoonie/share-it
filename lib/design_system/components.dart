@@ -101,7 +101,7 @@ class PiggyDailySummaryCard extends StatelessWidget {
         radius: PiggyRadius.summary,
         padding: const EdgeInsets.symmetric(
           horizontal: PiggySpace.lg,
-          vertical: 14,
+          vertical: PiggySpace.md,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -208,7 +208,7 @@ class _DailyAmount extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: PiggySpace.sm),
+          const SizedBox(height: PiggySpace.xs),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
@@ -385,9 +385,9 @@ class PiggyTransactionRow extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.fromLTRB(
                   14,
-                  PiggySpace.lg,
+                  PiggySpace.md,
                   trailing == null ? PiggySpace.lg : PiggySpace.xs,
-                  PiggySpace.lg,
+                  PiggySpace.md,
                 ),
                 child: Row(
                   children: [

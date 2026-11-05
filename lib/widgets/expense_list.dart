@@ -113,7 +113,7 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
           SliverToBoxAdapter(
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: PiggySpace.page),
-              padding: const EdgeInsets.only(top: 18, bottom: 12),
+              padding: const EdgeInsets.only(top: 12, bottom: 8),
               decoration: const BoxDecoration(
                 border: Border(top: BorderSide(color: LedgerStyle.line)),
               ),
@@ -143,7 +143,12 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
           if (items.isEmpty)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                padding: const EdgeInsets.fromLTRB(
+                  PiggySpace.page,
+                  PiggySpace.md,
+                  PiggySpace.page,
+                  PiggySpace.xl,
+                ),
                 child: Column(
                   children: [
                     Container(
