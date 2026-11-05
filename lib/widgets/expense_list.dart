@@ -8,6 +8,7 @@ import '../providers/core_providers.dart';
 import '../providers/expense_provider.dart';
 import '../models/expense_model.dart';
 import 'expense_form.dart';
+import '../screens/expense_detail_screen.dart';
 import 'topic_picker.dart';
 
 class ExpenseList extends ConsumerStatefulWidget {
@@ -279,7 +280,13 @@ class _ExpenseListTile extends ConsumerWidget {
       icon: _categoryIcon(),
       first: first,
       last: last,
-      onTap: () => _showEditForm(context),
+      onTap: expense.id == null
+          ? null
+          : () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ExpenseDetailScreen(expense: expense),
+                ),
+              ),
       trailing: PopupMenuButton<String>(
         tooltip: 'Transaction options',
         icon: const Icon(

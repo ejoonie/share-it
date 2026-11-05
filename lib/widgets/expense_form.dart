@@ -567,7 +567,7 @@ class _SelectionRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(label, style: PiggyType.metadata),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: PiggySpace.sm),
                     Text(
                       value,
                       maxLines: 1,
@@ -592,6 +592,25 @@ class _SelectionRow extends StatelessWidget {
         ),
       );
 }
+
+// Override every border state: collapsed decorations otherwise inherit the
+// app theme's outlines without the padding those outlines need.
+InputDecoration _inlineInputDecoration(String hintText) => InputDecoration(
+      hintText: hintText,
+      hintStyle: PiggyType.body.copyWith(
+        color: PiggyColors.secondary,
+        height: 1.5,
+      ),
+      filled: false,
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(vertical: PiggySpace.xs),
+      border: InputBorder.none,
+      enabledBorder: InputBorder.none,
+      focusedBorder: InputBorder.none,
+      disabledBorder: InputBorder.none,
+      errorBorder: InputBorder.none,
+      focusedErrorBorder: InputBorder.none,
+    );
 
 class _TextEntryRow extends StatelessWidget {
   final IconData icon;
@@ -625,14 +644,22 @@ class _TextEntryRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(label, style: PiggyType.metadata),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: PiggySpace.sm),
                   TextFormField(
                     controller: controller,
                     focusNode: focusNode,
                     maxLines: maxLines,
                     textInputAction: textInputAction,
-                    style: PiggyType.body.copyWith(fontWeight: FontWeight.w600),
-                    decoration: InputDecoration.collapsed(hintText: hintText),
+                    cursorColor: PiggyColors.accent,
+                    cursorWidth: 2,
+                    cursorRadius: const Radius.circular(1),
+                    textAlignVertical: TextAlignVertical.top,
+                    style: PiggyType.body.copyWith(
+                      fontWeight:
+                          maxLines > 1 ? FontWeight.w400 : FontWeight.w600,
+                      height: 1.5,
+                    ),
+                    decoration: _inlineInputDecoration(hintText),
                   ),
                 ],
               ),
@@ -663,13 +690,11 @@ class _CategoryEntryRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Category', style: PiggyType.metadata),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: PiggySpace.sm),
                   CategoryField(
                     controller: controller,
                     onEditingComplete: onEditingComplete,
-                    decoration: const InputDecoration.collapsed(
-                      hintText: 'Choose a category',
-                    ),
+                    decoration: _inlineInputDecoration('Choose a category'),
                   ),
                 ],
               ),
