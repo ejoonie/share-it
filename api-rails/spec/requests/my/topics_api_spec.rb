@@ -1,6 +1,42 @@
 require "rails_helper"
 
 RSpec.describe "MyTopics API", type: :request do
+  describe "followed piggy details" do
+    it "returns owner and follow date without granting owner access" do
+      viewer = users(:user_one)
+      topic = topics(:two)
+      follow = viewer.follow(topic)
+      get_json "/api/v1/my/topics/#{topic.id}", login_user: viewer
+      expect(response).to have_http_status(200)
+      expect(json_response["owner_name"]).to eq(topic.user.nick_name)
+      expect(json_response["is_owner"]).to eq(false)
+      expect(Time.parse(json_response["followed_at"])).to be_within(1.second).of(follow.followed_at)
+      get_json "/api/v1/my/topics/#{topic.id}/follows", login_user: viewer
+      expect(response).to have_http_status(404)
+    end
+
+    it "identifies the owner and prevents removing their own follow" do
+      topic = topics(:one)
+      viewer = users(:user_one)
+      get_json "/api/v1/my/topics/#{topic.id}", login_user: viewer
+      expect(json_response["is_owner"]).to eq(true)
+      expect {
+        delete_json "/api/v1/my/topics/subscribed/#{topic.id}", login_user: viewer
+      }.not_to change(TopicFollow, :count)
+      expect(response).to have_http_status(403)
+    end
+
+    it "revokes detail access after unfollowing" do
+      topic = topics(:two)
+      viewer = users(:user_one)
+      viewer.follow(topic)
+      delete_json "/api/v1/my/topics/subscribed/#{topic.id}", login_user: viewer
+      expect(response).to have_http_status(204)
+      get_json "/api/v1/my/topics/#{topic.id}", login_user: viewer
+      expect(response).to have_http_status(404)
+    end
+  end
+
   # GET /api/v1/my/topics/owned
   describe "GET /api/v1/my/topics/owned" do
     it "lists owned topics" do
@@ -17,6 +53,16 @@ RSpec.describe "MyTopics API", type: :request do
 
   # GET /api/v1/my/topics/subscribed
   describe "GET /api/v1/my/topics/subscribed" do
+    it "excludes deleted piggies from subscriptions" do
+      topic = topics(:two)
+      viewer = users(:user_one)
+      viewer.follow(topic)
+      topic.soft_delete!
+      get_json "/api/v1/my/topics/subscribed", login_user: viewer
+      expect(response).to have_http_status(200)
+      expect(json_response["records"].map { |record| record["topic"]["id"] }).not_to include(topic.id)
+    end
+
     it "lists subscribed topics" do
       topic = topics(:two)
 

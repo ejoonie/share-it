@@ -38,7 +38,7 @@ module V1
         # GET /api/v1/my/topics/subscribed
         desc '내가 구독하는 토픽 (notifications_enabled 포함)'
         get :subscribed do
-          follows = current_user.topic_follows.includes(:topic)
+          follows = current_user.topic_follows.joins(:topic).includes(:topic)
           paginated_list(follows, Entities::SubscriptionEntity)
         end
 
@@ -62,6 +62,7 @@ module V1
           topic = current_user.subscribed_topics.find_by(id: params[:id])
           error!({ message: 'Subscription not found' }, 404) if topic.nil?
 
+          error!({ message: 'You cannot unfollow your own piggy' }, 403) if topic.user_id == current_user.id
           current_user.unfollow(topic)
           status 204
         end
@@ -127,9 +128,12 @@ module V1
           # GET /api/v1/my/topics/:id
           desc '내 토픽 조회'
           get do
-            topic = current_user.topics.find_by(id: params[:id])
-            error!({ message: 'Topic not found' }, 404) if topic.nil?
-            present topic, with: Entities::TopicEntity
+            topic = Topic.find_by(id: params[:id])
+            follow = current_user.topic_follows.find_by(topic_id: params[:id])
+            unless topic && (topic.user_id == current_user.id || follow)
+              error!({ message: 'Topic not found' }, 404)
+            end
+            present topic, with: Entities::TopicDetailEntity, viewer: current_user, follow: follow
           end
 
           # PATCH /api/v1/my/topics/:id

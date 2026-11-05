@@ -190,6 +190,7 @@ class MainScreen extends ConsumerStatefulWidget {
 class _MainScreenState extends ConsumerState<MainScreen>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
+  String? _openInviteToken;
   final _deepLinkParser = const DeepLinkParser();
   late final DeepLinkService _deepLinkService;
   StreamSubscription<Uri>? _deepLinkSubscription;
@@ -247,11 +248,16 @@ class _MainScreenState extends ConsumerState<MainScreen>
 
     switch (_deepLinkParser.parse(uri)) {
       case TopicSubscriptionDestination(:final topicToken):
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => SubscribeScreen(topicToken: topicToken),
-          ),
-        );
+        if (_openInviteToken == topicToken) return;
+        _openInviteToken = topicToken;
+        try {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+                builder: (_) => SubscribeScreen(topicToken: topicToken)),
+          );
+        } finally {
+          _openInviteToken = null;
+        }
       case EntryDestination(:final topicId, :final entryId):
         setState(() => _currentIndex = 0);
         ref.read(selectedTopicIdProvider.notifier).state = topicId;

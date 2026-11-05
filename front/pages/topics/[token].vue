@@ -34,10 +34,6 @@ const config = useRuntimeConfig()
 const token = computed(() => String(route.params.token || ''))
 const iosStoreUrl = config.public.iosStoreUrl
 const androidStoreUrl = config.public.androidStoreUrl
-const storeUrl = computed(() => {
-  if (import.meta.server) return androidStoreUrl
-  return /iPhone|iPad|iPod/.test(navigator.userAgent) ? iosStoreUrl : androidStoreUrl
-})
 const deepLink = computed(() => `sharablepiggy://topics/${encodeURIComponent(token.value)}`)
 
 useHead(() => ({
@@ -49,20 +45,8 @@ useHead(() => ({
   ]
 }))
 
-let redirectTimer: ReturnType<typeof window.setTimeout> | null = null
-
 function openApp() {
+  // Store buttons stay explicit: returning from the app must not redirect to a store.
   window.location.href = deepLink.value
-  redirectTimer = window.setTimeout(() => {
-    redirectTimer = null
-    window.location.href = storeUrl.value
-  }, 1600)
 }
-
-onUnmounted(() => {
-  if (redirectTimer !== null) {
-    clearTimeout(redirectTimer)
-    redirectTimer = null
-  }
-})
 </script>

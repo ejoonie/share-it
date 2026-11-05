@@ -20,7 +20,15 @@ class TopicRepository {
     return TopicModel.fromJson(json);
   }
 
-  Future<TopicModel> update(int topicId, {String? title, bool? isDefault}) async {
+  Future<void> delete(int topicId) async {
+    await _apiClient.delete('/api/v1/my/topics/$topicId');
+  }
+
+  Future<TopicModel> update(
+    int topicId, {
+    String? title,
+    bool? isDefault,
+  }) async {
     final body = <String, dynamic>{};
     if (title != null) body['title'] = title;
     if (isDefault != null) body['is_default'] = isDefault;

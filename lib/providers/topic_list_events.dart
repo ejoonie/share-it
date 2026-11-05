@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core_providers.dart';
+import 'followed_piggies_provider.dart';
 import 'expense_provider.dart';
 
 /// 내가 소유/구독하는 토픽 목록이 바뀔 수 있는 모든 이벤트(구독, 구독 해제, 그리고
@@ -17,6 +18,7 @@ Future<void> notifyTopicListChanged(
   int? justSubscribedTopicId,
 }) async {
   ref.invalidate(myViewableTopicsProvider);
+  ref.invalidate(followedPiggiesProvider);
   if (justSubscribedTopicId != null) {
     await ref
         .read(expenseNotifierProvider.notifier)

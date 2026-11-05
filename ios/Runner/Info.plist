@@ -68,6 +68,12 @@
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
+        <key>FlutterDeepLinkingEnabled</key>
+        <false/>
+        <key>CFBundleURLTypes</key>
+        <array><dict><key>CFBundleURLSchemes</key><array><string>sharablepiggy</string></array></dict></array>
+        <key>NSPhotoLibraryAddUsageDescription</key>
+        <string>Save your Piggy QR code to Photos to share it with others.</string>
 		<key>NSCameraUsageDescription</key>
 		<string>Scan a QR code to subscribe to another user's shared expense tracker.</string>
 		<key>NSUserNotificationsUsageDescription</key>

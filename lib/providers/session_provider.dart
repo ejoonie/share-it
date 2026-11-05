@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
 import '../models/bootstrap_response.dart';
+import '../models/topic_model.dart';
 import '../repositories/session_repository.dart';
 import '../services/device_token_service.dart';
 import '../storage/token_storage.dart';
@@ -107,6 +108,19 @@ class SessionNotifier extends StateNotifier<SessionState> {
   Future<void> _loadData() async {
     final data = await _repository.loadData();
     state = state.copyWith(status: SessionStatus.ready, data: data);
+  }
+
+  void removeTopic(int topicId, {TopicModel? replacement}) {
+    final data = state.data;
+    if (data == null || data.topic?.id != topicId) return;
+    state = state.copyWith(
+      data: BootstrapResponse(
+        bootstrapCreated: data.bootstrapCreated,
+        user: data.user,
+        topic: replacement,
+        entries: const [],
+      ),
+    );
   }
 
   Future<void> setNotificationEnabled(bool enabled) async {

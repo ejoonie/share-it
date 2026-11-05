@@ -42,7 +42,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   SettingsNotifier(this._ref) : super(const SettingsState()) {
     loadMyPiggies();
-    loadSubscriptions();
   }
 
   Future<void> loadMyPiggies() async {
