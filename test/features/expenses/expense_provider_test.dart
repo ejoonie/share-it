@@ -43,6 +43,16 @@ class _StubEntryRepository extends EntryRepository {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('no repository settles without an indefinite loading state', () async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await TopicFilterStorage.create();
+    final notifier = ExpenseNotifier(null, storage);
+    addTearDown(notifier.dispose);
+    await notifier.load();
+    expect(notifier.state.isLoading, isFalse);
+    expect(notifier.state.monthlyExpenses, isEmpty);
+  });
+
   group('ExpenseNotifier.changeMonth - 선택된 날짜 유지 (이슈 요청)', () {
     late ExpenseNotifier notifier;
 

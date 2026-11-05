@@ -19,6 +19,8 @@ class ExpenseForm extends ConsumerStatefulWidget {
   final String timezone;
   final String? initialAmount;
   final ExpenseType? initialType;
+  final bool fullScreen;
+  final VoidCallback? onSaved;
 
   const ExpenseForm({
     super.key,
@@ -29,6 +31,8 @@ class ExpenseForm extends ConsumerStatefulWidget {
     this.timezone = 'America/New_York',
     this.initialAmount,
     this.initialType,
+    this.fullScreen = false,
+    this.onSaved,
   });
 
   @override
@@ -145,13 +149,18 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
     widget.expense == null
         ? notifier.addExpense(expense)
         : notifier.updateExpense(expense);
-    Navigator.pop(context);
+    if (widget.onSaved != null) {
+      widget.onSaved!();
+    } else {
+      Navigator.pop(context);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.expense != null;
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final bottomInset =
+        widget.fullScreen ? 0.0 : MediaQuery.viewInsetsOf(context).bottom;
     final topicsAsync = ref.watch(myViewableTopicsProvider);
     final topics = topicsAsync.valueOrNull ?? const <TopicModel>[];
     final selectedTopicId = _effectiveTopicId(topics);
@@ -159,142 +168,160 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
     final tone =
         _type == ExpenseType.income ? PiggyTone.income : PiggyTone.expense;
 
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.94,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+    final content = Column(
+      mainAxisSize: widget.fullScreen ? MainAxisSize.max : MainAxisSize.min,
+      children: [
+        if (!widget.fullScreen)
           _SheetHeader(
             title: isEditing ? 'Edit transaction' : 'New transaction',
             onClose: () => Navigator.pop(context),
           ),
-          Flexible(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
-                PiggySpace.page,
-                PiggySpace.sm,
-                PiggySpace.page,
-                PiggySpace.lg,
-              ),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _TransactionTypeSelector(
-                      value: _type,
-                      onChanged: (value) => setState(() => _type = value),
-                    ),
-                    const SizedBox(height: PiggySpace.md),
-                    _AmountPanel(
-                      controller: _amountController,
-                      tone: tone,
-                    ),
-                    const SizedBox(height: PiggySpace.xl),
-                    const _SectionLabel('DETAILS'),
-                    const SizedBox(height: PiggySpace.sm),
-                    PiggySurface(
-                      color: PiggyColors.card,
-                      padding: EdgeInsets.zero,
-                      child: Column(
-                        children: [
-                          topicsAsync.when(
-                            data: (availableTopics) => _SelectionRow(
-                              icon: Icons.savings_outlined,
-                              label: 'Topic',
-                              value: selectedTopic?.title ?? 'Choose a topic',
-                              valueColor: selectedTopic == null
-                                  ? PiggyColors.expense
-                                  : PiggyColors.ink,
-                              onTap: () => _pickTopic(availableTopics),
-                            ),
-                            loading: () => const _SelectionRow(
-                              icon: Icons.savings_outlined,
-                              label: 'Topic',
-                              value: 'Loading topics…',
-                              trailing: SizedBox.square(
-                                dimension: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
-                            error: (_, __) => _SelectionRow(
-                              icon: Icons.savings_outlined,
-                              label: 'Topic',
-                              value: 'Couldn’t load topics · Retry',
-                              valueColor: PiggyColors.error,
-                              onTap: () =>
-                                  ref.refresh(myViewableTopicsProvider),
-                            ),
-                          ),
-                          const _InsetDivider(),
-                          _SelectionRow(
-                            icon: Icons.calendar_today_outlined,
-                            label: 'Date',
-                            value: DateFormat(
-                              'EEE, MMM d, yyyy',
-                            ).format(_selectedDate),
-                            onTap: _pickDate,
-                          ),
-                          const _InsetDivider(),
-                          _TextEntryRow(
-                            icon: Icons.edit_outlined,
-                            label: 'Title',
-                            hintText: 'What was this for?',
-                            controller: _titleController,
-                          ),
-                          const _InsetDivider(),
-                          _CategoryEntryRow(
-                            controller: _categoryController,
-                            onEditingComplete: () =>
-                                _noteFocusNode.requestFocus(),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: PiggySpace.xl),
-                    const _SectionLabel('NOTE'),
-                    const SizedBox(height: PiggySpace.sm),
-                    PiggySurface(
-                      color: PiggyColors.card,
-                      padding: EdgeInsets.zero,
-                      child: _TextEntryRow(
-                        icon: Icons.notes_rounded,
-                        label: 'Note',
-                        hintText: 'Add a short note',
-                        controller: _contentController,
-                        focusNode: _noteFocusNode,
-                        maxLines: 3,
-                        textInputAction: TextInputAction.done,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
+        Flexible(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
               PiggySpace.page,
               PiggySpace.sm,
               PiggySpace.page,
-              bottomInset > 0 ? bottomInset + PiggySpace.sm : PiggySpace.lg,
+              PiggySpace.lg,
             ),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: topicsAsync.hasValue && selectedTopicId != null
-                    ? () => _submit(topics)
-                    : null,
-                child: Text(isEditing ? 'Save changes' : 'Add transaction'),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _TransactionTypeSelector(
+                    value: _type,
+                    onChanged: (value) => setState(() => _type = value),
+                  ),
+                  const SizedBox(height: PiggySpace.md),
+                  _AmountPanel(
+                    controller: _amountController,
+                    tone: tone,
+                  ),
+                  const SizedBox(height: PiggySpace.xl),
+                  const _SectionLabel('DETAILS'),
+                  const SizedBox(height: PiggySpace.sm),
+                  PiggySurface(
+                    color: PiggyColors.card,
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        topicsAsync.when(
+                          data: (availableTopics) => _SelectionRow(
+                            icon: Icons.savings_outlined,
+                            label: 'Topic',
+                            value: selectedTopic?.title ?? 'Choose a topic',
+                            valueColor: selectedTopic == null
+                                ? PiggyColors.expense
+                                : PiggyColors.ink,
+                            onTap: () => _pickTopic(availableTopics),
+                          ),
+                          loading: () => const _SelectionRow(
+                            icon: Icons.savings_outlined,
+                            label: 'Topic',
+                            value: 'Loading topics…',
+                            trailing: SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          ),
+                          error: (_, __) => _SelectionRow(
+                            icon: Icons.savings_outlined,
+                            label: 'Topic',
+                            value: 'Couldn’t load topics · Retry',
+                            valueColor: PiggyColors.error,
+                            onTap: () => ref.refresh(myViewableTopicsProvider),
+                          ),
+                        ),
+                        const _InsetDivider(),
+                        _SelectionRow(
+                          icon: Icons.calendar_today_outlined,
+                          label: 'Date',
+                          value: DateFormat(
+                            'EEE, MMM d, yyyy',
+                          ).format(_selectedDate),
+                          onTap: _pickDate,
+                        ),
+                        const _InsetDivider(),
+                        _TextEntryRow(
+                          icon: Icons.edit_outlined,
+                          label: 'Title',
+                          hintText: 'What was this for?',
+                          controller: _titleController,
+                        ),
+                        const _InsetDivider(),
+                        _CategoryEntryRow(
+                          controller: _categoryController,
+                          onEditingComplete: () =>
+                              _noteFocusNode.requestFocus(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: PiggySpace.xl),
+                  const _SectionLabel('NOTE'),
+                  const SizedBox(height: PiggySpace.sm),
+                  PiggySurface(
+                    color: PiggyColors.card,
+                    padding: EdgeInsets.zero,
+                    child: _TextEntryRow(
+                      icon: Icons.notes_rounded,
+                      label: 'Note',
+                      hintText: 'Add a short note',
+                      controller: _contentController,
+                      focusNode: _noteFocusNode,
+                      maxLines: 3,
+                      textInputAction: TextInputAction.done,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            PiggySpace.page,
+            PiggySpace.sm,
+            PiggySpace.page,
+            bottomInset > 0 ? bottomInset + PiggySpace.sm : PiggySpace.lg,
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: topicsAsync.hasValue && selectedTopicId != null
+                  ? () => _submit(topics)
+                  : null,
+              child: Text(
+                isEditing
+                    ? 'Save changes'
+                    : widget.fullScreen
+                        ? (_type == ExpenseType.income
+                            ? 'Add income'
+                            : 'Add expense')
+                        : 'Add transaction',
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+    if (widget.fullScreen) {
+      return Scaffold(
+        appBar: AppBar(
+          title:
+              Text(_type == ExpenseType.income ? 'Add Income' : 'Add Expense'),
+        ),
+        body: SafeArea(top: false, child: content),
+      );
+    }
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.94,
       ),
+      child: content,
     );
   }
 }
@@ -436,7 +463,7 @@ class _AmountPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'AMOUNT',
+              'AMOUNT (USD)',
               style: PiggyType.metadata.copyWith(
                 color: tone.foreground,
                 fontWeight: FontWeight.w700,
