@@ -17,7 +17,8 @@ default: &default
   encoding: unicode
   # For details on connection pooling, see Rails configuration guide
   # https://guides.rubyonrails.org/configuring.html#database-pooling
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  # Share the pool between Puma and Action Cable, with two spare connections.
+  pool: <%= [ENV.fetch("DB_POOL", 0).to_i, ENV.fetch("RAILS_MAX_THREADS", 3).to_i + ENV.fetch("CABLE_WORKER_POOL_SIZE", 4).to_i + 2].max %>
   host: localhost
   port: 5432
   username: postgres

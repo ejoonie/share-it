@@ -35,10 +35,15 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
   int? _cursor;
   EntryMessage? _editing;
   bool _loading = true;
+  bool _hasLoaded = false;
+  String? _draftBeforeEdit;
+  final _pendingIds = <int>{};
+  int _writeVersion = 0;
   bool _sending = false;
   bool _blocked = false;
   String? _error;
   bool _refreshPending = false;
+  bool _accessRecheckPending = false;
   bool _live = false;
   int _accessVersion = 0;
 
@@ -65,27 +70,103 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      setState(() {
+        _live = false;
+      });
       ref.invalidate(entryChatEventsProvider(_entryId));
       _requestRefresh();
     }
   }
 
-  void _requestRefresh() {
+  void _requestRefresh({bool recheckAccess = false}) {
+    _accessRecheckPending = _accessRecheckPending || recheckAccess;
     _refreshPending = true;
     _drainRefresh();
   }
 
   void _drainRefresh() {
-    if (!mounted || !_refreshPending || _loading || _sending || _blocked) {
+    if (!mounted ||
+        _loading ||
+        _sending ||
+        (_blocked && !_accessRecheckPending)) {
       return;
     }
-    _refreshPending = false;
-    _load(preserveHistory: true);
+    if (_refreshPending) {
+      _refreshPending = false;
+      _accessRecheckPending = false;
+      _load(preserveHistory: true);
+    } else if (_pendingIds.isNotEmpty) {
+      final id = _pendingIds.first;
+      _pendingIds.remove(id);
+      _syncMessage(id);
+    }
+  }
+
+  void _finishEditing() {
+    _editing = null;
+    _draft.text = _draftBeforeEdit ?? '';
+    _draftBeforeEdit = null;
+  }
+
+  bool _messageMissing(Object error) =>
+      error is ApiException &&
+      error.statusCode == 404 &&
+      error.code == 'message_not_found';
+
+  void _removeMessage(int id) {
+    _messages.removeWhere((item) => item.id == id);
+    if (_editing?.id == id) _finishEditing();
+  }
+
+  void _upsert(EntryMessage message) {
+    _messages.removeWhere((item) => item.id == message.id);
+    _messages.add(message);
+    _messages.sort((a, b) => b.id.compareTo(a.id));
+  }
+
+  Future<void> _syncMessage(int id) async {
+    final accessVersion = _accessVersion;
+    final writeVersion = _writeVersion;
+    setState(() {
+      _loading = true;
+    });
+    try {
+      final message = await _repository.get(_entryId, id);
+      if (!mounted || accessVersion != _accessVersion) return;
+      if (writeVersion != _writeVersion) {
+        _pendingIds.add(id);
+        return;
+      }
+      setState(() {
+        _upsert(message);
+      });
+    } catch (error) {
+      if (!mounted || accessVersion != _accessVersion) return;
+      if (writeVersion != _writeVersion) {
+        _pendingIds.add(id);
+        return;
+      }
+      setState(() {
+        if (_messageMissing(error)) {
+          _removeMessage(id);
+        } else {
+          _error = _failure(error);
+        }
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+        _drainRefresh();
+      }
+    }
   }
 
   String _failure(Object error) {
     if (error is ApiException) {
       if ([401, 403, 404].contains(error.statusCode)) {
+        _accessVersion++;
         _blocked = true;
         _messages = [];
         return 'This conversation is no longer available to you.';
@@ -99,6 +180,7 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
 
   Future<void> _load({bool older = false, bool preserveHistory = false}) async {
     final accessVersion = _accessVersion;
+    final writeVersion = _writeVersion;
     if (older && (_loading || _cursor == null)) return;
     setState(() {
       _loading = true;
@@ -114,7 +196,12 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
         records.addAll(page.messages);
       }
       if (!mounted || accessVersion != _accessVersion) return;
+      if (writeVersion != _writeVersion) {
+        _refreshPending = true;
+        return;
+      }
       setState(() {
+        _hasLoaded = true;
         _messages = older ? [..._messages, ...records] : records;
         _cursor = page.nextBeforeId;
         _blocked = false;
@@ -140,7 +227,7 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
     if (body.isEmpty ||
         body.runes.length > 2000 ||
         _sending ||
-        _loading ||
+        !_hasLoaded ||
         _blocked) {
       return;
     }
@@ -148,22 +235,21 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
       _sending = true;
       _error = null;
     });
+    final editing = _editing;
+    _writeVersion++;
     try {
-      final editing = _editing;
       final message = editing == null
           ? await _repository.send(_entryId, body)
           : await _repository.edit(_entryId, editing.id, body);
       if (!mounted || _blocked) return;
       setState(() {
+        _writeVersion++;
+        _upsert(message);
         if (editing == null) {
-          _messages.insert(0, message);
+          _draft.clear();
         } else {
-          _messages = _messages
-              .map((item) => item.id == message.id ? message : item)
-              .toList();
+          _finishEditing();
         }
-        _editing = null;
-        _draft.clear();
       });
       if (editing == null && _scroll.hasClients) {
         _scroll.animateTo(
@@ -175,7 +261,12 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
     } catch (error) {
       if (mounted) {
         setState(() {
-          _error = _failure(error);
+          if (_messageMissing(error) && editing != null) {
+            _removeMessage(editing.id);
+            _error = 'This message was deleted on another device.';
+          } else {
+            _error = _failure(error);
+          }
         });
       }
     } finally {
@@ -189,7 +280,7 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
   }
 
   Future<void> _messageActions(EntryMessage message) async {
-    if (_sending || _loading) return;
+    if (_sending || !_hasLoaded || _blocked) return;
     final action = await showPiggySheet<String>(
       context: context,
       builder: (context) => Column(
@@ -211,6 +302,7 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
     if (!mounted) return;
     if (action == 'edit') {
       setState(() {
+        _draftBeforeEdit ??= _draft.text;
         _editing = message;
         _draft.text = message.body;
       });
@@ -227,20 +319,22 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
       setState(() {
         _sending = true;
       });
+      _writeVersion++;
       try {
         await _repository.delete(_entryId, message.id);
         if (!mounted) return;
         setState(() {
-          _messages.removeWhere((item) => item.id == message.id);
-          if (_editing?.id == message.id) {
-            _editing = null;
-            _draft.clear();
-          }
+          _writeVersion++;
+          _removeMessage(message.id);
         });
       } catch (error) {
         if (mounted) {
           setState(() {
-            _error = _failure(error);
+            if (_messageMissing(error)) {
+              _removeMessage(message.id);
+            } else {
+              _error = _failure(error);
+            }
           });
         }
       } finally {
@@ -257,14 +351,23 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
   @override
   Widget build(BuildContext context) {
     ref.listen(entryChatEventsProvider(_entryId), (_, next) {
+      if (next.isLoading || next.hasError) {
+        setState(() {
+          _live = false;
+        });
+        return;
+      }
       final event = next.valueOrNull;
       if (event == null) return;
       setState(() {
-        _live = event == ChatEvent.connected ||
-            (event == ChatEvent.changed && _live);
+        _live =
+            event == ChatEvent.connected || (event.kind == 'changed' && _live);
       });
       if (event == ChatEvent.connected || event == ChatEvent.changed) {
-        _requestRefresh();
+        _requestRefresh(recheckAccess: event == ChatEvent.connected);
+      } else if (event.messageId != null) {
+        _pendingIds.add(event.messageId!);
+        _drainRefresh();
       }
       if (event == ChatEvent.denied) {
         setState(() {
@@ -449,7 +552,7 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
                               style: PiggyType.caption,
                             ),
                           ),
-                        if (_loading)
+                        if (_loading && !_hasLoaded)
                           const Padding(
                             padding: EdgeInsets.all(16),
                             child: CircularProgressIndicator(),
@@ -498,8 +601,7 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
                       onPressed: _sending
                           ? null
                           : () => setState(() {
-                                _editing = null;
-                                _draft.clear();
+                                _finishEditing();
                               }),
                       child: const Text('Cancel'),
                     ),
@@ -532,7 +634,7 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
                     builder: (context, value, _) => IconButton.filled(
                       tooltip:
                           _editing == null ? 'Send message' : 'Save message',
-                      onPressed: _loading ||
+                      onPressed: !_hasLoaded ||
                               _sending ||
                               _blocked ||
                               value.text.trim().isEmpty

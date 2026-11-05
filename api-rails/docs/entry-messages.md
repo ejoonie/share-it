@@ -36,6 +36,7 @@
 | --- | --- | --- |
 | GET | 기본 경로 | 200, 최신순 목록 |
 | POST | 기본 경로 | 201, 생성한 메시지 |
+| GET | 기본 경로 + `/{message_id}` | 200, 메시지 단건 (삭제됨: `404 code=message_not_found`) |
 | PATCH | 기본 경로 + `/{message_id}` | 200, 수정한 메시지 |
 | DELETE | 기본 경로 + `/{message_id}` | 204, 본문 없이 영구 삭제 |
 
@@ -84,13 +85,13 @@ POST/PATCH JSON:
 1. 인증된 앱이 `POST /api/v1/entries/{entry_id}/messages/connection_ticket`를 호출한다. 응답은 `201 {"ticket":"..."}`이며 기존 지출 접근 권한을 확인한다.
 2. 같은 API 호스트의 `/cable?ticket=...`에 연결한다(HTTPS이면 WSS). 티켓은 사용자·지출에 한정되고 1분 뒤 만료된다. 만료는 새 연결 수립에 적용된다.
 3. Action Cable의 welcome 이후 `{"command":"subscribe","identifier":"{\"channel\":\"EntryMessagesChannel\",\"entry_id\":42}"}`를 전송한다.
-4. `confirm_subscription` 이후 대화를 REST로 재조회한다. 서버가 `message: {"type":"changed"}`를 보내면 다시 조회한다.
+4. `confirm_subscription` 이후 대화를 REST로 재조회한다. 서버가 `message: {"type":"changed","message_id":101}`를 보내면 해당 메시지만 단건 조회한다. 삭제된 메시지는 `404 code=message_not_found`로 확인하고 해당 말풍선만 제거한다. 지출 접근 불가 404와 구분한다.
 
 메시지 생성·수정·삭제 트랜잭션 커밋 후 변경 신호를 전송한다. 본문은 전송하지 않으며 REST에서 최신 권한을 재검사한다. 채널도 신호를 전달할 때마다 사용자·구독·차단·Entry/Topic 삭제 여부를 확인한다. 권한이 사라지면 `access_revoked`를 보내고 스트림을 중단한다. 권한 변경 자체를 즉시 전파하는 기능은 없으며, 다음 변경 신호나 REST 요청 시 차단된다.
 
 Flutter 앱은 연결 끊김 시 1/2/4/8/16초 간격으로 새 티켓을 발급받아 재연결한다. 서버 heartbeat가 20초간 없을 때도 연결을 재시도한다. 앱 복귀 시 연결을 재생성한다. 연결 확인 시 이미 불러온 대화 범위를 재조회해 누락·수정·삭제를 복구하며, REST 쓰기와 동시에 발생한 이벤트는 쓰기 완료 후 합쳐 처리한다. 조회 중 도착한 이벤트도 후속 조회로 처리한다.
 
-화면은 연결 상태를 `Conversation · Live`로 표시한다. 이전 대화는 페이지로 추가 조회한다. 입력 중인 초안은 실시간 갱신 시에도 유지한다. POST 중복 방지 키, 푸시 알림, 입력 중 표시, 읽음 상태, 반응·첨부파일은 포함하지 않는다.
+화면은 연결 상태를 `Conversation · Live`로 표시한다. 이전 대화는 페이지로 추가 조회한다. 입력 중인 초안은 실시간 갱신 시에도 유지하며, 메시지 편집을 시작할 때 별도로 보관해 편집 취소·저장·편집 대상 삭제 시 복원한다. 백그라운드 조회 중에도 전송과 메시지 메뉴를 사용할 수 있다. POST 중복 방지 키, 푸시 알림, 입력 중 표시, 읽음 상태, 반응·첨부파일은 포함하지 않는다.
 
 ### 운영 설정
 
@@ -99,7 +100,7 @@ Flutter 앱은 연결 끊김 시 1/2/4/8/16초 간격으로 새 티켓을 발급
 - 네이티브 앱은 Origin 없이 서명 티켓으로 인증한다. 브라우저는 Rails의 기본 origin 검사를 유지한다. 별도 웹 호스트는 `CABLE_ALLOWED_ORIGINS=https://app.example.com`처럼 정확한 origin을 지정한다(쉼표로 복수 지정).
 - 운영 앱은 HTTPS/WSS를 사용한다. 티켓은 로그 필터에 등록했고 Nginx `/cable` 접근 로그는 비활성화했다. 앞단 로드밸런서/CDN도 티켓 쿼리를 기록하지 않도록 설정한다.
 - 방송 실패나 서버 재시작이 있어도 PostgreSQL에 저장된 메시지는 유지된다. 방송 실패로 이미 저장된 메시지 요청을 실패 처리하지 않는다. 방송은 영속 큐가 아니므로 이 경우 재연결/수동 새로고침 시 복구한다.
-- 서버·앱 코드와 의존성·프록시 설정을 함께 배포해야 한다. 이 변경 자체에 추가 DB 마이그레이션은 없지만 최초 채팅의 `CreateEntryMessages`는 적용되어 있어야 한다.
+- 서버·앱 코드와 의존성·프록시 설정을 함께 배포해야 한다. 이 PR은 `CreateEntryMessages` 마이그레이션을 추가한다. 배포 시 기존 `db:prepare` 시작 절차로 적용하며, 수동 실행 환경에서는 `db:migrate`를 먼저 실행해야 한다.
 
 참고: [Rails Action Cable](https://guides.rubyonrails.org/action_cable_overview.html), [Flutter WebSocket 라이브러리](https://pub.dev/packages/web_socket_channel).
 
@@ -113,3 +114,5 @@ bundle exec rails db:migrate
 RAILS_ENV=test bundle exec rails db:migrate
 bundle exec rspec spec/requests/entry_messages_api_spec.rb
 ```
+
+DB 풀은 최소 `RAILS_MAX_THREADS + CABLE_WORKER_POOL_SIZE + 2`개(기본 9개)를 확보한다. `DB_POOL`은 이 값보다 크게 지정할 수 있다. 채널 권한 검사는 join 기반 EXISTS 쿼리 한 번으로 수행한다. Entry/User 일괄 삭제는 FK cascade가 처리하며 메시지별 콜백·방송을 실행하지 않는다.

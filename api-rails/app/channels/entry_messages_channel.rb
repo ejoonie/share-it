@@ -15,10 +15,10 @@ class EntryMessagesChannel < ApplicationCable::Channel
   private
 
   def accessible?
-    return false unless User.exists?(id: current_user.id, token: current_user.token, is_guest: false)
-    entry = Entry.joins(:topic).find_by(id: chat_entry_id)
-    return false unless entry
-    follow = TopicFollow.find_by(user_id: current_user.id, topic_id: entry.topic_id)
-    follow.present? && !follow.permissions.include?('banned')
+    TopicFollow.joins(:user, topic: :entries)
+      .where(user_id: current_user.id, users: { token: current_user.token, is_guest: false })
+      .where(entries: { id: chat_entry_id })
+      .where.not("topic_follows.permissions @> ?::jsonb", '["banned"]')
+      .exists?
   end
 end

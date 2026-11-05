@@ -43,6 +43,9 @@ class EntryMessageRepository {
         ),
       );
 
+  Future<EntryMessage> get(int entryId, int messageId) async =>
+      EntryMessage.fromJson(await client.get('${_path(entryId)}/$messageId'));
+
   Future<EntryMessage> send(int entryId, String body) async =>
       EntryMessage.fromJson(await client.post(_path(entryId), {'body': body}));
 

@@ -71,19 +71,18 @@ void main() {
       'message': {'type': 'changed'},
     });
     socket.frame({
-      'message': {'type': 'changed'},
+      'message': {'type': 'changed', 'message_id': 9},
     });
     socket.frame({
       'message': {'type': 'access_revoked'},
     });
     await denied.future;
     expect(jsonDecode(socket.sink.sent.single)['command'], 'subscribe');
-    expect(events, [
-      ChatEvent.connected,
-      ChatEvent.changed,
-      ChatEvent.changed,
-      ChatEvent.denied,
-    ]);
+    expect(
+      events.map((event) => event.kind),
+      ['connected', 'changed', 'changed', 'denied'],
+    );
+    expect(events[2].messageId, 9);
     expect(socket.sink.closed, true);
     connection.dispose();
     await subscription.cancel();

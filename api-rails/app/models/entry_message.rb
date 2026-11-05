@@ -10,7 +10,7 @@ class EntryMessage < ApplicationRecord
 
   def broadcast_change
     # Invalidation only: clients fetch content through the authorized REST API.
-    ActionCable.server.broadcast("entry_chat_#{entry_id}", { type: 'changed' })
+    ActionCable.server.broadcast("entry_chat_#{entry_id}", { type: 'changed', message_id: id })
   rescue StandardError => error
     # A transport outage must not turn a committed write into a failed POST.
     Rails.logger.error("Chat broadcast failed: #{error.class}")

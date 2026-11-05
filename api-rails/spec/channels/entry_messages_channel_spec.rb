@@ -12,6 +12,16 @@ RSpec.describe EntryMessagesChannel, type: :channel do
     expect(subscription).to have_stream_from("entry_chat_#{entry.id}")
   end
 
+  it 'checks current access with one database query per delivery' do
+    subscribe(entry_id: entry.id)
+    queries = []
+    callback = ->(*args) { payload = args.last; queries << payload[:sql] unless payload[:name] == 'SCHEMA' }
+    ActiveSupport::Notifications.subscribed(callback, 'sql.active_record') do
+      expect(subscription.send(:accessible?)).to be(true)
+    end
+    expect(queries.grep(/SELECT/).size).to eq(1)
+  end
+
   it 'rejects a different entry than the signed ticket' do
     subscribe(entry_id: entries(:entry_two).id)
     expect(subscription).to be_rejected

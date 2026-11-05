@@ -14,7 +14,7 @@ module V1
 
       def own_message!
         message = chat_entry!.entry_messages.find_by(id: params[:message_id])
-        error!({ message: 'Message not found' }, 404) unless message
+        error!({ message: 'Message not found', code: 'message_not_found' }, 404) unless message
         error!({ message: 'Forbidden' }, 403) unless message.user_id == current_user.id
         message
       end
@@ -70,6 +70,13 @@ module V1
           end
 
           route_param :message_id, type: Integer do
+            desc '메시지 단건 조회 (현재 접근 권한 재검사)'
+            get do
+              message = chat_entry!.entry_messages.includes(:user).find_by(id: params[:message_id])
+              error!({ message: 'Message not found', code: 'message_not_found' }, 404) unless message
+              present message, with: Entities::EntryMessageEntity
+            end
+
             desc '본인 메시지 수정'
             params do
               requires :body, type: String, allow_blank: false

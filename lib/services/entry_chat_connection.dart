@@ -5,7 +5,16 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../api/api_client.dart';
 import '../providers/core_providers.dart';
 
-enum ChatEvent { connected, changed, offline, denied }
+class ChatEvent {
+  final String kind;
+  final int? messageId;
+  const ChatEvent._(this.kind, [this.messageId]);
+  static const connected = ChatEvent._('connected');
+  static const changed = ChatEvent._('changed');
+  static const offline = ChatEvent._('offline');
+  static const denied = ChatEvent._('denied');
+  const ChatEvent.message(int id) : this._('changed', id);
+}
 
 final entryChatEventsProvider =
     StreamProvider.autoDispose.family<ChatEvent, int>((ref, entryId) {
@@ -80,7 +89,11 @@ class EntryChatConnection {
               default:
                 final event = frame['message'];
                 if (event is Map && event['type'] == 'changed') {
-                  _events.add(ChatEvent.changed);
+                  _events.add(
+                    event['message_id'] is int
+                        ? ChatEvent.message(event['message_id'] as int)
+                        : ChatEvent.changed,
+                  );
                 }
                 if (event is Map && event['type'] == 'access_revoked') _deny();
             }

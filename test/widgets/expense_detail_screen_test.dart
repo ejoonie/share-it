@@ -135,6 +135,182 @@ void main() {
     await tester.pump();
   });
 
+  for (final operation in ['edit', 'delete']) {
+    testWidgets('missing message on $operation keeps conversation usable',
+        (tester) async {
+      await mount(tester, (request) async {
+        if (request.method == 'GET') {
+          return http.Response(
+            jsonEncode({
+              'records': [
+                message(2, 'Other message'),
+                message(1, 'Removed elsewhere'),
+              ],
+              'next_before_id': null,
+            }),
+            200,
+          );
+        }
+        return http.Response(
+          '{"message":"Message not found","code":"message_not_found"}',
+          404,
+        );
+      });
+      await tester.enterText(find.byType(TextField), 'Unsent draft');
+      await tester.longPress(find.text('Removed elsewhere'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.text(operation == 'edit' ? 'Edit message' : 'Delete message'),
+      );
+      await tester.pumpAndSettle();
+      if (operation == 'edit') {
+        await tester.enterText(find.byType(TextField), 'Revised');
+        await tester.pump();
+        await tester.tap(find.byTooltip('Save message'));
+      } else {
+        await tester.tap(find.text('Delete'));
+      }
+      await tester.pumpAndSettle();
+      expect(find.text('Other message'), findsOneWidget);
+      expect(find.text('Removed elsewhere'), findsNothing);
+      expect(tester.widget<TextField>(find.byType(TextField)).enabled, true);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'Unsent draft',
+      );
+      expect(
+        tester
+            .widget<IconButton>(
+              find.byWidgetPredicate(
+                (w) => w is IconButton && w.tooltip == 'Send message',
+              ),
+            )
+            .onPressed,
+        isNotNull,
+      );
+    });
+  }
+
+  testWidgets('cancel and successful edit restore the unsent draft',
+      (tester) async {
+    await mount(tester, (request) async {
+      if (request.method == 'GET') {
+        return http.Response(
+          jsonEncode({
+            'records': [message(1, 'Original')],
+            'next_before_id': null,
+          }),
+          200,
+        );
+      }
+      return http.Response(jsonEncode(message(1, 'Revised')), 200);
+    });
+    await tester.enterText(find.byType(TextField), 'Draft to preserve');
+    for (final cancel in [true, false]) {
+      await tester.longPress(find.text('Original'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit message'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Revised');
+      await tester.pump();
+      await tester
+          .tap(cancel ? find.text('Cancel') : find.byTooltip('Save message'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'Draft to preserve',
+      );
+    }
+  });
+
+  testWidgets('provider refresh does not replay previous Live event',
+      (tester) async {
+    final events = StreamController<ChatEvent>.broadcast();
+    await mount(
+      tester,
+      (_) async => http.Response('{"records":[],"next_before_id":null}', 200),
+      liveEvents: events.stream,
+    );
+    events.add(ChatEvent.connected);
+    await tester.pumpAndSettle();
+    expect(find.text('Conversation · Live'), findsOneWidget);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(find.text('Conversation · Live'), findsNothing);
+    events.add(ChatEvent.connected);
+    await tester.pumpAndSettle();
+    expect(find.text('Conversation · Live'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    unawaited(events.close());
+    await tester.pump();
+  });
+
+  testWidgets(
+      'changed ID fetches one message and permits sending during refresh',
+      (tester) async {
+    final events = StreamController<ChatEvent>();
+    final pending = Completer<http.Response>();
+    final gets = <String>[];
+    var delayed = true;
+    await mount(
+      tester,
+      (request) async {
+        if (request.method == 'POST') {
+          return http.Response(
+            jsonEncode(message(4, 'New local message')),
+            201,
+          );
+        }
+        gets.add(request.url.path);
+        if (request.url.path.endsWith('/3')) {
+          if (delayed) return pending.future;
+          return http.Response(
+            jsonEncode(message(3, 'Remote change', author: 2)),
+            200,
+          );
+        }
+        return http.Response(
+          jsonEncode({
+            'records': [message(2, 'Existing'), message(1, 'Older')],
+            'next_before_id': null,
+          }),
+          200,
+        );
+      },
+      liveEvents: events.stream,
+    );
+    events.add(const ChatEvent.message(3));
+    await tester.pump();
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'New local message');
+    await tester.pump();
+    expect(
+      tester
+          .widget<IconButton>(
+            find.byWidgetPredicate(
+              (w) => w is IconButton && w.tooltip == 'Send message',
+            ),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    await tester.tap(find.byTooltip('Send message'));
+    await tester.pumpAndSettle();
+    delayed = false;
+    pending.complete(
+      http.Response(jsonEncode(message(3, 'Remote change', author: 2)), 200),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('New local message'), findsOneWidget);
+    expect(find.text('Remote change'), findsOneWidget);
+    expect(find.text('Older'), findsOneWidget);
+    expect(gets.where((path) => path.endsWith('/messages')).length, 1);
+    await tester.pumpWidget(const SizedBox());
+    unawaited(events.close());
+    await tester.pump();
+  });
+
   testWidgets('sends a message, edits own message, then deletes it',
       (tester) async {
     final methods = <String>[];
