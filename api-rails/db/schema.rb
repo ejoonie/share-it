@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_01_000000) do
+ActiveRecord::Schema[7.2].define(version: 2026_11_05_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -45,6 +45,17 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_01_000000) do
     t.index ["deleted_at"], name: "index_entries_on_deleted_at"
     t.index ["topic_id"], name: "index_entries_on_topic_id"
     t.index ["updated_by_id"], name: "index_entries_on_updated_by_id"
+  end
+
+  create_table "entry_messages", force: :cascade do |t|
+    t.bigint "entry_id", null: false
+    t.bigint "user_id", null: false
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["entry_id", "id"], name: "index_entry_messages_on_entry_id_and_id"
+    t.index ["user_id"], name: "index_entry_messages_on_user_id"
+    t.check_constraint "char_length(body) >= 1 AND char_length(body) <= 2000", name: "entry_messages_body_length"
   end
 
   create_table "entry_reads", force: :cascade do |t|
@@ -106,6 +117,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_01_000000) do
   add_foreign_key "entries", "topics"
   add_foreign_key "entries", "users", column: "created_by_id"
   add_foreign_key "entries", "users", column: "updated_by_id"
+  add_foreign_key "entry_messages", "entries", on_delete: :cascade
+  add_foreign_key "entry_messages", "users", on_delete: :cascade
   add_foreign_key "entry_reads", "entries"
   add_foreign_key "entry_reads", "users"
   add_foreign_key "topic_follows", "topics"

@@ -316,14 +316,16 @@ class ExpenseNotifier extends StateNotifier<ExpenseState> {
     }
   }
 
-  Future<void> deleteExpense(int id) async {
+  Future<bool> deleteExpense(int id) async {
     final repo = _repository;
-    if (repo == null) return;
+    if (repo == null) return false;
     try {
       await repo.deleteExpense(id);
       await refresh();
+      return true;
     } catch (e) {
       state = state.copyWith(error: () => e.toString());
+      return false;
     }
   }
 

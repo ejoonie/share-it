@@ -8,8 +8,13 @@ import '../storage/token_storage.dart';
 class ApiException implements Exception {
   final int statusCode;
   final String message;
+  final String? code;
 
-  const ApiException({required this.statusCode, required this.message});
+  const ApiException({
+    required this.statusCode,
+    required this.message,
+    this.code,
+  });
 
   @override
   String toString() => 'ApiException($statusCode): $message';
@@ -129,6 +134,10 @@ class ApiClient {
         ? jsonDecode(response.body) as Map<String, dynamic>
         : <String, dynamic>{};
     final message = (body['message'] as String?) ?? 'Unknown error';
-    throw ApiException(statusCode: response.statusCode, message: message);
+    throw ApiException(
+      statusCode: response.statusCode,
+      message: message,
+      code: body['code'] as String?,
+    );
   }
 }

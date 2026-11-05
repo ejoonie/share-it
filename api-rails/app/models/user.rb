@@ -18,6 +18,7 @@ class User < ApplicationRecord
   has_many :updated_entries, class_name: 'Entry', foreign_key: 'updated_by_id'
   has_many :device_tokens, dependent: :destroy
   has_many :entry_reads, dependent: :destroy
+  has_many :entry_messages # Foreign key ON DELETE CASCADE handles bulk cleanup.
 
   def follow(topic)
     topic_follow = TopicFollow.find_or_initialize_by(topic: topic, user: self)

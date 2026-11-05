@@ -8,6 +8,7 @@ import '../providers/core_providers.dart';
 import '../providers/expense_provider.dart';
 import '../models/expense_model.dart';
 import 'expense_form.dart';
+import '../screens/expense_detail_screen.dart';
 import 'topic_picker.dart';
 
 class ExpenseList extends ConsumerStatefulWidget {
@@ -236,7 +237,7 @@ class _ExpenseListTile extends ConsumerWidget {
   });
 
   void _showEditForm(BuildContext context) {
-    showPiggySheet<void>(
+    showPiggySheet<bool>(
       context: context,
       builder: (_) => ExpenseForm(
         expense: expense,
@@ -247,18 +248,12 @@ class _ExpenseListTile extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showPiggyConfirmation(
-      context: context,
-      title: 'Delete this entry?',
-      message: 'This entry will be removed from your ledger.',
-      detail: expense.title.isEmpty ? 'No title' : expense.title,
-      confirmLabel: 'Delete',
-      icon: Icons.delete_outline_rounded,
-      destructive: true,
+  void _openChat(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ExpenseDetailScreen(expense: expense),
+      ),
     );
-    if (confirmed != true || !context.mounted) return;
-    ref.read(expenseNotifierProvider.notifier).deleteExpense(expense.id!);
   }
 
   @override
@@ -280,21 +275,11 @@ class _ExpenseListTile extends ConsumerWidget {
       first: first,
       last: last,
       onTap: () => _showEditForm(context),
-      trailing: PopupMenuButton<String>(
-        tooltip: 'Transaction options',
-        icon: const Icon(
-          Icons.more_horiz_rounded,
-          size: 18,
-          color: LedgerStyle.secondary,
-        ),
-        onSelected: (value) {
-          if (value == 'edit') _showEditForm(context);
-          if (value == 'delete') _confirmDelete(context, ref);
-        },
-        itemBuilder: (_) => const [
-          PopupMenuItem(value: 'edit', child: Text('Edit')),
-          PopupMenuItem(value: 'delete', child: Text('Delete')),
-        ],
+      trailing: IconButton(
+        tooltip: 'Open conversation',
+        icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
+        color: LedgerStyle.secondary,
+        onPressed: expense.id == null ? null : () => _openChat(context),
       ),
     );
   }
