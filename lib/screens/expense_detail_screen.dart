@@ -457,7 +457,7 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
     final userId = ref.watch(sessionNotifierProvider).data?.user?.id;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Transaction'),
+        title: const Text('Conversation'),
         actions: [
           IconButton(
             tooltip: 'Refresh conversation',
@@ -467,15 +467,18 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
           IconButton(
             tooltip: 'Edit transaction',
             icon: const Icon(Icons.edit_outlined),
-            onPressed: () => showPiggySheet<void>(
-              context: context,
-              builder: (_) => ExpenseForm(
-                expense: expense,
-                initYear: expense.occurredAt.year,
-                initMonth: expense.occurredAt.month,
-                initDay: expense.occurredAt.day,
-              ),
-            ),
+            onPressed: () async {
+              final deleted = await showPiggySheet<bool>(
+                context: context,
+                builder: (_) => ExpenseForm(
+                  expense: expense,
+                  initYear: expense.occurredAt.year,
+                  initMonth: expense.occurredAt.month,
+                  initDay: expense.occurredAt.day,
+                ),
+              );
+              if (deleted == true && context.mounted) Navigator.pop(context);
+            },
           ),
         ],
       ),
@@ -483,6 +486,67 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
         top: false,
         child: Column(
           children: [
+            if (MediaQuery.viewInsetsOf(context).bottom == 0)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: Color(0xFFEDECF2))),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 16,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          expense.title.isEmpty
+                              ? 'Untitled transaction'
+                              : expense.title,
+                          style: PiggyType.sectionTitle,
+                        ),
+                        Text(
+                          '${expense.isIncome ? '+' : '−'}${NumberFormat.currency(symbol: '\$', decimalDigits: 2).format(expense.amountInDollars)}',
+                          style: PiggyType.sectionTitle
+                              .copyWith(color: PiggyColors.accent),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      [
+                        DateFormat.yMMMd().format(expense.occurredAt),
+                        if (topic != null) topic.title,
+                        if (expense.category?.isNotEmpty == true)
+                          expense.category!,
+                      ].join(' · '),
+                      style: PiggyType.caption,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (expense.content?.isNotEmpty == true) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        expense.content!,
+                        style: PiggyType.caption,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Text(
+                      _live
+                          ? 'Conversation · Live'
+                          : (_blocked
+                              ? 'Conversation'
+                              : 'Conversation · Connecting…'),
+                      style: PiggyType.metadata,
+                    ),
+                  ],
+                ),
+              ),
             Expanded(
               child: CustomScrollView(
                 controller: _scroll,
@@ -491,61 +555,98 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 slivers: [
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
                           final message = _messages[index];
                           final mine = message.authorId == userId;
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 7),
-                            child: Align(
-                              alignment: mine
-                                  ? Alignment.centerRight
-                                  : Alignment.centerLeft,
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  maxWidth:
-                                      MediaQuery.sizeOf(context).width * .82,
+                          final date = message.createdAt.toLocal();
+                          final startsDay = index == _messages.length - 1 ||
+                              !DateUtils.isSameDay(
+                                date,
+                                _messages[index + 1].createdAt.toLocal(),
+                              );
+                          return Column(
+                            children: [
+                              if (startsDay)
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 16),
+                                  child: Row(
+                                    children: [
+                                      const Expanded(child: Divider()),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                        ),
+                                        child: Text(
+                                          DateFormat.yMMMd().format(date),
+                                          style: PiggyType.metadata,
+                                        ),
+                                      ),
+                                      const Expanded(child: Divider()),
+                                    ],
+                                  ),
                                 ),
-                                child: Material(
-                                  color: mine
-                                      ? PiggyColors.accentSoft
-                                      : PiggyColors.card,
-                                  borderRadius: BorderRadius.circular(18),
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(18),
-                                    onLongPress: mine
-                                        ? () => _messageActions(message)
-                                        : null,
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(14),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            mine ? 'You' : message.authorName,
-                                            style: PiggyType.label,
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4),
+                                child: Align(
+                                  alignment: mine
+                                      ? Alignment.centerRight
+                                      : Alignment.centerLeft,
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxWidth:
+                                          MediaQuery.sizeOf(context).width *
+                                              .82,
+                                    ),
+                                    child: Material(
+                                      color: mine
+                                          ? PiggyColors.accentSoft
+                                          : PiggyColors.card,
+                                      borderRadius: BorderRadius.circular(18),
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(18),
+                                        onLongPress: mine
+                                            ? () => _messageActions(message)
+                                            : null,
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 10,
                                           ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            message.body,
-                                            style: PiggyType.body
-                                                .copyWith(height: 1.5),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              if (!mine) ...[
+                                                Text(
+                                                  message.authorName,
+                                                  style: PiggyType.label,
+                                                ),
+                                                const SizedBox(height: 4),
+                                              ],
+                                              Text(
+                                                message.body,
+                                                style: PiggyType.body
+                                                    .copyWith(height: 1.5),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                '${DateFormat('h:mm a').format(message.createdAt.toLocal())}${message.updatedAt.isAfter(message.createdAt) ? ' · Edited' : ''}',
+                                                style: PiggyType.metadata,
+                                              ),
+                                            ],
                                           ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            '${DateFormat('MMM d, h:mm a').format(message.createdAt.toLocal())}${message.updatedAt.isAfter(message.createdAt) ? ' · Edited' : ''}',
-                                            style: PiggyType.metadata,
-                                          ),
-                                        ],
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
+                            ],
                           );
                         },
                         childCount: _messages.length,
@@ -555,62 +656,6 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
                   SliverToBoxAdapter(
                     child: Column(
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: PiggySurface(
-                            color: expense.isIncome
-                                ? PiggyColors.accentSoft
-                                : PiggyColors.card,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  expense.title.isEmpty
-                                      ? 'Untitled transaction'
-                                      : expense.title,
-                                  style: PiggyType.pageTitle,
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  '${expense.isIncome ? '+' : '−'}${NumberFormat.currency(symbol: '\$', decimalDigits: 2).format(expense.amountInDollars)}',
-                                  style: PiggyType.summaryAmount,
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  [
-                                    DateFormat.yMMMd()
-                                        .format(expense.occurredAt),
-                                    if (topic != null) topic.title,
-                                    if (expense.category?.isNotEmpty == true)
-                                      expense.category!,
-                                  ].join(' · '),
-                                  style: PiggyType.caption,
-                                ),
-                                if (expense.content?.isNotEmpty == true) ...[
-                                  const SizedBox(height: 12),
-                                  Text(expense.content!, style: PiggyType.body),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
-                          ),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              _live
-                                  ? 'Conversation · Live'
-                                  : (_blocked
-                                      ? 'Conversation'
-                                      : 'Conversation · Connecting…'),
-                              style: PiggyType.sectionTitle,
-                            ),
-                          ),
-                        ),
                         if (_messages.isEmpty && !_loading && _error == null)
                           const Padding(
                             padding: EdgeInsets.all(24),
@@ -693,6 +738,18 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
                       decoration: const InputDecoration(
                         hintText: 'Write a message…',
                         counterText: '',
+                        filled: true,
+                        fillColor: PiggyColors.card,
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(24)),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(24)),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
                     ),
                   ),

@@ -40,6 +40,7 @@ class ExpenseForm extends ConsumerStatefulWidget {
 }
 
 class _ExpenseFormState extends ConsumerState<ExpenseForm> {
+  bool _deleting = false;
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
   late final TextEditingController _amountController;
@@ -108,6 +109,41 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
     );
     if (picked != null && mounted) {
       setState(() => _selectedTopicId = picked.id);
+    }
+  }
+
+  Future<void> _delete() async {
+    final expense = widget.expense;
+    if (expense?.id == null || _deleting) return;
+    final confirmed = await showPiggyConfirmation(
+      context: context,
+      title: 'Delete this transaction?',
+      message:
+          'This transaction and its conversation will no longer be accessible.',
+      detail: expense!.title.isEmpty ? 'Untitled transaction' : expense.title,
+      confirmLabel: 'Delete',
+      icon: Icons.delete_outline_rounded,
+      destructive: true,
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _deleting = true;
+    });
+    final deleted = await ref
+        .read(expenseNotifierProvider.notifier)
+        .deleteExpense(expense.id!);
+    if (!mounted) return;
+    setState(() {
+      _deleting = false;
+    });
+    if (deleted) {
+      Navigator.pop(context, true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Couldn’t delete this transaction. Please try again.'),
+        ),
+      );
     }
   }
 
@@ -276,6 +312,18 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
                       textInputAction: TextInputAction.done,
                     ),
                   ),
+                  if (isEditing && widget.expense?.id != null) ...[
+                    const SizedBox(height: PiggySpace.lg),
+                    TextButton.icon(
+                      onPressed: _deleting ? null : _delete,
+                      style: TextButton.styleFrom(
+                        foregroundColor: PiggyColors.error,
+                      ),
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      label:
+                          Text(_deleting ? 'Deleting…' : 'Delete transaction'),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -291,9 +339,10 @@ class _ExpenseFormState extends ConsumerState<ExpenseForm> {
           child: SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: topicsAsync.hasValue && selectedTopicId != null
-                  ? () => _submit(topics)
-                  : null,
+              onPressed:
+                  !_deleting && topicsAsync.hasValue && selectedTopicId != null
+                      ? () => _submit(topics)
+                      : null,
               child: Text(
                 isEditing
                     ? 'Save changes'
@@ -422,17 +471,19 @@ class _TypeOption extends StatelessWidget {
               horizontal: PiggySpace.md,
               vertical: PiggySpace.md,
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: PiggySpace.sm,
               children: [
                 Icon(
                   selected ? Icons.check_rounded : icon,
                   size: 18,
                   color: selected ? tone.foreground : PiggyColors.secondary,
                 ),
-                const SizedBox(width: PiggySpace.sm),
                 Text(
                   label,
+                  textAlign: TextAlign.center,
                   style: PiggyType.itemTitle.copyWith(
                     color: selected ? tone.foreground : PiggyColors.secondary,
                   ),

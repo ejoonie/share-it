@@ -16,8 +16,17 @@ import 'package:share_it/storage/topic_filter_storage.dart';
 import 'package:share_it/theme/app_theme.dart';
 import 'package:share_it/theme/ledger_style.dart';
 import 'package:share_it/widgets/main_navigation_shell.dart';
+import 'package:share_it/widgets/expense_form.dart';
 
 class PreviewNotifier extends ExpenseNotifier {
+  bool deletionSucceeds = true;
+  final deletedIds = <int>[];
+  @override
+  Future<bool> deleteExpense(int id) async {
+    deletedIds.add(id);
+    return deletionSucceeds;
+  }
+
   PreviewNotifier(TopicFilterStorage storage, ExpenseState initial)
       : super(null, storage) {
     state = initial;
@@ -94,7 +103,7 @@ void main() {
     },
   );
 
-  Future<void> mount(
+  Future<PreviewNotifier> mount(
     WidgetTester tester, {
     Size size = const Size(402, 874),
     double scale = 1,
@@ -107,6 +116,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     SharedPreferences.setMockInitialValues({});
     final storage = await TopicFilterStorage.create();
+    final notifier = PreviewNotifier(storage, state ?? fixture);
     final fontPath = Platform.environment['LEDGER_PREVIEW_FONT'];
     if (fontPath != null) {
       await tester.runAsync(() async {
@@ -133,7 +143,7 @@ void main() {
       ProviderScope(
         overrides: [
           expenseNotifierProvider.overrideWith(
-            (ref) => PreviewNotifier(storage, state ?? fixture),
+            (ref) => notifier,
           ),
           myViewableTopicsProvider.overrideWith(
             (ref) async => noPiggies
@@ -171,6 +181,40 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    return notifier;
+  }
+
+  for (final succeeds in [true, false]) {
+    testWidgets(
+        'row opens edit and deletion ${succeeds ? 'closes on success' : 'stays on failure'}',
+        (tester) async {
+      final notifier = await mount(tester);
+      notifier.deletionSucceeds = succeeds;
+      expect(find.byTooltip('Transaction options'), findsNothing);
+      expect(find.byTooltip('Edit transaction'), findsNothing);
+      expect(find.byTooltip('Open conversation'), findsWidgets);
+      await tester.tap(find.text('Lunch with friends'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ExpenseForm), findsOneWidget);
+      await tester.ensureVisible(find.text('Delete transaction'));
+      await tester.tap(find.text('Delete transaction'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(notifier.deletedIds, isEmpty);
+      await tester.tap(find.text('Delete transaction'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      expect(notifier.deletedIds, [1]);
+      expect(
+        find.byType(ExpenseForm),
+        succeeds ? findsNothing : findsOneWidget,
+      );
+      if (!succeeds) {
+        expect(find.textContaining('Couldn’t delete'), findsOneWidget);
+      }
+    });
   }
 
   testWidgets('no piggies replaces a stuck loader with a working create action',
@@ -259,14 +303,14 @@ void main() {
     expect(find.text('Lunch with friends'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await Scrollable.ensureVisible(
-      tester.element(find.byTooltip('Transaction options').first),
+      tester.element(find.text('Lunch with friends')),
       alignment: 0.5,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Transaction options').first);
+    await tester.tap(find.text('Lunch with friends'));
     await tester.pumpAndSettle();
-    expect(find.text('Edit'), findsOneWidget);
-    expect(find.text('Delete'), findsOneWidget);
+    expect(find.byType(ExpenseForm), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
