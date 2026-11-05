@@ -40,6 +40,13 @@ class _ExpenseChromeHarnessState extends State<ExpenseChromeHarness> {
           chromeVisible: visible,
           onChromeVisibilityChanged: (next) => setState(() => visible = next),
         ),
+        floatingActionButton: visible
+            ? FloatingActionButton(
+                tooltip: 'Add transaction',
+                onPressed: () {},
+                child: const Icon(Icons.add_rounded),
+              )
+            : null,
         bottomNavigationBar: visible
             ? LedgerNavigationBar(currentIndex: 0, onTap: (_) {})
             : null,

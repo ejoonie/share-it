@@ -12,7 +12,6 @@ import '../models/topic_model.dart';
 import '../widgets/expense_calendar.dart';
 import '../widgets/expense_list.dart';
 import '../widgets/summary_drawer.dart';
-import 'amount_entry_screen.dart';
 
 class ExpenseScreen extends ConsumerStatefulWidget {
   final bool chromeVisible;
@@ -200,19 +199,6 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
     );
   }
 
-  void _showAddExpenseForm(int year, int month, int day) {
-    Navigator.push<void>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AmountEntryScreen(
-          initYear: year,
-          initMonth: month,
-          initDay: day,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(expenseNotifierProvider);
@@ -305,35 +291,6 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
           ),
           const SizedBox(width: 8),
         ],
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      floatingActionButton: IgnorePointer(
-        ignoring: !widget.chromeVisible,
-        child: AnimatedPadding(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          padding: EdgeInsets.only(
-            bottom: widget.chromeVisible ? PiggySize.navigation + 12 : 0,
-          ),
-          child: AnimatedSlide(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            offset: widget.chromeVisible ? Offset.zero : const Offset(0, 1.4),
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 160),
-              opacity: widget.chromeVisible ? 1 : 0,
-              child: FloatingActionButton(
-                heroTag: 'expense_add_fab',
-                tooltip: 'Add transaction',
-                elevation: 3,
-                highlightElevation: 1,
-                onPressed: () =>
-                    _showAddExpenseForm(state.year, state.month, state.day),
-                child: const Icon(Icons.add_rounded, size: 27),
-              ),
-            ),
-          ),
-        ),
       ),
       body: state.isLoading
           ? const Center(

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/expense_provider.dart';
+import '../screens/amount_entry_screen.dart';
 import '../screens/expense_screen.dart';
 import '../design_system/design_system.dart';
 import '../screens/settings_screen.dart';
 import '../screens/share_screen.dart';
 
-class BottomNavBar extends StatefulWidget {
+class BottomNavBar extends ConsumerStatefulWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
@@ -16,10 +19,10 @@ class BottomNavBar extends StatefulWidget {
   });
 
   @override
-  State<BottomNavBar> createState() => _BottomNavBarState();
+  ConsumerState<BottomNavBar> createState() => _BottomNavBarState();
 }
 
-class _BottomNavBarState extends State<BottomNavBar> {
+class _BottomNavBarState extends ConsumerState<BottomNavBar> {
   bool _chromeVisible = true;
 
   @override
@@ -40,6 +43,19 @@ class _BottomNavBarState extends State<BottomNavBar> {
     widget.onTap(index);
   }
 
+  void _showAddExpenseForm() {
+    final state = ref.read(expenseNotifierProvider);
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => AmountEntryScreen(
+          initYear: state.year,
+          initMonth: state.month,
+          initDay: state.day,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -55,6 +71,29 @@ class _BottomNavBarState extends State<BottomNavBar> {
           const SettingsScreen(),
         ],
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: widget.currentIndex == 0
+          ? IgnorePointer(
+              ignoring: !_chromeVisible,
+              child: AnimatedSlide(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                offset: _chromeVisible ? Offset.zero : const Offset(0, 1.4),
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 160),
+                  opacity: _chromeVisible ? 1 : 0,
+                  child: FloatingActionButton(
+                    heroTag: 'expense_add_fab',
+                    tooltip: 'Add transaction',
+                    elevation: 3,
+                    highlightElevation: 1,
+                    onPressed: _showAddExpenseForm,
+                    child: const Icon(Icons.add_rounded, size: 27),
+                  ),
+                ),
+              ),
+            )
+          : null,
       bottomNavigationBar: IgnorePointer(
         ignoring: !_chromeVisible,
         child: AnimatedSlide(
