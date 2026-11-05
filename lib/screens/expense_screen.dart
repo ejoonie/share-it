@@ -72,6 +72,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      showDragHandle: true,
       builder: (_) => const ExpenseFilterSheet(),
     );
   }
