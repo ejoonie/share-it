@@ -102,13 +102,18 @@ class ShareBody extends ConsumerWidget {
                               title: Text(item.topic.title),
                               subtitle: const Text('Following'),
                               trailing: const Icon(Icons.chevron_right),
-                              onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => TopicDetailScreen(
-                                    topicId: item.topic.id,
+                              onTap: () async {
+                                await Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => TopicDetailScreen(
+                                      topicId: item.topic.id,
+                                    ),
                                   ),
-                                ),
-                              ),
+                                );
+                                if (context.mounted) {
+                                  ref.invalidate(followedPiggiesProvider);
+                                }
+                              },
                             ),
                           ),
                         )

@@ -8,12 +8,15 @@ import 'package:share_it/services/device_token_service.dart';
 import 'navigation/deep_link_parser.dart';
 import 'providers/core_providers.dart';
 import 'providers/expense_provider.dart';
+import 'providers/followed_piggies_provider.dart';
 import 'providers/session_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/subscribe_screen.dart';
 import 'services/deep_link_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/main_navigation_shell.dart';
+import 'widgets/auth_step_layout.dart';
+import 'design_system/tokens.dart';
 
 class ShareItApp extends StatelessWidget {
   const ShareItApp({super.key});
@@ -94,85 +97,53 @@ class _UnauthorizedScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    const mint = Color(0xFF3dbfa8);
     return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text('Sharable Piggy', style: PiggyType.label),
+      ),
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.lock_outline,
-                  size: 56,
-                  color: Color(0xFF3dbfa8),
+        child: AuthStepLayout(
+          icon: Icons.lock_outline_rounded,
+          title: 'Sign in again',
+          subtitle:
+              'Your session has ended. Sign in to return to your piggies, or start a guest session.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
                 ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Session expired',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                onPressed: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  );
+                  if (context.mounted) {
+                    ref.read(sessionNotifierProvider.notifier).reload();
+                  }
+                },
+                child: const Text('Sign in'),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                style: TextButton.styleFrom(
+                  backgroundColor: PiggyColors.card,
+                  foregroundColor: PiggyColors.ink,
+                  minimumSize: const Size.fromHeight(52),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Please sign in again or continue as a guest.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const LoginScreen(),
-                        ),
-                      );
-                      // 로그인 성공 후 데이터 리프레시
-                      if (context.mounted) {
-                        ref.read(sessionNotifierProvider.notifier).reload();
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: mint,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Sign In',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: OutlinedButton(
-                    onPressed: () {
-                      ref
-                          .read(sessionNotifierProvider.notifier)
-                          .continueAsGuest();
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.grey.shade300),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Continue as Guest',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+                onPressed: () => ref
+                    .read(sessionNotifierProvider.notifier)
+                    .continueAsGuest(),
+                child: const Text('Continue as guest'),
+              ),
+            ],
           ),
         ),
       ),
@@ -253,7 +224,8 @@ class _MainScreenState extends ConsumerState<MainScreen>
         try {
           await Navigator.of(context).push(
             MaterialPageRoute(
-                builder: (_) => SubscribeScreen(topicToken: topicToken)),
+              builder: (_) => SubscribeScreen(topicToken: topicToken),
+            ),
           );
         } finally {
           _openInviteToken = null;
@@ -289,6 +261,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
     if (index == 0) {
       ref.read(expenseNotifierProvider.notifier).load();
     } else if (index == 1) {
+      ref.invalidate(followedPiggiesProvider);
       _promptForNotificationPermission(); // share tab 처음 진입할때
     } else if (index == 2) {
       // Settings data is managed by settingsNotifierProvider (autoDispose).

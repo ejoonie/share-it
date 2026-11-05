@@ -76,7 +76,7 @@ void main() {
         expect(deletes, 0);
         await tester.tap(find.text('Delete piggy'));
         await tester.pumpAndSettle();
-        await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
         await tester.pumpAndSettle();
         expect(deletes, 1);
         expect(find.text('Open'), findsOneWidget);

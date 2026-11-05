@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../models/topic_model.dart';
+import '../design_system/tokens.dart';
 import '../providers/settings_provider.dart';
 import '../providers/topic_detail_provider.dart';
 import 'topic_edit_screen.dart';
@@ -37,39 +38,113 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
     if (!mounted) return;
     setState(() => _unfollowing = false);
     if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Could not update follow status. Please try again.'),
-      ),);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not update follow status. Please try again.'),
+        ),
+      );
     } else if (following) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Unfollowed ${topic.title}'),
-        action: SnackBarAction(
-            label: 'Undo', onPressed: () => _toggleFollow(topic, undo: true),),
-      ),);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unfollowed ${topic.title}'),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () => _toggleFollow(topic, undo: true),
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _delete(TopicModel topic) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete ${topic.title}?'),
-        content: const Text(
-          'This piggy and its entries will no longer be available to you or its followers. This cannot be undone in the app.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        backgroundColor: PiggyColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                      color: PiggyColors.errorSoft,
+                      borderRadius: BorderRadius.circular(14),),
+                  child: const Icon(Icons.delete_outline_rounded,
+                      color: PiggyColors.error, size: 23,),
+                ),
+                const SizedBox(height: 18),
+                Semantics(
+                    namesRoute: true,
+                    header: true,
+                    child: const Text('Delete this piggy?',
+                        style: PiggyType.pageTitle,),),
+                const SizedBox(height: 10),
+                Text(topic.title,
+                    style: PiggyType.itemTitle,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,),
+                const SizedBox(height: 8),
+                const Text(
+                    'You and your followers will lose access to this piggy and its entries.',
+                    style: TextStyle(
+                        fontSize: 14,
+                        height: 1.5,
+                        color: PiggyColors.secondary,),),
+                const SizedBox(height: 8),
+                const Text('You can’t undo this in the app.',
+                    style: PiggyType.caption,),
+                const SizedBox(height: 24),
+                LayoutBuilder(builder: (context, constraints) {
+                  final cancel = TextButton(
+                    style: TextButton.styleFrom(
+                      backgroundColor: PiggyColors.card,
+                      foregroundColor: PiggyColors.ink,
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),),
+                      textStyle: PiggyType.itemTitle,
+                    ),
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  );
+                  final delete = FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: PiggyColors.error,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(48),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12,),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),),
+                      textStyle: PiggyType.itemTitle,
+                    ),
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Delete'),
+                  );
+                  if (MediaQuery.textScalerOf(context).scale(14) > 20 ||
+                      constraints.maxWidth < 240) {
+                    return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [delete, const SizedBox(height: 10), cancel],);
+                  }
+                  return Row(children: [
+                    Expanded(child: cancel),
+                    const SizedBox(width: 12),
+                    Expanded(child: delete),
+                  ],);
+                },),
+              ],
             ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
           ),
-        ],
+        ),
       ),
     );
     if (confirmed != true || !mounted) return;
@@ -176,11 +251,13 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     ListTile(
                       leading: const Icon(Icons.calendar_today_outlined),
-                      title: Text(topic.isOwner
-                          ? 'Created'
-                          : (state.isFollowing
-                              ? 'Followed on'
-                              : 'Previously followed on'),),
+                      title: Text(
+                        topic.isOwner
+                            ? 'Created'
+                            : (state.isFollowing
+                                ? 'Followed on'
+                                : 'Previously followed on'),
+                      ),
                       subtitle: Text(
                         _date(
                           topic.isOwner
@@ -234,7 +311,9 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
                 OutlinedButton.icon(
                   onPressed: _deleting ? null : () => _delete(topic),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.error,
+                    foregroundColor: PiggyColors.error,
+                    side: const BorderSide(color: PiggyColors.errorSoft),
+                    backgroundColor: PiggyColors.errorSoft,
                   ),
                   icon: const Icon(Icons.delete_outline),
                   label: Text(_deleting ? 'Deleting…' : 'Delete piggy'),
@@ -254,12 +333,16 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Icon(state.isFollowing
-                          ? Icons.person_remove_outlined
-                          : Icons.person_add_outlined,),
-                  label: Text(_unfollowing
-                      ? 'Updating…'
-                      : (state.isFollowing ? 'Unfollow' : 'Follow'),),
+                      : Icon(
+                          state.isFollowing
+                              ? Icons.person_remove_outlined
+                              : Icons.person_add_outlined,
+                        ),
+                  label: Text(
+                    _unfollowing
+                        ? 'Updating…'
+                        : (state.isFollowing ? 'Unfollow' : 'Follow'),
+                  ),
                 ),
               ],
             ],
