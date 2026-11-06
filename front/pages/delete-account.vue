@@ -4,7 +4,7 @@
     <section class="max-w-[1120px] mx-auto px-5 py-10 pb-20">
       <article class="max-w-[860px] mx-auto mt-8 bg-white border border-mint-100 rounded-[28px] p-8 shadow-[0_18px_50px_rgba(24,95,84,.08)]">
         <h1 class="text-4xl font-black text-black-900 mb-2">How to Delete Your Account</h1>
-        <p class="text-black-900 text-sm mb-8">Last updated: July 15, 2026</p>
+        <p class="text-black-900 text-sm mb-8">Last updated: November 6, 2026</p>
 
         <p class="text-black-900 leading-relaxed mb-8">
           You can permanently delete your Sharable Piggy account by following the steps below.

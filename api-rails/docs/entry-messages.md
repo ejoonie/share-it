@@ -101,8 +101,13 @@ report.update!(status: 'dismissed')
 
 # 반복 위반자는 해당 Piggy에서 제한한다. 공유 지출 접근에도 영향이 있으므로
 # 신고 원문과 사용자 ID를 확인한 후 실행한다.
-follow = TopicFollow.find_by!(user_id: report.reported_user_id, topic_id: report.entry.topic_id)
-follow.update!(permissions: (follow.permissions + ['banned']).uniq)
+topic_id = report.entry&.topic_id
+if topic_id.nil?
+  puts '신고 대상 entry가 삭제되어 Piggy 제한을 적용할 수 없습니다. 사용자 ID와 감사 기록을 확인해 수동 처리하세요.'
+else
+  follow = TopicFollow.find_by!(user_id: report.reported_user_id, topic_id: topic_id)
+  follow.update!(permissions: (follow.permissions + ['banned']).uniq)
+end
 ```
 
 현재 Action Cable은 프로세스별 async 어댑터다. 별도 콘솔의 삭제 방송은 앱 서버로
