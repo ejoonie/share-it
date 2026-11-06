@@ -173,22 +173,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ..._buildMyPiggies(state),
                 const _SectionHeader(title: 'Help and policies'),
                 ListTile(
-                  title: const Text('Terms of Service'),
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  title: const Text(
+                    'Terms of Service',
+                    style: PiggyType.body,
+                  ),
                   onTap: () => openSupportLink(
                     context,
                     'https://sharablepiggy.com/terms',
                   ),
                 ),
                 ListTile(
-                  title: const Text('Privacy Policy'),
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  title: const Text(
+                    'Privacy Policy',
+                    style: PiggyType.body,
+                  ),
                   onTap: () => openSupportLink(
                     context,
                     'https://sharablepiggy.com/privacy',
                   ),
                 ),
                 ListTile(
-                  title: const Text('Contact support'),
-                  subtitle: const Text('support@sharablepiggy.com'),
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  title: const Text(
+                    'Contact support',
+                    style: PiggyType.body,
+                  ),
+                  subtitle: const Text(
+                    'support@sharablepiggy.com',
+                    style: PiggyType.metadata,
+                  ),
                   onTap: () => openSupportLink(
                     context,
                     'mailto:support@sharablepiggy.com',
