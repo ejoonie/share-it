@@ -274,7 +274,7 @@ class _DesignSystemScreenState extends State<DesignSystemScreen> {
                   first: false,
                   onTap: _previewAction,
                 ),
-                _section('08 · Navigation', '선택 탭에만 포인트 색과 연한 배경을 사용합니다.'),
+                _section('08 · Navigation', '선택 탭은 포인트 색과 굵은 라벨로 구분합니다.'),
                 PiggyNavigationBar(
                   selectedIndex: _selectedTab,
                   onSelected: (index) => setState(() => _selectedTab = index),
