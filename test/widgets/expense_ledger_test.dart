@@ -46,6 +46,7 @@ class _ExpenseChromeHarnessState extends State<ExpenseChromeHarness> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
+        extendBody: true,
         body: ExpenseScreen(
           chromeVisible: visible,
           onChromeVisibilityChanged: (next) => setState(() => visible = next),
@@ -303,7 +304,7 @@ void main() {
     expect(navigation.hitTestable(), findsOneWidget);
   });
 
-  testWidgets('add button docks at the list end and floats away from it',
+  testWidgets('add button docks above bottom navigation and floats away',
       (tester) async {
     await mount(tester, size: const Size(320, 640));
     final scrollable = find.byType(CustomScrollView);
@@ -314,15 +315,17 @@ void main() {
     expect(inlineAdd.hitTestable(), findsNothing);
 
     final controller = tester.widget<CustomScrollView>(scrollable).controller!;
-    controller.jumpTo(controller.position.maxScrollExtent - 120);
+    controller.jumpTo(controller.position.maxScrollExtent - 50);
     await tester.pumpAndSettle();
     await tester.drag(scrollable, const Offset(0, 20));
     await tester.pumpAndSettle();
     expect(controller.offset, lessThan(controller.position.maxScrollExtent));
     final viewport = tester.getRect(scrollable);
     final inlineButton = tester.getRect(inlineAdd);
+    final navigation = tester.getRect(find.byType(NavigationBar));
     expect(inlineButton.top, lessThan(viewport.bottom));
     expect(inlineButton.bottom, greaterThan(viewport.top));
+    expect(inlineButton.top, lessThan(navigation.top));
     expect(floatingAdd, findsNothing);
 
     await tester.drag(scrollable, const Offset(0, 100));

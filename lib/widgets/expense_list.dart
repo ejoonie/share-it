@@ -36,10 +36,10 @@ class ExpenseList extends ConsumerStatefulWidget {
 class _ExpenseListState extends ConsumerState<ExpenseList> {
   static const _hideThreshold = 28.0;
   static const _showThreshold = 16.0;
-  // The inline FAB starts entering the viewport while its height and bottom
-  // clearance are still left to scroll. Switch as soon as that first edge is
-  // visible instead of waiting for the scroll position to reach the end.
-  static const _dockThreshold = PiggySize.navigation + PiggySpace.xxl + 56.0;
+  // The list extends behind bottom navigation. Switch only when the inline
+  // action starts appearing above that navigation, not merely at the physical
+  // bottom edge of the viewport.
+  static const _dockThreshold = PiggySpace.xxl + PiggySize.button;
   static const _undockThreshold = _dockThreshold + PiggySpace.sm;
   final ScrollController _scrollController = ScrollController();
   double _lastOffset = 0;
@@ -255,12 +255,14 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
                 PiggySpace.page,
                 PiggySize.navigation + PiggySpace.xxl,
               ),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: PiggyFloatingAddButton(
+              child: SizedBox(
+                width: double.infinity,
+                height: PiggySize.button,
+                child: FilledButton.icon(
                   key: const ValueKey('inline-add-expense'),
-                  heroTag: 'expense_inline_add_fab',
                   onPressed: widget.onAddExpense,
+                  icon: const Icon(Icons.add_rounded, size: 22),
+                  label: const Text('Add transaction'),
                 ),
               ),
             ),
