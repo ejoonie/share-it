@@ -4,7 +4,8 @@ module V1
 
     helpers do
       def find_topic_by_token!
-        topic = Topic.find_by(token: params[:token])
+        token = params[:token].to_s
+        topic = Topic.find_by(token: [token, token.upcase])
         error!({ message: 'Topic not found' }, 404) if topic.nil?
         topic
       end

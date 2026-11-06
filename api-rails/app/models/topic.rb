@@ -1,4 +1,7 @@
 class Topic < ApplicationRecord
+  TOKEN_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+  TOKEN_LENGTH = 6
+
   before_validation :generate_token, on: :create
   before_validation :set_default_permissions, on: :create
   after_create :follow_by_owner
@@ -34,7 +37,9 @@ class Topic < ApplicationRecord
 
   def generate_token
     self.token ||= loop do
-      candidate = (100_000 + SecureRandom.random_number(900_000)).to_s
+      candidate = Array.new(TOKEN_LENGTH) do
+        TOKEN_ALPHABET[SecureRandom.random_number(TOKEN_ALPHABET.length)]
+      end.join
       break candidate unless self.class.unscoped.exists?(token: candidate)
     end
   end
