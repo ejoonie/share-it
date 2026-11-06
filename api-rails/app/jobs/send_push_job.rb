@@ -19,7 +19,7 @@ class SendPushJob < ApplicationJob
     end
   end
 
-  def perform(device_token_id:, title:, body:, data:)
+  def perform(device_token_id:, title:, body:, data:, actor_id: nil)
     unless FcmClient.configured?
       Rails.logger.warn("[push] Firebase service account not configured; skipping device_token_id=#{device_token_id}")
       return
@@ -27,6 +27,8 @@ class SendPushJob < ApplicationJob
 
     device_token = DeviceToken.find_by(id: device_token_id)
     return if device_token.nil?
+    # Check at delivery time, including retries and blocks created after enqueue.
+    return if actor_id && ChatBlock.between?(device_token.user_id, actor_id)
 
     result = FcmClient.send_message(
       token: device_token.token,

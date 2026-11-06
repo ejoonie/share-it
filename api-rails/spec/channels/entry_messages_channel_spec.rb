@@ -33,6 +33,20 @@ RSpec.describe EntryMessagesChannel, type: :channel do
     expect(subscription).to be_rejected
   end
 
+  it 'does not deliver invalidations for a blocked message author' do
+    callback = nil
+    subscribe(entry_id: entry.id)
+    allow(subscription).to receive(:stream_from) { |*_args, &block| callback = block }
+    subscription.subscribed
+    blocked = users(:user_three)
+    ChatBlock.create!(blocker: user, blocked: blocked)
+
+    callback.call('type' => 'changed', 'message_id' => 10, 'author_id' => blocked.id)
+    expect(transmissions).to be_empty
+    callback.call('type' => 'changed', 'message_id' => 11, 'author_id' => user.id)
+    expect(transmissions.last).to include('message_id' => 11)
+  end
+
   [:banned, :unfollowed, :deleted_entry, :deleted_topic, :rotated_token].each do |state|
     it "stops delivery after #{state}" do
       callback = nil

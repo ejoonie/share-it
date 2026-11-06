@@ -27,6 +27,15 @@ class MessagePage {
         nextBeforeId = json['next_before_id'] as int?;
 }
 
+class BlockedChatUser {
+  final int id;
+  final String name;
+
+  BlockedChatUser.fromJson(Map<String, dynamic> json)
+      : id = json['id'] as int,
+        name = json['nick_name'] as String;
+}
+
 class EntryMessageRepository {
   final ApiClient client;
   EntryMessageRepository(this.client);
@@ -56,5 +65,35 @@ class EntryMessageRepository {
 
   Future<void> delete(int entryId, int messageId) async {
     await client.delete('${_path(entryId)}/$messageId');
+  }
+
+  Future<void> report(int entryId, int messageId, String reason) async {
+    await client.post(
+      '${_path(entryId)}/$messageId/report',
+      {'reason': reason},
+    );
+  }
+
+  Future<BlockedChatUser> block(int entryId, int messageId) async {
+    final json = await client.post(
+      '${_path(entryId)}/$messageId/block',
+      const {},
+    );
+    return BlockedChatUser.fromJson(json['user'] as Map<String, dynamic>);
+  }
+
+  Future<List<BlockedChatUser>> listBlockedUsers() async {
+    final json = await client.get('/api/v1/chat_blocks');
+    return (json['records'] as List)
+        .map(
+          (record) => BlockedChatUser.fromJson(
+            (record as Map<String, dynamic>)['user'] as Map<String, dynamic>,
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> unblock(int userId) async {
+    await client.delete('/api/v1/chat_blocks/$userId');
   }
 }

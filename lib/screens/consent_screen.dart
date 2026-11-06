@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/user_model.dart';
+import '../utils/open_support_link.dart';
 import '../providers/session_provider.dart';
 
 class ConsentScreen extends ConsumerStatefulWidget {
@@ -65,24 +66,25 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.waving_hand_outlined,
-                  size: 60, color: Color(0xFF5E81AC)),
+              const Icon(
+                Icons.waving_hand_outlined,
+                size: 60,
+                color: Color(0xFF5E81AC),
+              ),
               const SizedBox(height: 20),
               Text(
                 'Hello, ${widget.user.nickName}!',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 24, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
                 'Before you get started, please review and accept our terms.',
                 textAlign: TextAlign.center,
-                style:
-                    TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 32),
-
               Card(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -95,20 +97,23 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                         title: RichText(
                           text: TextSpan(
                             style: const TextStyle(
-                                color: Colors.black87, fontSize: 14),
+                              color: Colors.black87,
+                              fontSize: 14,
+                            ),
                             children: [
                               const TextSpan(text: 'I agree to the '),
                               TextSpan(
                                 text: 'Terms of Service',
                                 style: TextStyle(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .primary,
+                                  color: Theme.of(context).colorScheme.primary,
                                   decoration: TextDecoration.underline,
                                 ),
                                 recognizer: TapGestureRecognizer()
                                   ..onTap = () {
-                                    // TODO: open terms URL
+                                    openSupportLink(
+                                      context,
+                                      'https://sharablepiggy.com/terms',
+                                    );
                                   },
                               ),
                             ],
@@ -125,20 +130,23 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                         title: RichText(
                           text: TextSpan(
                             style: const TextStyle(
-                                color: Colors.black87, fontSize: 14),
+                              color: Colors.black87,
+                              fontSize: 14,
+                            ),
                             children: [
                               const TextSpan(text: 'I agree to the '),
                               TextSpan(
                                 text: 'Privacy Policy',
                                 style: TextStyle(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .primary,
+                                  color: Theme.of(context).colorScheme.primary,
                                   decoration: TextDecoration.underline,
                                 ),
                                 recognizer: TapGestureRecognizer()
                                   ..onTap = () {
-                                    // TODO: open privacy policy URL
+                                    openSupportLink(
+                                      context,
+                                      'https://sharablepiggy.com/privacy',
+                                    );
                                   },
                               ),
                             ],
@@ -152,7 +160,6 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                   ),
                 ),
               ),
-
               if (_errorMessage != null) ...[
                 const SizedBox(height: 16),
                 Container(
@@ -164,14 +171,11 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                   ),
                   child: Text(
                     _errorMessage!,
-                    style: TextStyle(
-                        color: Colors.red.shade700, fontSize: 13),
+                    style: TextStyle(color: Colors.red.shade700, fontSize: 13),
                   ),
                 ),
               ],
-
               const Spacer(),
-
               SizedBox(
                 height: 48,
                 child: ElevatedButton(
@@ -181,12 +185,16 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                           width: 22,
                           height: 22,
                           child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2),
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         )
                       : const Text(
                           'Get Started',
                           style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w600),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                 ),
               ),

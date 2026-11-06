@@ -19,13 +19,49 @@ module V1
         message
       end
 
+      def visible_message!
+        message = chat_entry!.entry_messages.includes(:user).find_by(id: params[:message_id])
+        error!({ message: 'Message not found', code: 'message_not_found' }, 404) unless message
+        if ChatBlock.between?(current_user.id, message.user_id)
+          error!({ message: 'Message not found', code: 'message_not_found' }, 404)
+        end
+        message
+      end
+
       def save_message!(message)
         return if message.save
-        error!({ message: 'Invalid message', errors: message.errors.to_hash }, 422)
+        code = message.errors[:body].include?('contains prohibited content') ? 'objectionable_content' : nil
+        error!({ message: 'Invalid message', code: code, errors: message.errors.to_hash }.compact, 422)
       end
     end
 
     before { current_user }
+
+    resource :chat_blocks do
+      desc '내가 차단한 사용자 목록'
+      get do
+        records = current_user.chat_blocks_as_blocker.includes(:blocked).order(created_at: :desc)
+        {
+          records: records.map do |block|
+            {
+              user: { id: block.blocked.id, nick_name: block.blocked.nick_name },
+              created_at: block.created_at
+            }
+          end
+        }
+      end
+
+      route_param :user_id, type: Integer do
+        desc '사용자 차단 해제'
+        delete do
+          block = current_user.chat_blocks_as_blocker.find_by(blocked_id: params[:user_id])
+          error!({ message: 'Blocked user not found' }, 404) unless block
+          block.destroy!
+          status 204
+          body false
+        end
+      end
+    end
 
     resource :entries do
       route_param :entry_id, type: Integer do
@@ -37,6 +73,8 @@ module V1
           end
           get do
             scope = chat_entry!.entry_messages
+            blocked_user_ids = ChatBlock.counterpart_ids(current_user.id)
+            scope = scope.where.not(user_id: blocked_user_ids) if blocked_user_ids.any?
             scope = scope.where('id < ?', params[:before_id]) if params[:before_id]
             records = scope.includes(:user).order(id: :desc).limit(params[:limit] + 1).to_a
             has_more = records.size > params[:limit]
@@ -72,9 +110,36 @@ module V1
           route_param :message_id, type: Integer do
             desc '메시지 단건 조회 (현재 접근 권한 재검사)'
             get do
-              message = chat_entry!.entry_messages.includes(:user).find_by(id: params[:message_id])
-              error!({ message: 'Message not found', code: 'message_not_found' }, 404) unless message
-              present message, with: Entities::EntryMessageEntity
+              present visible_message!, with: Entities::EntryMessageEntity
+            end
+
+            desc '부적절한 메시지 신고'
+            params do
+              requires :reason, type: String, values: MessageReport::REASONS
+            end
+            post :report do
+              message = visible_message!
+              error!({ message: 'You cannot report your own message' }, 422) if message.user_id == current_user.id
+              report = MessageReport.create_or_find_by!(
+                reporter: current_user,
+                entry_message: message
+              ) do |record|
+                record.reported_user = message.user
+                record.entry = message.entry
+                record.reason = params[:reason]
+                record.body_snapshot = message.body
+              end
+              status 201
+              { id: report.id, status: report.status }
+            end
+
+            desc '메시지 작성자 차단'
+            post :block do
+              message = visible_message!
+              error!({ message: 'You cannot block yourself' }, 422) if message.user_id == current_user.id
+              block = current_user.chat_blocks_as_blocker.find_or_create_by!(blocked: message.user)
+              status 201
+              { user: { id: block.blocked.id, nick_name: block.blocked.nick_name } }
             end
 
             desc '본인 메시지 수정'

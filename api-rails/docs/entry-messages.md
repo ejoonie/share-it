@@ -39,6 +39,18 @@
 | GET | 기본 경로 + `/{message_id}` | 200, 메시지 단건 (삭제됨: `404 code=message_not_found`) |
 | PATCH | 기본 경로 + `/{message_id}` | 200, 수정한 메시지 |
 | DELETE | 기본 경로 + `/{message_id}` | 204, 본문 없이 영구 삭제 |
+| POST | 기본 경로 + `/{message_id}/report` | 201, 상대 메시지 신고 |
+| POST | 기본 경로 + `/{message_id}/block` | 201, 메시지 작성자 차단 |
+
+차단 목록은 `GET /api/v1/chat_blocks`, 차단 해제는
+`DELETE /api/v1/chat_blocks/{user_id}`를 사용한다. 차단은 Piggy 구독이나 지출 접근에는
+영향을 주지 않고 두 사용자 사이의 채팅 메시지만 양방향으로 숨긴다. 목록·단건 REST
+응답과 Action Cable 변경 신호에 같은 정책을 적용한다.
+
+신고 사유는 `harassment`, `sexual_content`, `violence`, `spam`, `other` 중 하나다.
+신고 시 메시지 원문 스냅샷을 보관하므로 작성자가 원문을 삭제해도 운영 검토가 가능하다.
+처리 상태는 기본 `pending`이며 운영자가 데이터베이스 또는 Rails 콘솔에서
+`reviewed`, `actioned`, `dismissed`로 변경할 수 있다.
 
 POST/PATCH JSON:
 
@@ -60,6 +72,100 @@ POST/PATCH JSON:
 ```
 
 본문 누락·null·빈 문자열 등 파라미터 오류는 400이다. 공백 제거 후 빈 본문이나 2,000자 초과 등 모델 검증 실패는 422와 `message`, `errors`를 반환한다. 클라이언트는 본문을 일반 텍스트로 렌더링한다.
+
+서버는 기본 금지 문구와 `CHAT_BLOCKED_TERMS` 환경 변수의 쉼표 구분 목록을 게시 전에
+검사한다. 금지 콘텐츠는 `422 code=objectionable_content`로 거절한다.
+
+## 신고 운영 (별도 관리자 화면 없음)
+
+운영 담당자는 매일 미처리 신고와 support@sharablepiggy.com을 확인한다. 아래는 운영
+Rails 콘솔에서 담당자가 직접 실행할 절차이며, 테스트 환경으로 먼저 검증한다.
+
+```ruby
+# 미처리 목록: 본문을 대량으로 로그에 출력하지 않는다.
+MessageReport.where(status: 'pending').order(:created_at)
+  .pluck(:id, :reason, :reported_user_id, :created_at)
+
+# 목록에서 선택한 실제 신고 ID를 입력한다.
+report = MessageReport.find(report_id)
+report.body_snapshot # 접근 권한이 있는 운영자만 원문 확인
+
+# 위반 메시지를 삭제하고 처리 완료 기록.
+MessageReport.transaction do
+  report.entry_message&.destroy!
+  report.update!(status: 'actioned')
+end
+
+# 위반이 아닌 신고는 아래처럼 종결한다.
+report.update!(status: 'dismissed')
+
+# 반복 위반자는 해당 Piggy에서 제한한다. 공유 지출 접근에도 영향이 있으므로
+# 신고 원문과 사용자 ID를 확인한 후 실행한다.
+follow = TopicFollow.find_by!(user_id: report.reported_user_id, topic_id: report.entry.topic_id)
+follow.update!(permissions: (follow.permissions + ['banned']).uniq)
+```
+
+현재 Action Cable은 프로세스별 async 어댑터다. 별도 콘솔의 삭제 방송은 앱 서버로
+전파되지 않으므로, 메시지 삭제 후 열린 화면은 새로고침/재접속 때 반영된다. 이를
+즉시 방송하기 위한 Redis 도입은 이번 최소 구현 범위에 포함하지 않는다.
+
+매일 점검할 때 처리 완료 후 90일 지난 신고를 정리한다. 먼저 대상 ID를 확인한 뒤
+같은 범위에 삭제를 적용한다. 미처리 신고는 방치하지 말고 검토 후 종결한다.
+
+```ruby
+expired = MessageReport.where(status: %w[actioned dismissed reviewed])
+  .where('updated_at < ?', 90.days.ago)
+expired.pluck(:id) # 확인
+expired.delete_all # 해당 신고 사본 영구 삭제
+```
+
+신고 재접수는 최초 원문과 사유를 덮어쓰지 않는다. 차단은 공유 지출을 숨기지 않으며,
+신규 활동 푸시는 발송 직전 양방향 차단 관계를 확인한다. 이미 전송된 푸시는 회수하지 않는다.
+
+## 심사 제출 및 실기기 확인
+
+- 정책 URL: https://sharablepiggy.com/privacy, https://sharablepiggy.com/terms
+- App Store Connect: App Privacy의 Emails or Text Messages, 사용자 연결 및 기능 제공 용도 확인.
+  Age Ratings의 User-Generated Content와 Messaging and Chat 반영.
+- Play Console: App content → Data safety → Messages → Other in-app messages 반영.
+  Content rating의 사용자 상호작용과 App access의 심사 계정 갱신.
+- 기존 광고/분석 SDK를 포함한 전체 앱의 추적·공유 여부는 별도로 실제 설정과 대조한다.
+  채팅에서 추적하지 않는다는 이유로 전체 앱의 기존 선언을 지우지 않는다.
+- 로그인 가능한 심사 계정 2개를 같은 Piggy에 가입시키고 예시 지출과 메시지를 준비한다.
+  실제 계정 비밀번호는 저장소에 기록하지 않는다.
+
+심사 메모 초안 (실제 배포 및 테스트 후 등록):
+
+> Open a transaction using its chat icon to access Conversation. Long-press another
+> member’s message to report it or block the author. The person-off button in the
+> conversation toolbar lists blocked users and allows unblocking. Blocking hides
+> chat messages in both directions and suppresses activity push notifications
+> between these users; shared expenses remain accessible. Reports preserve the
+> original message for operator review. English and Korean prohibited phrases
+> are filtered before posting. Terms, Privacy Policy, and support contact are
+> available in Settings. Both review accounts must be members of the same piggy.
+
+출시 노트 초안:
+
+> Discuss shared transactions in chat. Report inappropriate messages, block or
+> unblock members, and control unwanted activity notifications.
+
+실기기 시나리오 (아래는 실행 전 체크리스트이며 통과 기록이 아님):
+
+1. A/B로 같은 Piggy의 거래 대화에 접속하고 양방향 전송·수정·삭제 확인.
+2. B의 메시지를 A가 신고한 뒤 수정·재신고해도 최초 신고 원문 보존 확인.
+3. A가 B를 차단하면 두 화면에서 상대 메시지가 사라지고 새 메시지도 수신되지 않는지 확인.
+4. B가 지출을 추가·수정·삭제할 때 백그라운드 상태 A에 푸시가 오지 않는지 확인.
+5. 제3자 C의 알림은 도착하며, A가 B를 해제하면 메시지 및 새 활동 알림이 돌아오는지 확인.
+6. 작은 화면/키보드/긴 차단 목록에서 신고와 해제 메뉴 사용 확인.
+7. 약관·개인정보 링크와 지원 이메일 열기 확인.
+
+배포는 master의 api-rails/front 변경 push로 기존 GitHub Actions가 실행한다.
+API 컨테이너 시작 시 db:prepare가 새 마이그레이션을 적용한다. 웹페이지를 먼저
+게시하고 API 마이그레이션 상태와 /api/v1/health를 확인한 후 새 앱을 제출한다.
+기존 Android release lane의 기본 package_name은 다른 앱 값이므로 반드시
+ANDROID_PACKAGE_NAME=com.sharablepiggy.app을 확인하고 사용한다. 자동 심사 제출/
+자동 출시 기본값도 있으므로 검증되지 않은 빌드에 release lane을 실행하지 않는다.
 
 ### 목록과 페이지네이션
 

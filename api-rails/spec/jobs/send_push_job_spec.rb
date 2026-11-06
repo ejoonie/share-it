@@ -23,6 +23,25 @@ RSpec.describe SendPushJob, type: :job do
   context "when Firebase is configured" do
     before { allow(FcmClient).to receive(:configured?).and_return(true) }
 
+    [:recipient, :actor].each do |blocker|
+      it "skips delivery when the #{blocker} blocked the other user after enqueue" do
+        actor = users(:user_one)
+        job = described_class.new(**arguments, actor_id: actor.id)
+        first, second = blocker == :recipient ? [device_token.user, actor] : [actor, device_token.user]
+        ChatBlock.create!(blocker: first, blocked: second)
+        expect(FcmClient).not_to receive(:send_message)
+
+        job.perform_now
+      end
+    end
+
+    it 'delivers an actor notification when there is no block between them' do
+      ChatBlock.create!(blocker: device_token.user, blocked: users(:user_two))
+      expect(FcmClient).to receive(:send_message).and_return(FcmClient::Success.new)
+
+      described_class.new.perform(**arguments, actor_id: users(:user_one).id)
+    end
+
     it "sends the supplied message to one token" do
       expect(FcmClient).to receive(:send_message).with(
         token: device_token.token,
