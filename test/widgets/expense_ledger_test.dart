@@ -7,12 +7,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_it/api/api_client.dart';
+import 'package:share_it/design_system/design_system.dart';
 import 'package:share_it/models/expense_model.dart';
 import 'package:share_it/models/topic_model.dart';
 import 'package:share_it/providers/core_providers.dart';
 import 'package:share_it/providers/expense_provider.dart';
+import 'package:share_it/providers/session_provider.dart';
+import 'package:share_it/repositories/session_repository.dart';
 import 'package:share_it/screens/expense_screen.dart';
 import 'package:share_it/storage/topic_filter_storage.dart';
+import 'package:share_it/storage/token_storage.dart';
 import 'package:share_it/theme/app_theme.dart';
 import 'package:share_it/theme/ledger_style.dart';
 import 'package:share_it/widgets/main_navigation_shell.dart';
@@ -21,6 +26,14 @@ import 'package:share_it/widgets/expense_form.dart';
 class PreviewNotifier extends ExpenseNotifier {
   bool deletionSucceeds = true;
   final deletedIds = <int>[];
+
+  void showDate(DateTime date, List<ExpenseModel> expenses) {
+    state = state.copyWith(
+      selectedDate: date,
+      selectedDateExpenses: expenses,
+    );
+  }
+
   @override
   Future<bool> deleteExpense(int id) async {
     deletedIds.add(id);
@@ -42,15 +55,21 @@ class ExpenseChromeHarness extends StatefulWidget {
 
 class _ExpenseChromeHarnessState extends State<ExpenseChromeHarness> {
   bool visible = true;
+  bool addButtonDocked = false;
 
   @override
   Widget build(BuildContext context) => Scaffold(
+        extendBody: true,
         body: ExpenseScreen(
           chromeVisible: visible,
           onChromeVisibilityChanged: (next) => setState(() => visible = next),
+          onAddExpense: () {},
+          onAddButtonDockedChanged: (next) =>
+              setState(() => addButtonDocked = next),
         ),
-        floatingActionButton: visible
+        floatingActionButton: visible && !addButtonDocked
             ? FloatingActionButton(
+                key: const ValueKey('floating-add-expense'),
                 tooltip: 'Add transaction',
                 onPressed: () {},
                 child: const Icon(Icons.add_rounded),
@@ -58,6 +77,25 @@ class _ExpenseChromeHarnessState extends State<ExpenseChromeHarness> {
             : null,
         bottomNavigationBar:
             visible ? AppNavigationBar(currentIndex: 0, onTap: (_) {}) : null,
+      );
+}
+
+class MainShellHarness extends StatefulWidget {
+  const MainShellHarness({super.key});
+
+  @override
+  State<MainShellHarness> createState() => _MainShellHarnessState();
+}
+
+class _MainShellHarnessState extends State<MainShellHarness> {
+  int index = 0;
+
+  void selectIndex(int next) => setState(() => index = next);
+
+  @override
+  Widget build(BuildContext context) => MainNavigationShell(
+        currentIndex: index,
+        onTap: selectIndex,
       );
 }
 
@@ -109,6 +147,7 @@ void main() {
     double scale = 1,
     ExpenseState? state,
     bool noPiggies = false,
+    bool mainShell = false,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -116,6 +155,11 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     SharedPreferences.setMockInitialValues({});
     final storage = await TopicFilterStorage.create();
+    final tokenStorage = await TokenStorage.create();
+    final sessionRepository = SessionRepository(
+      apiClient: ApiClient(),
+      tokenStorage: tokenStorage,
+    );
     final notifier = PreviewNotifier(storage, state ?? fixture);
     final fontPath = Platform.environment['LEDGER_PREVIEW_FONT'];
     if (fontPath != null) {
@@ -144,6 +188,13 @@ void main() {
         overrides: [
           expenseNotifierProvider.overrideWith(
             (ref) => notifier,
+          ),
+          sessionRepositoryProvider.overrideWithValue(sessionRepository),
+          sessionNotifierProvider.overrideWith(
+            (ref) => SessionNotifier(
+              repository: sessionRepository,
+              tokenStorage: tokenStorage,
+            ),
           ),
           myViewableTopicsProvider.overrideWith(
             (ref) async => noPiggies
@@ -175,7 +226,9 @@ void main() {
           ),
           home: RepaintBoundary(
             key: boundaryKey,
-            child: const ExpenseChromeHarness(),
+            child: mainShell
+                ? const MainShellHarness()
+                : const ExpenseChromeHarness(),
           ),
         ),
       ),
@@ -274,7 +327,7 @@ void main() {
   testWidgets('scroll direction hides and restores the FAB and navigation',
       (tester) async {
     await mount(tester, size: const Size(320, 640));
-    final add = find.byTooltip('Add transaction');
+    final add = find.byKey(const ValueKey('floating-add-expense'));
     final navigation = find.byType(NavigationBar);
     final navigationTheme = tester.widget<NavigationBarTheme>(
       find.byType(NavigationBarTheme),
@@ -296,6 +349,152 @@ void main() {
     await tester.pumpAndSettle();
     expect(add.hitTestable(), findsOneWidget);
     expect(navigation.hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('bottom overscroll bounce does not restore hidden navigation',
+      (tester) async {
+    await mount(tester, size: const Size(320, 640));
+    final scrollable = find.byType(CustomScrollView);
+    final navigation = find.byType(NavigationBar);
+
+    await tester.fling(scrollable, const Offset(0, -1000), 4000);
+    await tester.pumpAndSettle();
+    expect(navigation.hitTestable(), findsNothing);
+
+    await tester.drag(scrollable, const Offset(0, 80));
+    await tester.pumpAndSettle();
+    expect(navigation.hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('tab round trip preserves the list and shell docked state',
+      (tester) async {
+    await mount(tester, size: const Size(320, 640), mainShell: true);
+    final scrollable = find.byType(CustomScrollView);
+    final controller = tester.widget<CustomScrollView>(scrollable).controller!;
+    controller.jumpTo(controller.position.maxScrollExtent);
+    await tester.pumpAndSettle();
+
+    final inlineAdd = find.byKey(const ValueKey('inline-add-expense'));
+    final floatingAdd = find.byKey(const ValueKey('floating-add-expense'));
+    expect(inlineAdd.hitTestable(), findsOneWidget);
+    expect(floatingAdd.hitTestable(), findsNothing);
+
+    final shell = tester.state<_MainShellHarnessState>(
+      find.byType(MainShellHarness),
+    );
+    shell.selectIndex(1);
+    await tester.pumpAndSettle();
+    shell.selectIndex(0);
+    await tester.pumpAndSettle();
+
+    expect(inlineAdd.hitTestable(), findsOneWidget);
+    expect(floatingAdd.hitTestable(), findsNothing);
+  });
+
+  testWidgets('empty list keeps the add action inline while refreshing',
+      (tester) async {
+    await mount(
+      tester,
+      size: const Size(320, 640),
+      state: fixture.copyWith(selectedDateExpenses: const []),
+    );
+
+    expect(find.text('No transactions for this day'), findsOneWidget);
+    final inlineAdd = find.byKey(const ValueKey('inline-add-expense'));
+    final floatingAdd = find.byKey(const ValueKey('floating-add-expense'));
+    expect(inlineAdd.hitTestable(), findsNothing);
+    expect(floatingAdd.hitTestable(), findsNothing);
+
+    await tester.drag(
+      find.byType(CustomScrollView),
+      const Offset(0, 100),
+    );
+    await tester.pumpAndSettle();
+    expect(floatingAdd.hitTestable(), findsNothing);
+
+    await tester.scrollUntilVisible(
+      inlineAdd,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      inlineAdd.hitTestable(),
+      findsOneWidget,
+    );
+    expect(
+      floatingAdd.hitTestable(),
+      findsNothing,
+    );
+  });
+
+  testWidgets('changing dates resets add action placement for the new list',
+      (tester) async {
+    final notifier = await mount(
+      tester,
+      size: const Size(320, 640),
+      state: fixture.copyWith(selectedDateExpenses: const []),
+    );
+    final scrollable = find.byType(CustomScrollView);
+    final inlineAdd = find.byKey(const ValueKey('inline-add-expense'));
+    final floatingAdd = find.byKey(const ValueKey('floating-add-expense'));
+
+    await tester.scrollUntilVisible(
+      inlineAdd,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(inlineAdd.hitTestable(), findsOneWidget);
+
+    notifier.showDate(chosen.add(const Duration(days: 1)), items);
+    await tester.pumpAndSettle();
+
+    final controller = tester.widget<CustomScrollView>(scrollable).controller!;
+    expect(controller.offset, controller.position.minScrollExtent);
+    expect(inlineAdd.hitTestable(), findsNothing);
+    expect(floatingAdd.hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('add button docks above bottom navigation and floats away',
+      (tester) async {
+    await mount(tester, size: const Size(320, 640));
+    final scrollable = find.byType(CustomScrollView);
+    final inlineAdd = find.byKey(const ValueKey('inline-add-expense'));
+    final floatingAdd = find.byKey(const ValueKey('floating-add-expense'));
+    bool? inlineVisible() {
+      final visibility = find.ancestor(
+        of: inlineAdd,
+        matching: find.byType(PiggySlideVisibility),
+      );
+      if (visibility.evaluate().isEmpty) return null;
+      return tester.widget<PiggySlideVisibility>(visibility).visible;
+    }
+
+    expect(floatingAdd.hitTestable(), findsOneWidget);
+    expect(inlineAdd.hitTestable(), findsNothing);
+    expect(inlineVisible(), isNot(true));
+
+    final controller = tester.widget<CustomScrollView>(scrollable).controller!;
+    controller.jumpTo(controller.position.maxScrollExtent - 50);
+    await tester.pumpAndSettle();
+    await tester.drag(scrollable, const Offset(0, 20));
+    await tester.pumpAndSettle();
+    expect(controller.offset, lessThan(controller.position.maxScrollExtent));
+    final viewport = tester.getRect(scrollable);
+    final inlineButton = tester.getRect(inlineAdd);
+    final navigation = tester.getRect(find.byType(NavigationBar));
+    expect(inlineButton.top, lessThan(viewport.bottom));
+    expect(inlineButton.bottom, greaterThan(viewport.top));
+    expect(inlineButton.top, lessThan(navigation.top));
+    expect(floatingAdd, findsNothing);
+    expect(inlineVisible(), isTrue);
+
+    await tester.drag(scrollable, const Offset(0, 100));
+    await tester.pumpAndSettle();
+    expect(floatingAdd.hitTestable(), findsOneWidget);
+    expect(inlineAdd.hitTestable(), findsNothing);
+    expect(inlineVisible(), isNot(true));
   });
 
   testWidgets(

@@ -18,11 +18,17 @@ class SesEmailService
         to: to,
         subject: "#{code} is your Sharable Piggy login code",
         body: <<~HTML,
-          <p>Your Piggy login code is:</p>
-          <h2 style="letter-spacing:8px;">#{code}</h2>
+          <p><strong>#{code}</strong> is your verification code for Sharable Piggy.</p>
+          <p style="font-size:28px;font-weight:700;letter-spacing:8px;">#{code}</p>
           <p>This code expires in <strong>10 minutes</strong>.</p>
           <p style="color:#888;font-size:12px;">If you did not request this code, please ignore this email.</p>
         HTML
+        text_body: <<~TEXT
+          #{code} is your verification code for Sharable Piggy.
+
+          This code expires in 10 minutes.
+          If you did not request this code, please ignore this email.
+        TEXT
       )
     end
 
@@ -31,18 +37,26 @@ class SesEmailService
         to: to,
         subject: "#{code} is your Sharable Piggy password change code",
         body: <<~HTML,
-          <p>Your Piggy password change verification code is:</p>
-          <h2 style="letter-spacing:8px;">#{code}</h2>
+          <p><strong>#{code}</strong> is your verification code for Sharable Piggy.</p>
+          <p style="font-size:28px;font-weight:700;letter-spacing:8px;">#{code}</p>
           <p>This code expires in <strong>10 minutes</strong>.</p>
           <p style="color:#888;font-size:12px;">If you did not request this, please secure your account immediately.</p>
         HTML
+        text_body: <<~TEXT
+          #{code} is your verification code for Sharable Piggy.
+
+          This code expires in 10 minutes.
+          If you did not request this, please secure your account immediately.
+        TEXT
       )
     end
 
-    def send_general(to:, subject:, body:)
+    def send_general(to:, subject:, body:, text_body: nil)
       return unless deliverable?(to)
 
-      GeneralMailer.send_mail(to: to, subject: subject, body: body).deliver_now
+      GeneralMailer
+        .send_mail(to: to, subject: subject, body: body, text_body: text_body)
+        .deliver_now
     end
 
     private

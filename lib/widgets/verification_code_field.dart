@@ -27,6 +27,7 @@ class VerificationCodeField extends StatefulWidget {
 
 class _VerificationCodeFieldState extends State<VerificationCodeField> {
   final _focus = FocusNode();
+  String? _lastAutoSubmittedCode;
 
   @override
   void initState() {
@@ -36,6 +37,23 @@ class _VerificationCodeFieldState extends State<VerificationCodeField> {
 
   void _refresh() {
     if (mounted) setState(() {});
+  }
+
+  void _handleChanged(String value) {
+    widget.onChanged?.call(value);
+
+    if (value.length < 6) {
+      _lastAutoSubmittedCode = null;
+      return;
+    }
+    if (value.length == 6 && value != _lastAutoSubmittedCode) {
+      _lastAutoSubmittedCode = value;
+      widget.onSubmitted?.call(value);
+    }
+  }
+
+  void _handleSubmitted(String value) {
+    widget.onSubmitted?.call(value);
   }
 
   @override
@@ -60,81 +78,87 @@ class _VerificationCodeFieldState extends State<VerificationCodeField> {
               child: Stack(
                 children: [
                   ExcludeSemantics(
-                      child: Row(
-                    children: List.generate(
+                    child: Row(
+                      children: List.generate(
                         6,
                         (index) => Expanded(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(horizontal: gap / 2),
-                                child: Container(
-                                  height: height,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: widget.enabled
-                                        ? PiggyColors.surface
-                                        : PiggyColors.card,
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: _focus.hasFocus &&
-                                              widget.enabled &&
-                                              index == active
-                                          ? PiggyColors.accent
-                                          : PiggyColors.line,
-                                      width: _focus.hasFocus &&
-                                              widget.enabled &&
-                                              index == active
-                                          ? 2
-                                          : 1,
-                                    ),
-                                  ),
-                                  child: FittedBox(
-                                      child: Text(
-                                    index < value.text.length
-                                        ? value.text[index]
-                                        : '',
-                                    style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.w700,
-                                        color: PiggyColors.ink,),
-                                  ),),
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: gap / 2),
+                            child: Container(
+                              height: height,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: widget.enabled
+                                    ? PiggyColors.surface
+                                    : PiggyColors.card,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: _focus.hasFocus &&
+                                          widget.enabled &&
+                                          index == active
+                                      ? PiggyColors.accent
+                                      : PiggyColors.line,
+                                  width: _focus.hasFocus &&
+                                          widget.enabled &&
+                                          index == active
+                                      ? 2
+                                      : 1,
                                 ),
                               ),
-                            ),),
-                  ),),
-                  Positioned.fill(
-                      child: TextField(
-                    controller: widget.controller,
-                    focusNode: _focus,
-                    enabled: widget.enabled,
-                    autofocus: widget.autofocus,
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.done,
-                    autofillHints: const [AutofillHints.oneTimeCode],
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    showCursor: false,
-                    style: const TextStyle(color: Colors.transparent),
-                    decoration: const InputDecoration(
-                      labelText: '6-digit code',
-                      floatingLabelBehavior: FloatingLabelBehavior.never,
-                      labelStyle: TextStyle(color: Colors.transparent),
-                      filled: false,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      disabledBorder: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
+                              child: FittedBox(
+                                child: Text(
+                                  index < value.text.length
+                                      ? value.text[index]
+                                      : '',
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w700,
+                                    color: PiggyColors.ink,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(6),
-                    ],
-                    onTap: () => widget.controller.selection =
-                        TextSelection.collapsed(
-                            offset: widget.controller.text.length,),
-                    onChanged: widget.onChanged,
-                    onSubmitted: widget.onSubmitted,
-                  ),),
+                  ),
+                  Positioned.fill(
+                    child: TextField(
+                      controller: widget.controller,
+                      focusNode: _focus,
+                      enabled: widget.enabled,
+                      autofocus: widget.autofocus,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.done,
+                      autofillHints: const [AutofillHints.oneTimeCode],
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      showCursor: false,
+                      style: const TextStyle(color: Colors.transparent),
+                      decoration: const InputDecoration(
+                        labelText: '6-digit code',
+                        floatingLabelBehavior: FloatingLabelBehavior.never,
+                        labelStyle: TextStyle(color: Colors.transparent),
+                        filled: false,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(6),
+                      ],
+                      onTap: () =>
+                          widget.controller.selection = TextSelection.collapsed(
+                        offset: widget.controller.text.length,
+                      ),
+                      onChanged: _handleChanged,
+                      onSubmitted: _handleSubmitted,
+                    ),
+                  ),
                 ],
               ),
             );

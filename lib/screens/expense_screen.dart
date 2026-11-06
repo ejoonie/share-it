@@ -15,13 +15,19 @@ import '../widgets/expense_list.dart';
 import '../widgets/summary_drawer.dart';
 
 class ExpenseScreen extends ConsumerStatefulWidget {
+  final bool active;
   final bool chromeVisible;
   final ValueChanged<bool>? onChromeVisibilityChanged;
+  final VoidCallback? onAddExpense;
+  final ValueChanged<bool>? onAddButtonDockedChanged;
 
   const ExpenseScreen({
     super.key,
+    this.active = true,
     this.chromeVisible = true,
     this.onChromeVisibilityChanged,
+    this.onAddExpense,
+    this.onAddButtonDockedChanged,
   });
 
   @override
@@ -253,8 +259,11 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
 
     return ExpenseList(
       state: state,
+      active: widget.active,
       chromeVisible: widget.chromeVisible,
       onChromeVisibilityChanged: widget.onChromeVisibilityChanged,
+      onAddExpense: widget.onAddExpense,
+      onAddButtonDockedChanged: widget.onAddButtonDockedChanged,
       headerSlivers: [
         SliverToBoxAdapter(
           child: ExpenseOverview(

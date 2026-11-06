@@ -12,6 +12,19 @@ RSpec.describe "Topics API", type: :request do
       expect(json_response["title"]).to eq("First Topic")
     end
 
+    it "accepts lowercase topic codes" do
+      topic = Topic.create!(
+        user: users(:user_one),
+        title: "Uppercase Code Topic",
+        token: "AB12CD"
+      )
+
+      get_json "/api/v1/topics/ab12cd", login_user: users(:user_one)
+
+      expect(response).to have_http_status(200)
+      expect(json_response["id"]).to eq(topic.id)
+    end
+
     it "returns 404 for non-existent topic" do
       get_json "/api/v1/topics/xxxxx", login_user: users(:user_one)
 

@@ -14,14 +14,20 @@ import 'topic_picker.dart';
 class ExpenseList extends ConsumerStatefulWidget {
   final ExpenseState state;
   final List<Widget> headerSlivers;
+  final bool active;
   final bool chromeVisible;
   final ValueChanged<bool>? onChromeVisibilityChanged;
+  final VoidCallback? onAddExpense;
+  final ValueChanged<bool>? onAddButtonDockedChanged;
 
   const ExpenseList({
     super.key,
     required this.state,
+    this.active = true,
     this.chromeVisible = true,
     this.onChromeVisibilityChanged,
+    this.onAddExpense,
+    this.onAddButtonDockedChanged,
     this.headerSlivers = const [],
   });
 
@@ -32,26 +38,45 @@ class ExpenseList extends ConsumerStatefulWidget {
 class _ExpenseListState extends ConsumerState<ExpenseList> {
   static const _hideThreshold = 28.0;
   static const _showThreshold = 16.0;
+  static const _inlineButtonHeight = PiggySize.button;
+  static const _inlineButtonBottomPadding =
+      PiggySize.navigation + PiggySpace.xxl;
+  // The list extends behind bottom navigation. Switch only when the inline
+  // action starts appearing above that navigation, not merely at the physical
+  // bottom edge of the viewport.
+  static const _dockThreshold =
+      _inlineButtonBottomPadding + _inlineButtonHeight - PiggySize.navigation;
+  static const _undockThreshold = _dockThreshold + PiggySpace.sm;
   final ScrollController _scrollController = ScrollController();
   double _lastOffset = 0;
   double _directionDistance = 0;
   int _direction = 0;
   late bool _chromeVisible;
+  bool _addButtonDocked = false;
+  bool _ignoringBottomBounce = false;
 
   @override
   void initState() {
     super.initState();
     _chromeVisible = widget.chromeVisible;
     _scrollController.addListener(_handleScroll);
+    _scheduleDockedStateSync();
   }
 
   @override
   void didUpdateWidget(covariant ExpenseList oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final dateChanged = oldWidget.state.year != widget.state.year ||
+        oldWidget.state.month != widget.state.month ||
+        oldWidget.state.day != widget.state.day;
     if (widget.chromeVisible != _chromeVisible) {
       _chromeVisible = widget.chromeVisible;
       _directionDistance = 0;
     }
+    _scheduleDockedStateSync(
+      forceReport: !oldWidget.active && widget.active,
+      resetScroll: dateChanged,
+    );
   }
 
   @override
@@ -64,9 +89,23 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
 
   void _handleScroll() {
     if (!_scrollController.hasClients) return;
+    _syncDockedState();
     final pixels = _scrollController.position.pixels;
     final delta = pixels - _lastOffset;
     _lastOffset = pixels;
+
+    if (pixels > _scrollController.position.maxScrollExtent) {
+      _ignoringBottomBounce = true;
+      _direction = 0;
+      _directionDistance = 0;
+      return;
+    }
+    if (_ignoringBottomBounce) {
+      _ignoringBottomBounce = false;
+      _direction = 0;
+      _directionDistance = 0;
+      return;
+    }
 
     if (pixels <= 0) {
       _direction = 0;
@@ -87,6 +126,45 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
       _setChromeVisible(direction < 0);
       _directionDistance = 0;
     }
+  }
+
+  void _scheduleDockedStateSync({
+    bool forceReport = false,
+    bool resetScroll = false,
+  }) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (resetScroll && _scrollController.hasClients) {
+        _scrollController.jumpTo(
+          _scrollController.position.minScrollExtent,
+        );
+      }
+      _syncDockedState(forceReport: forceReport);
+    });
+  }
+
+  void _syncDockedState({bool forceReport = false}) {
+    if (!_scrollController.hasClients) return;
+    final docked = _shouldDockAddButton(_scrollController.position);
+    if (docked != _addButtonDocked) {
+      setState(() => _addButtonDocked = docked);
+      widget.onAddButtonDockedChanged?.call(docked);
+    } else if (forceReport) {
+      widget.onAddButtonDockedChanged?.call(_addButtonDocked);
+    }
+  }
+
+  bool _shouldDockAddButton(ScrollPosition position) {
+    if (widget.state.selectedDateExpenses.isEmpty) return true;
+
+    final pixels = position.pixels.clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    final extentAfter = position.maxScrollExtent - pixels;
+    return _addButtonDocked
+        ? extentAfter < _undockThreshold
+        : extentAfter <= _dockThreshold;
   }
 
   void _setChromeVisible(bool visible) {
@@ -217,7 +295,30 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
                 ),
               ),
             ),
-          const SliverToBoxAdapter(child: SizedBox(height: 96)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                PiggySpace.page,
+                PiggySpace.lg,
+                PiggySpace.page,
+                _inlineButtonBottomPadding,
+              ),
+              child: PiggySlideVisibility(
+                visible: _addButtonDocked,
+                hiddenOffset: const Offset(0, 0.25),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: _inlineButtonHeight,
+                  child: FilledButton.icon(
+                    key: const ValueKey('inline-add-expense'),
+                    onPressed: widget.onAddExpense,
+                    icon: const Icon(Icons.add_rounded, size: 22),
+                    label: const Text('Add transaction'),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

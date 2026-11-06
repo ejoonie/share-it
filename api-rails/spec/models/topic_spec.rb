@@ -33,8 +33,23 @@ RSpec.describe Topic, type: :model do
     it "generates token and default_permissions before create" do
       topic = Topic.create!(user: users(:user_one), title: "Generated Defaults Topic", is_default: false)
 
-      expect(topic.token).to match(/\A[0-9a-f\-]{36}\z/)
+      expect(topic.token).to match(/\A[0-9A-HJKMNP-TV-Z]{6}\z/)
       expect(topic.default_permissions).to eq(%w[create edit delete])
+    end
+
+    it "retries tokens used by soft-deleted topics" do
+      deleted_topic = Topic.create!(
+        user: users(:user_one),
+        title: "Deleted Topic With Numeric Token",
+        token: "111111"
+      )
+      deleted_topic.soft_delete!
+      allow(SecureRandom).to receive(:random_number)
+        .and_return(*Array.new(6, 1), *Array.new(6, 2))
+
+      topic = Topic.create!(user: users(:user_one), title: "Unique Token Topic")
+
+      expect(topic.token).to eq("222222")
     end
   end
 
