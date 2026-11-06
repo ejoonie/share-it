@@ -304,6 +304,21 @@ void main() {
     expect(navigation.hitTestable(), findsOneWidget);
   });
 
+  testWidgets('bottom overscroll bounce does not restore hidden navigation',
+      (tester) async {
+    await mount(tester, size: const Size(320, 640));
+    final scrollable = find.byType(CustomScrollView);
+    final navigation = find.byType(NavigationBar);
+
+    await tester.fling(scrollable, const Offset(0, -1000), 4000);
+    await tester.pumpAndSettle();
+    expect(navigation.hitTestable(), findsNothing);
+
+    await tester.drag(scrollable, const Offset(0, 80));
+    await tester.pumpAndSettle();
+    expect(navigation.hitTestable(), findsOneWidget);
+  });
+
   testWidgets('add button docks above bottom navigation and floats away',
       (tester) async {
     await mount(tester, size: const Size(320, 640));

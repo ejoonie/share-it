@@ -47,6 +47,7 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
   int _direction = 0;
   late bool _chromeVisible;
   bool _addButtonDocked = false;
+  bool _ignoringBottomBounce = false;
 
   @override
   void initState() {
@@ -80,6 +81,19 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
     final pixels = _scrollController.position.pixels;
     final delta = pixels - _lastOffset;
     _lastOffset = pixels;
+
+    if (pixels > _scrollController.position.maxScrollExtent) {
+      _ignoringBottomBounce = true;
+      _direction = 0;
+      _directionDistance = 0;
+      return;
+    }
+    if (_ignoringBottomBounce) {
+      _ignoringBottomBounce = false;
+      _direction = 0;
+      _directionDistance = 0;
+      return;
+    }
 
     if (pixels <= 0) {
       _direction = 0;
