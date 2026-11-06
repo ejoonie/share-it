@@ -27,18 +27,25 @@ class MainNavigationShell extends ConsumerStatefulWidget {
 
 class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
   bool _chromeVisible = true;
+  bool _addButtonDocked = false;
 
   @override
   void didUpdateWidget(covariant MainNavigationShell oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.currentIndex != widget.currentIndex) {
       _chromeVisible = true;
+      _addButtonDocked = false;
     }
   }
 
   void _setChromeVisible(bool visible) {
     if (_chromeVisible == visible || widget.currentIndex != 0) return;
     setState(() => _chromeVisible = visible);
+  }
+
+  void _setAddButtonDocked(bool docked) {
+    if (_addButtonDocked == docked || widget.currentIndex != 0) return;
+    setState(() => _addButtonDocked = docked);
   }
 
   void _selectDestination(int index) {
@@ -68,6 +75,8 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
             ExpenseScreen(
               chromeVisible: _chromeVisible,
               onChromeVisibilityChanged: _setChromeVisible,
+              onAddExpense: _showAddExpenseForm,
+              onAddButtonDockedChanged: _setAddButtonDocked,
             ),
             const ShareScreen(),
             const SettingsScreen(),
@@ -78,9 +87,10 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
                 (ref.watch(myViewableTopicsProvider).valueOrNull?.isNotEmpty ??
                     false)
             ? PiggySlideVisibility(
-                visible: _chromeVisible,
+                visible: _chromeVisible && !_addButtonDocked,
                 hiddenOffset: const Offset(0, 1.4),
                 child: PiggyFloatingAddButton(
+                  key: const ValueKey('floating-add-expense'),
                   heroTag: 'expense_add_fab',
                   onPressed: _showAddExpenseForm,
                 ),

@@ -16,12 +16,16 @@ class ExpenseList extends ConsumerStatefulWidget {
   final List<Widget> headerSlivers;
   final bool chromeVisible;
   final ValueChanged<bool>? onChromeVisibilityChanged;
+  final VoidCallback? onAddExpense;
+  final ValueChanged<bool>? onAddButtonDockedChanged;
 
   const ExpenseList({
     super.key,
     required this.state,
     this.chromeVisible = true,
     this.onChromeVisibilityChanged,
+    this.onAddExpense,
+    this.onAddButtonDockedChanged,
     this.headerSlivers = const [],
   });
 
@@ -32,17 +36,24 @@ class ExpenseList extends ConsumerStatefulWidget {
 class _ExpenseListState extends ConsumerState<ExpenseList> {
   static const _hideThreshold = 28.0;
   static const _showThreshold = 16.0;
+  // The inline FAB starts entering the viewport while its height and bottom
+  // clearance are still left to scroll. Switch as soon as that first edge is
+  // visible instead of waiting for the scroll position to reach the end.
+  static const _dockThreshold = PiggySize.navigation + PiggySpace.xxl + 56.0;
+  static const _undockThreshold = _dockThreshold + PiggySpace.sm;
   final ScrollController _scrollController = ScrollController();
   double _lastOffset = 0;
   double _directionDistance = 0;
   int _direction = 0;
   late bool _chromeVisible;
+  bool _addButtonDocked = false;
 
   @override
   void initState() {
     super.initState();
     _chromeVisible = widget.chromeVisible;
     _scrollController.addListener(_handleScroll);
+    _scheduleDockedStateSync();
   }
 
   @override
@@ -52,6 +63,7 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
       _chromeVisible = widget.chromeVisible;
       _directionDistance = 0;
     }
+    _scheduleDockedStateSync();
   }
 
   @override
@@ -64,6 +76,7 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
 
   void _handleScroll() {
     if (!_scrollController.hasClients) return;
+    _syncDockedState();
     final pixels = _scrollController.position.pixels;
     final delta = pixels - _lastOffset;
     _lastOffset = pixels;
@@ -87,6 +100,23 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
       _setChromeVisible(direction < 0);
       _directionDistance = 0;
     }
+  }
+
+  void _scheduleDockedStateSync() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _syncDockedState();
+    });
+  }
+
+  void _syncDockedState() {
+    if (!_scrollController.hasClients) return;
+    final extentAfter = _scrollController.position.extentAfter;
+    final docked = _addButtonDocked
+        ? extentAfter < _undockThreshold
+        : extentAfter <= _dockThreshold;
+    if (docked == _addButtonDocked) return;
+    _addButtonDocked = docked;
+    widget.onAddButtonDockedChanged?.call(docked);
   }
 
   void _setChromeVisible(bool visible) {
@@ -217,12 +247,22 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
                 ),
               ),
             ),
-          // Keep the last conversation action above both the floating add
-          // button and the translucent bottom navigation bar.
-          const SliverToBoxAdapter(
-            child: SizedBox(
-              key: ValueKey('expense-list-bottom-clearance'),
-              height: PiggySize.navigation + 96,
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                PiggySpace.page,
+                PiggySpace.lg,
+                PiggySpace.page,
+                PiggySize.navigation + PiggySpace.xxl,
+              ),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: PiggyFloatingAddButton(
+                  key: const ValueKey('inline-add-expense'),
+                  heroTag: 'expense_inline_add_fab',
+                  onPressed: widget.onAddExpense,
+                ),
+              ),
             ),
           ),
         ],

@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_it/models/expense_model.dart';
-import 'package:share_it/design_system/tokens.dart';
 import 'package:share_it/models/topic_model.dart';
 import 'package:share_it/providers/core_providers.dart';
 import 'package:share_it/providers/expense_provider.dart';
@@ -43,15 +42,20 @@ class ExpenseChromeHarness extends StatefulWidget {
 
 class _ExpenseChromeHarnessState extends State<ExpenseChromeHarness> {
   bool visible = true;
+  bool addButtonDocked = false;
 
   @override
   Widget build(BuildContext context) => Scaffold(
         body: ExpenseScreen(
           chromeVisible: visible,
           onChromeVisibilityChanged: (next) => setState(() => visible = next),
+          onAddExpense: () {},
+          onAddButtonDockedChanged: (next) =>
+              setState(() => addButtonDocked = next),
         ),
-        floatingActionButton: visible
+        floatingActionButton: visible && !addButtonDocked
             ? FloatingActionButton(
+                key: const ValueKey('floating-add-expense'),
                 tooltip: 'Add transaction',
                 onPressed: () {},
                 child: const Icon(Icons.add_rounded),
@@ -275,7 +279,7 @@ void main() {
   testWidgets('scroll direction hides and restores the FAB and navigation',
       (tester) async {
     await mount(tester, size: const Size(320, 640));
-    final add = find.byTooltip('Add transaction');
+    final add = find.byKey(const ValueKey('floating-add-expense'));
     final navigation = find.byType(NavigationBar);
     final navigationTheme = tester.widget<NavigationBarTheme>(
       find.byType(NavigationBarTheme),
@@ -299,31 +303,32 @@ void main() {
     expect(navigation.hitTestable(), findsOneWidget);
   });
 
-  testWidgets('last transaction can scroll clear of the add button',
+  testWidgets('add button docks at the list end and floats away from it',
       (tester) async {
     await mount(tester, size: const Size(320, 640));
     final scrollable = find.byType(CustomScrollView);
-    await tester.drag(scrollable, const Offset(0, -1000));
+    final inlineAdd = find.byKey(const ValueKey('inline-add-expense'));
+    final floatingAdd = find.byKey(const ValueKey('floating-add-expense'));
+
+    expect(floatingAdd.hitTestable(), findsOneWidget);
+    expect(inlineAdd.hitTestable(), findsNothing);
+
+    final controller = tester.widget<CustomScrollView>(scrollable).controller!;
+    controller.jumpTo(controller.position.maxScrollExtent - 120);
     await tester.pumpAndSettle();
     await tester.drag(scrollable, const Offset(0, 20));
     await tester.pumpAndSettle();
+    expect(controller.offset, lessThan(controller.position.maxScrollExtent));
+    final viewport = tester.getRect(scrollable);
+    final inlineButton = tester.getRect(inlineAdd);
+    expect(inlineButton.top, lessThan(viewport.bottom));
+    expect(inlineButton.bottom, greaterThan(viewport.top));
+    expect(floatingAdd, findsNothing);
 
-    final lastChat = find.byTooltip('Open conversation').last;
-    final add = find.byTooltip('Add transaction');
-    expect(lastChat.hitTestable(), findsOneWidget);
-    expect(add.hitTestable(), findsOneWidget);
-    expect(
-      tester.getRect(lastChat).overlaps(tester.getRect(add)),
-      isFalse,
-    );
-    expect(
-      tester
-          .getSize(find.byKey(
-            const ValueKey('expense-list-bottom-clearance'),
-          ))
-          .height,
-      PiggySize.navigation + 96,
-    );
+    await tester.drag(scrollable, const Offset(0, 100));
+    await tester.pumpAndSettle();
+    expect(floatingAdd.hitTestable(), findsOneWidget);
+    expect(inlineAdd.hitTestable(), findsNothing);
   });
 
   testWidgets(
