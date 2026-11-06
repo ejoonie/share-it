@@ -33,7 +33,7 @@ class Topic < ApplicationRecord
   private
 
   def generate_token
-    self.token ||= SecureRandom.uuid
+    self.token ||= (100_000 + SecureRandom.random_number(900_000)).to_s
   end
 
   def set_default_permissions
