@@ -26,6 +26,14 @@ import 'package:share_it/widgets/expense_form.dart';
 class PreviewNotifier extends ExpenseNotifier {
   bool deletionSucceeds = true;
   final deletedIds = <int>[];
+
+  void showDate(DateTime date, List<ExpenseModel> expenses) {
+    state = state.copyWith(
+      selectedDate: date,
+      selectedDateExpenses: expenses,
+    );
+  }
+
   @override
   Future<bool> deleteExpense(int id) async {
     deletedIds.add(id);
@@ -418,6 +426,34 @@ void main() {
       floatingAdd.hitTestable(),
       findsNothing,
     );
+  });
+
+  testWidgets('changing dates resets add action placement for the new list',
+      (tester) async {
+    final notifier = await mount(
+      tester,
+      size: const Size(320, 640),
+      state: fixture.copyWith(selectedDateExpenses: const []),
+    );
+    final scrollable = find.byType(CustomScrollView);
+    final inlineAdd = find.byKey(const ValueKey('inline-add-expense'));
+    final floatingAdd = find.byKey(const ValueKey('floating-add-expense'));
+
+    await tester.scrollUntilVisible(
+      inlineAdd,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(inlineAdd.hitTestable(), findsOneWidget);
+
+    notifier.showDate(chosen.add(const Duration(days: 1)), items);
+    await tester.pumpAndSettle();
+
+    final controller = tester.widget<CustomScrollView>(scrollable).controller!;
+    expect(controller.offset, controller.position.minScrollExtent);
+    expect(inlineAdd.hitTestable(), findsNothing);
+    expect(floatingAdd.hitTestable(), findsOneWidget);
   });
 
   testWidgets('add button docks above bottom navigation and floats away',

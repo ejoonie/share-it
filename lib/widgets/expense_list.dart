@@ -66,12 +66,16 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
   @override
   void didUpdateWidget(covariant ExpenseList oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final dateChanged = oldWidget.state.year != widget.state.year ||
+        oldWidget.state.month != widget.state.month ||
+        oldWidget.state.day != widget.state.day;
     if (widget.chromeVisible != _chromeVisible) {
       _chromeVisible = widget.chromeVisible;
       _directionDistance = 0;
     }
     _scheduleDockedStateSync(
       forceReport: !oldWidget.active && widget.active,
+      resetScroll: dateChanged,
     );
   }
 
@@ -124,9 +128,18 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
     }
   }
 
-  void _scheduleDockedStateSync({bool forceReport = false}) {
+  void _scheduleDockedStateSync({
+    bool forceReport = false,
+    bool resetScroll = false,
+  }) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _syncDockedState(forceReport: forceReport);
+      if (!mounted) return;
+      if (resetScroll && _scrollController.hasClients) {
+        _scrollController.jumpTo(
+          _scrollController.position.minScrollExtent,
+        );
+      }
+      _syncDockedState(forceReport: forceReport);
     });
   }
 
