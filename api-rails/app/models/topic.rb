@@ -33,7 +33,10 @@ class Topic < ApplicationRecord
   private
 
   def generate_token
-    self.token ||= (100_000 + SecureRandom.random_number(900_000)).to_s
+    self.token ||= loop do
+      candidate = (100_000 + SecureRandom.random_number(900_000)).to_s
+      break candidate unless self.class.unscoped.exists?(token: candidate)
+    end
   end
 
   def set_default_permissions
