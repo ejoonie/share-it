@@ -2,8 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 Future<void> openSupportLink(BuildContext context, String url) async {
+  final uri = Uri.parse(url);
+  final mode = uri.scheme == 'http' || uri.scheme == 'https'
+      ? LaunchMode.inAppBrowserView
+      : LaunchMode.externalApplication;
+
   try {
-    if (await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication)) {
+    if (await launchUrl(
+      uri,
+      mode: mode,
+      browserConfiguration: const BrowserConfiguration(showTitle: true),
+    )) {
       return;
     }
   } catch (_) {

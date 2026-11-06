@@ -21,12 +21,13 @@ void main() {
       (tester) async {
     const urlLauncher = MethodChannel('plugins.flutter.io/url_launcher');
     final launchedUrls = <String>[];
+    final launchArguments = <Map<Object?, Object?>>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(urlLauncher, (call) async {
       if (call.method == 'launch') {
-        launchedUrls.add(
-          (call.arguments as Map<Object?, Object?>)['url']! as String,
-        );
+        final arguments = call.arguments as Map<Object?, Object?>;
+        launchedUrls.add(arguments['url']! as String);
+        launchArguments.add(arguments);
         return true;
       }
       return false;
@@ -104,6 +105,30 @@ void main() {
         'mailto:support@sharablepiggy.com',
       ],
     );
+    expect(
+      launchArguments
+          .map((arguments) => [
+                arguments['useSafariVC'],
+                arguments['useWebView'],
+              ])
+          .toList(),
+      [
+        [true, true],
+        [true, true],
+        [false, false],
+      ],
+    );
+    for (final title in [
+      'Terms of Service',
+      'Privacy Policy',
+      'Contact support',
+    ]) {
+      final tile =
+          tester.widget<ListTile>(find.widgetWithText(ListTile, title));
+      expect(tile.dense, isTrue);
+      expect(tile.visualDensity, VisualDensity.compact);
+      expect((tile.title! as Text).style!.fontSize, 14);
+    }
     expect(tester.takeException(), isNull);
   });
 }
