@@ -14,6 +14,7 @@ import 'topic_picker.dart';
 class ExpenseList extends ConsumerStatefulWidget {
   final ExpenseState state;
   final List<Widget> headerSlivers;
+  final bool active;
   final bool chromeVisible;
   final ValueChanged<bool>? onChromeVisibilityChanged;
   final VoidCallback? onAddExpense;
@@ -22,6 +23,7 @@ class ExpenseList extends ConsumerStatefulWidget {
   const ExpenseList({
     super.key,
     required this.state,
+    this.active = true,
     this.chromeVisible = true,
     this.onChromeVisibilityChanged,
     this.onAddExpense,
@@ -36,10 +38,14 @@ class ExpenseList extends ConsumerStatefulWidget {
 class _ExpenseListState extends ConsumerState<ExpenseList> {
   static const _hideThreshold = 28.0;
   static const _showThreshold = 16.0;
+  static const _inlineButtonHeight = PiggySize.button;
+  static const _inlineButtonBottomPadding =
+      PiggySize.navigation + PiggySpace.xxl;
   // The list extends behind bottom navigation. Switch only when the inline
   // action starts appearing above that navigation, not merely at the physical
   // bottom edge of the viewport.
-  static const _dockThreshold = PiggySpace.xxl + PiggySize.button;
+  static const _dockThreshold =
+      _inlineButtonBottomPadding + _inlineButtonHeight - PiggySize.navigation;
   static const _undockThreshold = _dockThreshold + PiggySpace.sm;
   final ScrollController _scrollController = ScrollController();
   double _lastOffset = 0;
@@ -64,7 +70,9 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
       _chromeVisible = widget.chromeVisible;
       _directionDistance = 0;
     }
-    _scheduleDockedStateSync();
+    _scheduleDockedStateSync(
+      forceReport: !oldWidget.active && widget.active,
+    );
   }
 
   @override
@@ -116,21 +124,24 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
     }
   }
 
-  void _scheduleDockedStateSync() {
+  void _scheduleDockedStateSync({bool forceReport = false}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _syncDockedState();
+      if (mounted) _syncDockedState(forceReport: forceReport);
     });
   }
 
-  void _syncDockedState() {
+  void _syncDockedState({bool forceReport = false}) {
     if (!_scrollController.hasClients) return;
     final extentAfter = _scrollController.position.extentAfter;
     final docked = _addButtonDocked
         ? extentAfter < _undockThreshold
         : extentAfter <= _dockThreshold;
-    if (docked == _addButtonDocked) return;
-    setState(() => _addButtonDocked = docked);
-    widget.onAddButtonDockedChanged?.call(docked);
+    if (docked != _addButtonDocked) {
+      setState(() => _addButtonDocked = docked);
+      widget.onAddButtonDockedChanged?.call(docked);
+    } else if (forceReport) {
+      widget.onAddButtonDockedChanged?.call(_addButtonDocked);
+    }
   }
 
   void _setChromeVisible(bool visible) {
@@ -267,14 +278,14 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
                 PiggySpace.page,
                 PiggySpace.lg,
                 PiggySpace.page,
-                PiggySize.navigation + PiggySpace.xxl,
+                _inlineButtonBottomPadding,
               ),
               child: PiggySlideVisibility(
                 visible: _addButtonDocked,
                 hiddenOffset: const Offset(0, 0.25),
                 child: SizedBox(
                   width: double.infinity,
-                  height: PiggySize.button,
+                  height: _inlineButtonHeight,
                   child: FilledButton.icon(
                     key: const ValueKey('inline-add-expense'),
                     onPressed: widget.onAddExpense,

@@ -9,18 +9,24 @@ void main() {
     addTearDown(controller.dispose);
     String? submitted;
     var submissionCount = 0;
-    await tester.pumpWidget(MaterialApp(
+    await tester.pumpWidget(
+      MaterialApp(
         home: Scaffold(
-            body: Center(
-                child: SizedBox(
-      width: 232,
-      child: VerificationCodeField(
-          controller: controller,
-          onSubmitted: (value) {
-            submitted = value;
-            submissionCount++;
-          }),
-    )))));
+          body: Center(
+            child: SizedBox(
+              width: 232,
+              child: VerificationCodeField(
+                controller: controller,
+                onSubmitted: (value) {
+                  submitted = value;
+                  submissionCount++;
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(
       tester.widget<TextField>(find.byType(TextField)).autofillHints,
@@ -35,38 +41,43 @@ void main() {
     }
     await tester.testTextInput.receiveAction(TextInputAction.done);
     expect(submitted, '123456');
-    expect(submissionCount, 1);
+    expect(submissionCount, 2);
     await tester.enterText(find.byType(TextField), '12345');
     await tester.pump();
     expect(find.text('6'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('a complete code auto-submits once until the code is edited',
+  testWidgets('automatic completion deduplicates changes but Done retries',
       (tester) async {
     final controller = TextEditingController();
     addTearDown(controller.dispose);
     final submissions = <String>[];
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: VerificationCodeField(
-          controller: controller,
-          onSubmitted: submissions.add,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: VerificationCodeField(
+            controller: controller,
+            onSubmitted: submissions.add,
+          ),
         ),
       ),
-    ));
+    );
 
     await tester.enterText(find.byType(TextField), '123456');
     await tester.pump();
     expect(submissions, ['123456']);
 
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    expect(submissions, ['123456', '123456']);
+
     controller.value = const TextEditingValue(text: '123456');
     await tester.pump();
-    expect(submissions, ['123456']);
+    expect(submissions, ['123456', '123456']);
 
     await tester.enterText(find.byType(TextField), '12345');
     await tester.enterText(find.byType(TextField), '123456');
     await tester.pump();
-    expect(submissions, ['123456', '123456']);
+    expect(submissions, ['123456', '123456', '123456']);
   });
 }

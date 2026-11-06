@@ -53,10 +53,6 @@ class _VerificationCodeFieldState extends State<VerificationCodeField> {
   }
 
   void _handleSubmitted(String value) {
-    if (value.length == 6) {
-      if (value == _lastAutoSubmittedCode) return;
-      _lastAutoSubmittedCode = value;
-    }
     widget.onSubmitted?.call(value);
   }
 

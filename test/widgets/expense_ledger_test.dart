@@ -7,13 +7,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_it/api/api_client.dart';
 import 'package:share_it/design_system/design_system.dart';
 import 'package:share_it/models/expense_model.dart';
 import 'package:share_it/models/topic_model.dart';
 import 'package:share_it/providers/core_providers.dart';
 import 'package:share_it/providers/expense_provider.dart';
+import 'package:share_it/providers/session_provider.dart';
+import 'package:share_it/repositories/session_repository.dart';
 import 'package:share_it/screens/expense_screen.dart';
 import 'package:share_it/storage/topic_filter_storage.dart';
+import 'package:share_it/storage/token_storage.dart';
 import 'package:share_it/theme/app_theme.dart';
 import 'package:share_it/theme/ledger_style.dart';
 import 'package:share_it/widgets/main_navigation_shell.dart';
@@ -68,6 +72,25 @@ class _ExpenseChromeHarnessState extends State<ExpenseChromeHarness> {
       );
 }
 
+class MainShellHarness extends StatefulWidget {
+  const MainShellHarness({super.key});
+
+  @override
+  State<MainShellHarness> createState() => _MainShellHarnessState();
+}
+
+class _MainShellHarnessState extends State<MainShellHarness> {
+  int index = 0;
+
+  void selectIndex(int next) => setState(() => index = next);
+
+  @override
+  Widget build(BuildContext context) => MainNavigationShell(
+        currentIndex: index,
+        onTap: selectIndex,
+      );
+}
+
 void main() {
   final boundaryKey = GlobalKey();
   final now = DateTime.now();
@@ -116,6 +139,7 @@ void main() {
     double scale = 1,
     ExpenseState? state,
     bool noPiggies = false,
+    bool mainShell = false,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -123,6 +147,11 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     SharedPreferences.setMockInitialValues({});
     final storage = await TopicFilterStorage.create();
+    final tokenStorage = await TokenStorage.create();
+    final sessionRepository = SessionRepository(
+      apiClient: ApiClient(),
+      tokenStorage: tokenStorage,
+    );
     final notifier = PreviewNotifier(storage, state ?? fixture);
     final fontPath = Platform.environment['LEDGER_PREVIEW_FONT'];
     if (fontPath != null) {
@@ -151,6 +180,13 @@ void main() {
         overrides: [
           expenseNotifierProvider.overrideWith(
             (ref) => notifier,
+          ),
+          sessionRepositoryProvider.overrideWithValue(sessionRepository),
+          sessionNotifierProvider.overrideWith(
+            (ref) => SessionNotifier(
+              repository: sessionRepository,
+              tokenStorage: tokenStorage,
+            ),
           ),
           myViewableTopicsProvider.overrideWith(
             (ref) async => noPiggies
@@ -182,7 +218,9 @@ void main() {
           ),
           home: RepaintBoundary(
             key: boundaryKey,
-            child: const ExpenseChromeHarness(),
+            child: mainShell
+                ? const MainShellHarness()
+                : const ExpenseChromeHarness(),
           ),
         ),
       ),
@@ -318,6 +356,61 @@ void main() {
     await tester.drag(scrollable, const Offset(0, 80));
     await tester.pumpAndSettle();
     expect(navigation.hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('tab round trip preserves the list and shell docked state',
+      (tester) async {
+    await mount(tester, size: const Size(320, 640), mainShell: true);
+    final scrollable = find.byType(CustomScrollView);
+    final controller = tester.widget<CustomScrollView>(scrollable).controller!;
+    controller.jumpTo(controller.position.maxScrollExtent);
+    await tester.pumpAndSettle();
+
+    final inlineAdd = find.byKey(const ValueKey('inline-add-expense'));
+    final floatingAdd = find.byKey(const ValueKey('floating-add-expense'));
+    expect(inlineAdd.hitTestable(), findsOneWidget);
+    expect(floatingAdd.hitTestable(), findsNothing);
+
+    final shell = tester.state<_MainShellHarnessState>(
+      find.byType(MainShellHarness),
+    );
+    shell.selectIndex(1);
+    await tester.pumpAndSettle();
+    shell.selectIndex(0);
+    await tester.pumpAndSettle();
+
+    expect(inlineAdd.hitTestable(), findsOneWidget);
+    expect(floatingAdd.hitTestable(), findsNothing);
+  });
+
+  testWidgets('empty list renders an inline add action at its scroll end',
+      (tester) async {
+    await mount(
+      tester,
+      size: const Size(320, 640),
+      state: fixture.copyWith(selectedDateExpenses: const []),
+    );
+
+    expect(find.text('No transactions for this day'), findsOneWidget);
+    final inlineAdd = find.byKey(const ValueKey('inline-add-expense'));
+    final floatingAdd = find.byKey(const ValueKey('floating-add-expense'));
+    expect(inlineAdd.hitTestable(), findsNothing);
+    expect(floatingAdd.hitTestable(), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      inlineAdd,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      inlineAdd.hitTestable(),
+      findsOneWidget,
+    );
+    expect(
+      floatingAdd.hitTestable(),
+      findsNothing,
+    );
   });
 
   testWidgets('add button docks above bottom navigation and floats away',

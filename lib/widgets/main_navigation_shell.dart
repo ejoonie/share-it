@@ -34,7 +34,6 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.currentIndex != widget.currentIndex) {
       _chromeVisible = true;
-      _addButtonDocked = false;
     }
   }
 
@@ -73,6 +72,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
           index: widget.currentIndex,
           children: [
             ExpenseScreen(
+              active: widget.currentIndex == 0,
               chromeVisible: _chromeVisible,
               onChromeVisibilityChanged: _setChromeVisible,
               onAddExpense: _showAddExpenseForm,
