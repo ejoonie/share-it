@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -18,6 +19,21 @@ import 'package:share_it/storage/token_storage.dart';
 void main() {
   testWidgets('settings scrolls on a small screen with large text',
       (tester) async {
+    const urlLauncher = MethodChannel('plugins.flutter.io/url_launcher');
+    final launchedUrls = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(urlLauncher, (call) async {
+      if (call.method == 'launch') {
+        launchedUrls.add(
+          (call.arguments as Map<Object?, Object?>)['url']! as String,
+        );
+        return true;
+      }
+      return false;
+    });
+    addTearDown(() => TestDefaultBinaryMessengerBinding
+        .instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(urlLauncher, null));
     tester.view.physicalSize = const Size(320, 700);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -69,9 +85,25 @@ void main() {
     expect(find.text('Share Expenses'), findsNothing);
     await tester.scrollUntilVisible(find.text('Owner (you)'), 180);
     expect(find.text('Owner (you)'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Terms of Service'), 180);
+    await tester.tap(find.widgetWithText(ListTile, 'Terms of Service'));
+    await tester.pump();
     await tester.scrollUntilVisible(find.text('Privacy Policy'), 180);
     expect(find.text('Privacy Policy'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ListTile, 'Privacy Policy'));
+    await tester.pump();
+    await tester.scrollUntilVisible(find.text('Contact support'), 180);
+    await tester.tap(find.widgetWithText(ListTile, 'Contact support'));
+    await tester.pump();
     await tester.scrollUntilVisible(find.text('Version 1.1.1 (23)'), 180);
+    expect(
+      launchedUrls,
+      [
+        'https://sharablepiggy.com/terms',
+        'https://sharablepiggy.com/privacy',
+        'mailto:support@sharablepiggy.com',
+      ],
+    );
     expect(tester.takeException(), isNull);
   });
 }

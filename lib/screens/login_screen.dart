@@ -1,8 +1,10 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/session_provider.dart';
 import '../design_system/tokens.dart';
+import '../utils/open_support_link.dart';
 import '../widgets/verification_code_field.dart';
 import '../widgets/auth_step_layout.dart';
 
@@ -320,24 +322,34 @@ class _TermsStepState extends State<_TermsStep> {
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
             title: RichText(
-              text: const TextSpan(
-                style: TextStyle(fontSize: 14, color: PiggyColors.ink),
+              text: TextSpan(
+                style: const TextStyle(fontSize: 14, color: PiggyColors.ink),
                 children: [
-                  TextSpan(text: 'I agree to the '),
+                  const TextSpan(text: 'I agree to the '),
                   TextSpan(
                     text: 'Terms of Service',
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: PiggyColors.accent,
                       decoration: TextDecoration.underline,
                     ),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () => openSupportLink(
+                            context,
+                            'https://sharablepiggy.com/terms',
+                          ),
                   ),
-                  TextSpan(text: ' and '),
+                  const TextSpan(text: ' and '),
                   TextSpan(
                     text: 'Privacy Policy',
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: PiggyColors.accent,
                       decoration: TextDecoration.underline,
                     ),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () => openSupportLink(
+                            context,
+                            'https://sharablepiggy.com/privacy',
+                          ),
                   ),
                 ],
               ),

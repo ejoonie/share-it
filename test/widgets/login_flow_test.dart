@@ -1,5 +1,7 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_it/api/api_client.dart';
@@ -30,6 +32,8 @@ class _Auth extends SessionRepository {
 }
 
 void main() {
+  const urlLauncher = MethodChannel('plugins.flutter.io/url_launcher');
+
   Future<_Auth> open(WidgetTester tester, {bool newUser = true}) async {
     SharedPreferences.setMockInitialValues({});
     final storage = await TokenStorage.create();
@@ -56,7 +60,10 @@ void main() {
     final repo = await open(tester);
     expect(find.text('Create account'), findsOneWidget);
     await tester.ensureVisible(find.byType(CheckboxListTile));
-    await tester.tap(find.byType(CheckboxListTile));
+    await tester.tap(find.descendant(
+      of: find.byType(CheckboxListTile),
+      matching: find.byType(Checkbox),
+    ));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Agree & continue'));
     await tester.tap(find.text('Agree & continue'));
@@ -71,6 +78,49 @@ void main() {
     expect(repo.sends, 2);
     expect(tester.getSize(find.byType(VerificationCodeField)).width, 280);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('new account terms open the public policy URLs', (tester) async {
+    final launchedUrls = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(urlLauncher, (call) async {
+      if (call.method == 'launch') {
+        launchedUrls
+            .add((call.arguments as Map<Object?, Object?>)['url']! as String);
+        return true;
+      }
+      return false;
+    });
+    addTearDown(() => TestDefaultBinaryMessengerBinding
+        .instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(urlLauncher, null));
+
+    await open(tester);
+    final richText = tester.widget<RichText>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is RichText &&
+            widget.text.toPlainText().contains('Terms of Service'),
+      ),
+    );
+    final spans = (richText.text as TextSpan).children!.cast<TextSpan>();
+
+    (spans.firstWhere((span) => span.text == 'Terms of Service').recognizer
+            as TapGestureRecognizer)
+        .onTap!();
+    await tester.pump();
+    (spans.firstWhere((span) => span.text == 'Privacy Policy').recognizer
+            as TapGestureRecognizer)
+        .onTap!();
+    await tester.pump();
+
+    expect(
+      launchedUrls,
+      [
+        'https://sharablepiggy.com/terms',
+        'https://sharablepiggy.com/privacy',
+      ],
+    );
   });
 
   testWidgets('password and email-code methods share a recoverable flow',
