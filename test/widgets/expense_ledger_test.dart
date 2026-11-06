@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_it/models/expense_model.dart';
+import 'package:share_it/design_system/tokens.dart';
 import 'package:share_it/models/topic_model.dart';
 import 'package:share_it/providers/core_providers.dart';
 import 'package:share_it/providers/expense_provider.dart';
@@ -296,6 +297,33 @@ void main() {
     await tester.pumpAndSettle();
     expect(add.hitTestable(), findsOneWidget);
     expect(navigation.hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('last transaction can scroll clear of the add button',
+      (tester) async {
+    await mount(tester, size: const Size(320, 640));
+    final scrollable = find.byType(CustomScrollView);
+    await tester.drag(scrollable, const Offset(0, -1000));
+    await tester.pumpAndSettle();
+    await tester.drag(scrollable, const Offset(0, 20));
+    await tester.pumpAndSettle();
+
+    final lastChat = find.byTooltip('Open conversation').last;
+    final add = find.byTooltip('Add transaction');
+    expect(lastChat.hitTestable(), findsOneWidget);
+    expect(add.hitTestable(), findsOneWidget);
+    expect(
+      tester.getRect(lastChat).overlaps(tester.getRect(add)),
+      isFalse,
+    );
+    expect(
+      tester
+          .getSize(find.byKey(
+            const ValueKey('expense-list-bottom-clearance'),
+          ))
+          .height,
+      PiggySize.navigation + 96,
+    );
   });
 
   testWidgets(

@@ -217,7 +217,14 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
                 ),
               ),
             ),
-          const SliverToBoxAdapter(child: SizedBox(height: 96)),
+          // Keep the last conversation action above both the floating add
+          // button and the translucent bottom navigation bar.
+          const SliverToBoxAdapter(
+            child: SizedBox(
+              key: ValueKey('expense-list-bottom-clearance'),
+              height: PiggySize.navigation + 96,
+            ),
+          ),
         ],
       ),
     );

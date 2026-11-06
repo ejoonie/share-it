@@ -175,8 +175,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.getSize(find.byType(VerificationCodeField)).width, 280);
     await tester.enterText(find.byType(TextField), '123456');
-    await tester.ensureVisible(find.text('Next'));
-    await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
     expect(find.text('New password'), findsOneWidget);
     for (final field in find.byType(TextFormField).evaluate()) {
