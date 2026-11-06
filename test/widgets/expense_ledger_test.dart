@@ -276,6 +276,14 @@ void main() {
     await mount(tester, size: const Size(320, 640));
     final add = find.byTooltip('Add transaction');
     final navigation = find.byType(NavigationBar);
+    final navigationTheme = tester.widget<NavigationBarTheme>(
+      find.byType(NavigationBarTheme),
+    );
+    expect(navigationTheme.data.indicatorColor, Colors.transparent);
+    expect(
+      navigationTheme.data.overlayColor!.resolve({WidgetState.pressed}),
+      Colors.transparent,
+    );
     expect(add.hitTestable(), findsOneWidget);
     expect(navigation.hitTestable(), findsOneWidget);
 

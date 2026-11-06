@@ -8,10 +8,8 @@ abstract final class PiggyTheme {
     backgroundColor: Colors.transparent,
     surfaceTintColor: Colors.transparent,
     elevation: 0,
-    indicatorColor: PiggyColors.accentSoft.withValues(alpha: 0.82),
-    indicatorShape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(18),
-    ),
+    indicatorColor: Colors.transparent,
+    overlayColor: const WidgetStatePropertyAll(Colors.transparent),
     iconTheme: WidgetStateProperty.resolveWith(
       (states) => IconThemeData(
         size: 22,
