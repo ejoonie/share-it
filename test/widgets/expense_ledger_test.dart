@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_it/design_system/design_system.dart';
 import 'package:share_it/models/expense_model.dart';
 import 'package:share_it/models/topic_model.dart';
 import 'package:share_it/providers/core_providers.dart';
@@ -325,9 +326,18 @@ void main() {
     final scrollable = find.byType(CustomScrollView);
     final inlineAdd = find.byKey(const ValueKey('inline-add-expense'));
     final floatingAdd = find.byKey(const ValueKey('floating-add-expense'));
+    bool? inlineVisible() {
+      final visibility = find.ancestor(
+        of: inlineAdd,
+        matching: find.byType(PiggySlideVisibility),
+      );
+      if (visibility.evaluate().isEmpty) return null;
+      return tester.widget<PiggySlideVisibility>(visibility).visible;
+    }
 
     expect(floatingAdd.hitTestable(), findsOneWidget);
     expect(inlineAdd.hitTestable(), findsNothing);
+    expect(inlineVisible(), isNot(true));
 
     final controller = tester.widget<CustomScrollView>(scrollable).controller!;
     controller.jumpTo(controller.position.maxScrollExtent - 50);
@@ -342,11 +352,13 @@ void main() {
     expect(inlineButton.bottom, greaterThan(viewport.top));
     expect(inlineButton.top, lessThan(navigation.top));
     expect(floatingAdd, findsNothing);
+    expect(inlineVisible(), isTrue);
 
     await tester.drag(scrollable, const Offset(0, 100));
     await tester.pumpAndSettle();
     expect(floatingAdd.hitTestable(), findsOneWidget);
     expect(inlineAdd.hitTestable(), findsNothing);
+    expect(inlineVisible(), isNot(true));
   });
 
   testWidgets(

@@ -129,7 +129,7 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
         ? extentAfter < _undockThreshold
         : extentAfter <= _dockThreshold;
     if (docked == _addButtonDocked) return;
-    _addButtonDocked = docked;
+    setState(() => _addButtonDocked = docked);
     widget.onAddButtonDockedChanged?.call(docked);
   }
 
@@ -269,14 +269,18 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
                 PiggySpace.page,
                 PiggySize.navigation + PiggySpace.xxl,
               ),
-              child: SizedBox(
-                width: double.infinity,
-                height: PiggySize.button,
-                child: FilledButton.icon(
-                  key: const ValueKey('inline-add-expense'),
-                  onPressed: widget.onAddExpense,
-                  icon: const Icon(Icons.add_rounded, size: 22),
-                  label: const Text('Add transaction'),
+              child: PiggySlideVisibility(
+                visible: _addButtonDocked,
+                hiddenOffset: const Offset(0, 0.25),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: PiggySize.button,
+                  child: FilledButton.icon(
+                    key: const ValueKey('inline-add-expense'),
+                    onPressed: widget.onAddExpense,
+                    icon: const Icon(Icons.add_rounded, size: 22),
+                    label: const Text('Add transaction'),
+                  ),
                 ),
               ),
             ),
