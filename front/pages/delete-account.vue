@@ -4,11 +4,11 @@
     <section class="max-w-[1120px] mx-auto px-5 py-10 pb-20">
       <article class="max-w-[860px] mx-auto mt-8 bg-white border border-mint-100 rounded-[28px] p-8 shadow-[0_18px_50px_rgba(24,95,84,.08)]">
         <h1 class="text-4xl font-black text-black-900 mb-2">How to Delete Your Account</h1>
-        <p class="text-black-900 text-sm mb-8">Last updated: July 15, 2026</p>
+        <p class="text-black-900 text-sm mb-8">Last updated: November 6, 2026</p>
 
         <p class="text-black-900 leading-relaxed mb-8">
-          You can permanently delete your Sharable Piggy account and all associated data at any time by following the steps below.
-          This action is irreversible — all your piggies, entries, and account information will be removed from our servers.
+          You can permanently delete your Sharable Piggy account by following the steps below.
+          This action is irreversible — your piggies, entries, account information, and original chat messages will be removed from our servers. Copies of messages reported by other users may remain for safety review as described in our Privacy Policy.
         </p>
 
         <h2 class="text-xl font-bold text-black-900 mt-8 mb-4">Steps to delete your account</h2>
@@ -49,6 +49,7 @@
           <li>All piggies (shared budgets) you created</li>
           <li>All entries within those piggies</li>
           <li>Your piggy memberships and follow relationships</li>
+          <li>Your original chat messages, blocking relationships, and reports you submitted</li>
         </ul>
 
         <h2 class="text-xl font-bold text-black-900 mt-8 mb-2">Contact us</h2>

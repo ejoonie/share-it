@@ -127,6 +127,12 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
     if (_editing?.id == id) _finishEditing();
   }
 
+  void _removeAuthorMessages(int authorId) {
+    final removedEditing = _editing?.authorId == authorId;
+    _messages.removeWhere((item) => item.authorId == authorId);
+    if (removedEditing) _finishEditing();
+  }
+
   void _upsert(EntryMessage message) {
     // Keep a contiguous loaded range; older unseen edits belong to later pages.
     final present = _messages.any((item) => item.id == message.id);
@@ -223,6 +229,9 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
 
   String _failure(Object error) {
     if (error is ApiException) {
+      if (error.code == 'objectionable_content') {
+        return 'This message may contain prohibited content.';
+      }
       if ([401, 403, 404].contains(error.statusCode)) {
         _accessVersion++;
         _cancelSyncRetries();
@@ -346,28 +355,177 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
     }
   }
 
-  Future<void> _messageActions(EntryMessage message) async {
+  void _showNotice(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _reportMessage(EntryMessage message) async {
+    final reason = await showPiggySheet<String>(
+      context: context,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const ListTile(
+            title: Text('Report message'),
+            subtitle: Text('Choose the closest reason.'),
+          ),
+          for (final option in const [
+            ('harassment', 'Harassment or bullying'),
+            ('sexual_content', 'Sexual content'),
+            ('violence', 'Violence or threats'),
+            ('spam', 'Spam'),
+            ('other', 'Other'),
+          ])
+            ListTile(
+              title: Text(option.$2),
+              onTap: () => Navigator.pop(context, option.$1),
+            ),
+        ],
+      ),
+    );
+    if (reason == null || !mounted) return;
+    setState(() => _sending = true);
+    try {
+      await _repository.report(_entryId, message.id, reason);
+      _showNotice('Message reported. Thank you.');
+    } catch (_) {
+      _showNotice('Couldn’t report this message. Please try again.');
+    } finally {
+      if (mounted) setState(() => _sending = false);
+      _drainRefresh();
+    }
+  }
+
+  Future<void> _blockUser(EntryMessage message) async {
+    final confirmed = await showPiggyConfirmation(
+      context: context,
+      title: 'Block ${message.authorName}?',
+      message:
+          'You won’t see each other’s chat messages or receive notifications about each other’s activity. Shared expenses stay available.',
+      confirmLabel: 'Block',
+      destructive: true,
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _sending = true);
+    _writeVersion++;
+    try {
+      final user = await _repository.block(_entryId, message.id);
+      if (!mounted) return;
+      _writeVersion++;
+      setState(() => _removeAuthorMessages(user.id));
+      _showNotice('${user.name} was blocked.');
+    } catch (_) {
+      _showNotice('Couldn’t block this user. Please try again.');
+    } finally {
+      if (mounted) setState(() => _sending = false);
+      _requestRefresh();
+    }
+  }
+
+  Future<void> _showBlockedUsers() async {
+    if (_sending) return;
+    setState(() => _sending = true);
+    late List<BlockedChatUser> users;
+    try {
+      users = await _repository.listBlockedUsers();
+    } catch (_) {
+      _showNotice('Couldn’t load blocked users.');
+      if (mounted) setState(() => _sending = false);
+      _drainRefresh();
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _sending = false);
+    _drainRefresh();
+    var changed = false;
+    await showPiggySheet<void>(
+      context: context,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => ListView(
+          shrinkWrap: true,
+          children: [
+            const ListTile(
+              title: Text('Blocked users'),
+              subtitle: Text('Unblock someone to see their messages again.'),
+            ),
+            if (users.isEmpty)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(24, 12, 24, 28),
+                child: Text('No blocked users.'),
+              )
+            else
+              for (final user in List<BlockedChatUser>.of(users))
+                ListTile(
+                  leading: const Icon(Icons.person_off_outlined),
+                  title: Text(user.name),
+                  trailing: TextButton(
+                    onPressed: () async {
+                      try {
+                        await _repository.unblock(user.id);
+                        if (!sheetContext.mounted) return;
+                        changed = true;
+                        setSheetState(
+                          () => users.removeWhere((item) => item.id == user.id),
+                        );
+                      } catch (_) {
+                        _showNotice('Couldn’t unblock this user.');
+                      }
+                    },
+                    child: const Text('Unblock'),
+                  ),
+                ),
+          ],
+        ),
+      ),
+    );
+    if (changed && mounted) await _load();
+  }
+
+  Future<void> _messageActions(
+    EntryMessage message, {
+    required bool mine,
+  }) async {
     if (_sending || !_hasLoaded || _blocked) return;
     final action = await showPiggySheet<String>(
       context: context,
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ListTile(
-            leading: const Icon(Icons.edit_outlined),
-            title: const Text('Edit message'),
-            onTap: () => Navigator.pop(context, 'edit'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.delete_outline),
-            title: const Text('Delete message'),
-            onTap: () => Navigator.pop(context, 'delete'),
-          ),
+          if (mine) ...[
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Edit message'),
+              onTap: () => Navigator.pop(context, 'edit'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline),
+              title: const Text('Delete message'),
+              onTap: () => Navigator.pop(context, 'delete'),
+            ),
+          ] else ...[
+            ListTile(
+              leading: const Icon(Icons.flag_outlined),
+              title: const Text('Report message'),
+              onTap: () => Navigator.pop(context, 'report'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_off_outlined),
+              title: Text('Block ${message.authorName}'),
+              onTap: () => Navigator.pop(context, 'block'),
+            ),
+          ],
         ],
       ),
     );
     if (!mounted) return;
-    if (action == 'edit') {
+    if (action == 'report') {
+      await _reportMessage(message);
+    } else if (action == 'block') {
+      await _blockUser(message);
+    } else if (action == 'edit') {
       setState(() {
         _draftBeforeEdit ??= _draft.text;
         _editing = message;
@@ -460,6 +618,11 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
         title: const Text('Conversation'),
         actions: [
           IconButton(
+            tooltip: 'Manage blocked users',
+            onPressed: _sending ? null : _showBlockedUsers,
+            icon: const Icon(Icons.person_off_outlined),
+          ),
+          IconButton(
             tooltip: 'Refresh conversation',
             onPressed: _loading || _sending ? null : () => _load(),
             icon: const Icon(Icons.refresh_rounded),
@@ -509,8 +672,11 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
                         ),
                         Text(
                           '${expense.isIncome ? '+' : '−'}${NumberFormat.currency(symbol: '\$', decimalDigits: 2).format(expense.amountInDollars)}',
-                          style: PiggyType.sectionTitle
-                              .copyWith(color: PiggyColors.accent),
+                          style: PiggyType.sectionTitle.copyWith(
+                            color: expense.isIncome
+                                ? PiggyColors.income
+                                : PiggyColors.expense,
+                          ),
                         ),
                       ],
                     ),
@@ -609,9 +775,10 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen>
                                       borderRadius: BorderRadius.circular(18),
                                       child: InkWell(
                                         borderRadius: BorderRadius.circular(18),
-                                        onLongPress: mine
-                                            ? () => _messageActions(message)
-                                            : null,
+                                        onLongPress: () => _messageActions(
+                                          message,
+                                          mine: mine,
+                                        ),
                                         child: Padding(
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 14,

@@ -30,6 +30,7 @@ class NotifyTopicChange
     recipient_tokens.find_each do |device_token|
       SendPushJob.perform_later(
         device_token_id: device_token.id,
+        actor_id: @actor.id,
         title: message.title,
         body: message.body,
         data: message.data

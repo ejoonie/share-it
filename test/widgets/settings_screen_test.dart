@@ -67,8 +67,11 @@ void main() {
     expect(find.byType(Divider), findsNothing);
     expect(find.text('My Subscriptions'), findsNothing);
     expect(find.text('Share Expenses'), findsNothing);
-    await tester.scrollUntilVisible(find.text('Version 1.1.1 (23)'), 180);
+    await tester.scrollUntilVisible(find.text('Owner (you)'), 180);
     expect(find.text('Owner (you)'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Privacy Policy'), 180);
+    expect(find.text('Privacy Policy'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Version 1.1.1 (23)'), 180);
     expect(tester.takeException(), isNull);
   });
 }

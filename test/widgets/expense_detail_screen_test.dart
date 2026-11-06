@@ -554,7 +554,7 @@ void main() {
   });
 
   testWidgets(
-      'loads earlier messages and does not expose actions for another author',
+      'loads earlier messages and exposes only safety actions for another author',
       (tester) async {
     await mount(
       tester,
@@ -578,6 +578,138 @@ void main() {
     await tester.longPress(find.text('Latest'));
     await tester.pumpAndSettle();
     expect(find.text('Edit message'), findsNothing);
+    expect(find.text('Report message'), findsOneWidget);
+    expect(find.text('Block Minji'), findsOneWidget);
+  });
+
+  testWidgets('reports another author message with a review reason',
+      (tester) async {
+    String? reportedPath;
+    String? reportedReason;
+    await mount(tester, (request) async {
+      if (request.method == 'POST') {
+        reportedPath = request.url.path;
+        reportedReason = (jsonDecode(request.body)
+            as Map<String, dynamic>)['reason'] as String;
+        return http.Response('{"id":1,"status":"pending"}', 201);
+      }
+      return http.Response(
+        jsonEncode({
+          'records': [message(8, 'Unsafe message', author: 2)],
+          'next_before_id': null,
+        }),
+        200,
+      );
+    });
+
+    await tester.longPress(find.text('Unsafe message'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Report message'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Harassment or bullying'));
+    await tester.pumpAndSettle();
+
+    expect(reportedPath, '/api/v1/entries/42/messages/8/report');
+    expect(reportedReason, 'harassment');
+    expect(find.text('Message reported. Thank you.'), findsOneWidget);
+  });
+
+  testWidgets('blocks another author and removes their loaded messages',
+      (tester) async {
+    String? blockedPath;
+    await mount(tester, (request) async {
+      if (request.method == 'POST') {
+        blockedPath = request.url.path;
+        return http.Response(
+          '{"user":{"id":2,"nick_name":"Minji"}}',
+          201,
+        );
+      }
+      return http.Response(
+        jsonEncode({
+          'records': blockedPath == null
+              ? [message(8, 'Unsafe message', author: 2)]
+              : [],
+          'next_before_id': null,
+        }),
+        200,
+      );
+    });
+
+    await tester.longPress(find.text('Unsafe message'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Block Minji'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Block'));
+    await tester.pumpAndSettle();
+
+    expect(blockedPath, '/api/v1/entries/42/messages/8/block');
+    expect(find.text('Unsafe message'), findsNothing);
+    expect(find.text('Minji was blocked.'), findsOneWidget);
+  });
+
+  testWidgets('lists and unblocks users from the conversation app bar',
+      (tester) async {
+    var unblocked = false;
+    await mount(tester, (request) async {
+      if (request.method == 'DELETE') {
+        unblocked = true;
+        return http.Response('', 204);
+      }
+      if (request.url.path == '/api/v1/chat_blocks') {
+        return http.Response(
+          '{"records":[{"user":{"id":2,"nick_name":"Minji"}}]}',
+          200,
+        );
+      }
+      return http.Response('{"records":[],"next_before_id":null}', 200);
+    });
+
+    await tester.tap(find.byTooltip('Manage blocked users'));
+    await tester.pumpAndSettle();
+    expect(find.text('Blocked users'), findsOneWidget);
+    expect(find.text('Minji'), findsOneWidget);
+    await tester.tap(find.text('Unblock'));
+    await tester.pumpAndSettle();
+    expect(unblocked, true);
+    expect(find.text('No blocked users.'), findsOneWidget);
+  });
+
+  testWidgets('a pre-block request cannot restore hidden messages',
+      (tester) async {
+    final pending = Completer<http.Response>();
+    var gets = 0;
+    var blocked = false;
+    await mount(tester, (request) async {
+      if (request.method == 'POST') {
+        blocked = true;
+        return http.Response('{"user":{"id":2,"nick_name":"Minji"}}', 201);
+      }
+      if (++gets == 2) return pending.future;
+      return http.Response(
+          jsonEncode({
+            'records': blocked ? [] : [message(8, 'Old response', author: 2)],
+            'next_before_id': null,
+          }),
+          200);
+    });
+    await tester.tap(find.byTooltip('Refresh conversation'));
+    await tester.pump();
+    await tester.longPress(find.text('Old response'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Block Minji'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Block'));
+    await tester.pumpAndSettle();
+    pending.complete(http.Response(
+        jsonEncode({
+          'records': [message(8, 'Old response', author: 2)],
+          'next_before_id': null,
+        }),
+        200));
+    await tester.pumpAndSettle();
+    expect(find.text('Old response'), findsNothing);
+    expect(gets, greaterThan(2));
   });
 
   testWidgets(

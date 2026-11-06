@@ -4,7 +4,7 @@ class EntryMessagesChannel < ApplicationCable::Channel
 
     stream_from "entry_chat_#{chat_entry_id}", coder: ActiveSupport::JSON do |event|
       if accessible?
-        transmit(event)
+        transmit(event) if deliverable?(event)
       else
         transmit({ type: 'access_revoked' })
         stop_all_streams
@@ -20,5 +20,10 @@ class EntryMessagesChannel < ApplicationCable::Channel
       .where(entries: { id: chat_entry_id })
       .where.not("topic_follows.permissions @> ?::jsonb", '["banned"]')
       .exists?
+  end
+
+  def deliverable?(event)
+    author_id = event['author_id'] || event[:author_id]
+    author_id.blank? || !ChatBlock.between?(current_user.id, author_id)
   end
 end

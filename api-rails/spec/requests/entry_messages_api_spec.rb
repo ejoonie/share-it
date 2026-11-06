@@ -113,6 +113,84 @@ RSpec.describe 'Entry messages API', type: :request do
     expect(response).to have_http_status(201)
   end
 
+  it 'rejects objectionable content before it is posted or added by editing' do
+    expect do
+      post_json path, login_user: owner, params: { body: 'You should kill yourself' }
+    end.not_to change(EntryMessage, :count)
+    expect(response).to have_http_status(422)
+    expect(json_response['code']).to eq('objectionable_content')
+
+    patch_json "#{path}/#{message.id}", login_user: owner, params: { body: 'send nudes' }
+    expect(response).to have_http_status(422)
+    expect(json_response['code']).to eq('objectionable_content')
+    expect(message.reload.body).to eq('Where is this?')
+  end
+
+  it 'stores a report snapshot and prevents reporting your own message' do
+    reported = entry.entry_messages.create!(user: follower, body: 'Abusive text')
+    expect do
+      post_json "#{path}/#{reported.id}/report", login_user: owner, params: { reason: 'harassment' }
+    end.to change(MessageReport, :count).by(1)
+    expect(response).to have_http_status(201)
+    report = MessageReport.last
+    expect(report.attributes.slice('reporter_id', 'reported_user_id', 'entry_id', 'entry_message_id', 'reason', 'status', 'body_snapshot')).to eq(
+      'reporter_id' => owner.id,
+      'reported_user_id' => follower.id,
+      'entry_id' => entry.id,
+      'entry_message_id' => reported.id,
+      'reason' => 'harassment',
+      'status' => 'pending',
+      'body_snapshot' => 'Abusive text'
+    )
+    reported.update!(body: 'Edited after report')
+    post_json "#{path}/#{reported.id}/report", login_user: owner, params: { reason: 'other' }
+    expect(response).to have_http_status(201)
+    expect(report.reload.reason).to eq('harassment')
+    expect(report.body_snapshot).to eq('Abusive text')
+    expect(MessageReport.where(reporter: owner, entry_message: reported).count).to eq(1)
+    reported.destroy!
+    expect(report.reload.entry_message).to be_nil
+    expect(report.body_snapshot).to eq('Abusive text')
+
+    post_json "#{path}/#{message.id}/report", login_user: owner, params: { reason: 'other' }
+    expect(response).to have_http_status(422)
+  end
+
+  it 'blocks both users from seeing each other in REST while keeping the shared conversation available' do
+    follower_message = entry.entry_messages.create!(user: follower, body: 'Hidden after block')
+    post_json "#{path}/#{follower_message.id}/block", login_user: owner
+    expect(response).to have_http_status(201)
+    expect(ChatBlock.between?(owner.id, follower.id)).to be(true)
+
+    get_json path, login_user: owner
+    expect(response).to have_http_status(200)
+    expect(json_response['records'].map { |record| record.dig('author', 'id') }).not_to include(follower.id)
+    get_json "#{path}/#{follower_message.id}", login_user: owner
+    expect(response).to have_http_status(404)
+
+    get_json path, login_user: follower
+    expect(response).to have_http_status(200)
+    expect(json_response['records'].map { |record| record.dig('author', 'id') }).not_to include(owner.id)
+    post_json path, login_user: follower, params: { body: 'Still visible to other members' }
+    expect(response).to have_http_status(201)
+  end
+
+  it 'lists blocks created by the user and lets only the blocker remove them' do
+    ChatBlock.create!(blocker: owner, blocked: follower)
+    get_json '/api/v1/chat_blocks', login_user: owner
+    expect(response).to have_http_status(200)
+    expect(json_response['records'].first['user']).to eq(
+      'id' => follower.id,
+      'nick_name' => follower.nick_name
+    )
+
+    delete_json "/api/v1/chat_blocks/#{follower.id}", login_user: follower
+    expect(response).to have_http_status(404)
+    delete_json "/api/v1/chat_blocks/#{follower.id}", login_user: owner
+    expect(response).to have_http_status(204)
+    expect(ChatBlock.between?(owner.id, follower.id)).to be(false)
+  end
+
   ['limit=0', 'limit=101', 'before_id=-1', 'before_id=nope'].each do |query|
     it "rejects invalid pagination: #{query}" do
       get_json "#{path}?#{query}", login_user: owner

@@ -19,6 +19,10 @@ class User < ApplicationRecord
   has_many :device_tokens, dependent: :destroy
   has_many :entry_reads, dependent: :destroy
   has_many :entry_messages # Foreign key ON DELETE CASCADE handles bulk cleanup.
+  has_many :chat_blocks_as_blocker, class_name: 'ChatBlock', foreign_key: :blocker_id
+  has_many :blocked_users, through: :chat_blocks_as_blocker, source: :blocked
+  has_many :chat_blocks_as_blocked, class_name: 'ChatBlock', foreign_key: :blocked_id
+  has_many :message_reports, foreign_key: :reporter_id
 
   def follow(topic)
     topic_follow = TopicFollow.find_or_initialize_by(topic: topic, user: self)

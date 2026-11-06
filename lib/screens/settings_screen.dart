@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../design_system/tokens.dart';
+import '../utils/open_support_link.dart';
 import '../providers/core_providers.dart';
 import '../providers/session_provider.dart';
 import 'change_password_screen.dart';
@@ -170,6 +171,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   count: state.myPiggies.valueOrNull?.length,
                 ),
                 ..._buildMyPiggies(state),
+                const _SectionHeader(title: 'Help and policies'),
+                ListTile(
+                  title: const Text('Terms of Service'),
+                  onTap: () => openSupportLink(
+                    context,
+                    'https://sharablepiggy.com/terms',
+                  ),
+                ),
+                ListTile(
+                  title: const Text('Privacy Policy'),
+                  onTap: () => openSupportLink(
+                    context,
+                    'https://sharablepiggy.com/privacy',
+                  ),
+                ),
+                ListTile(
+                  title: const Text('Contact support'),
+                  subtitle: const Text('support@sharablepiggy.com'),
+                  onTap: () => openSupportLink(
+                    context,
+                    'mailto:support@sharablepiggy.com',
+                  ),
+                ),
                 const SizedBox(height: 32),
                 const Center(
                   child: Icon(

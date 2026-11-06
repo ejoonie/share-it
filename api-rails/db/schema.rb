@@ -10,9 +10,20 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_11_05_000000) do
+ActiveRecord::Schema[7.2].define(version: 2026_11_06_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "chat_blocks", force: :cascade do |t|
+    t.bigint "blocker_id", null: false
+    t.bigint "blocked_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["blocked_id"], name: "index_chat_blocks_on_blocked_id"
+    t.index ["blocker_id", "blocked_id"], name: "index_chat_blocks_on_blocker_id_and_blocked_id", unique: true
+    t.index ["blocker_id"], name: "index_chat_blocks_on_blocker_id"
+    t.check_constraint "blocker_id <> blocked_id", name: "chat_blocks_different_users"
+  end
 
   create_table "device_tokens", force: :cascade do |t|
     t.bigint "user_id", null: false
@@ -69,6 +80,25 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_05_000000) do
     t.index ["user_id"], name: "index_entry_reads_on_user_id"
   end
 
+  create_table "message_reports", force: :cascade do |t|
+    t.bigint "reporter_id", null: false
+    t.bigint "reported_user_id"
+    t.bigint "entry_id"
+    t.bigint "entry_message_id"
+    t.string "reason", null: false
+    t.string "status", default: "pending", null: false
+    t.text "body_snapshot", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["entry_id"], name: "index_message_reports_on_entry_id"
+    t.index ["entry_message_id"], name: "index_message_reports_on_entry_message_id"
+    t.index ["reported_user_id"], name: "index_message_reports_on_reported_user_id"
+    t.index ["reporter_id", "entry_message_id"], name: "index_unique_message_reports", unique: true, where: "(entry_message_id IS NOT NULL)"
+    t.index ["reporter_id"], name: "index_message_reports_on_reporter_id"
+    t.check_constraint "reason::text = ANY (ARRAY['harassment'::character varying, 'sexual_content'::character varying, 'violence'::character varying, 'spam'::character varying, 'other'::character varying]::text[])", name: "message_reports_reason"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'reviewed'::character varying, 'actioned'::character varying, 'dismissed'::character varying]::text[])", name: "message_reports_status"
+  end
+
   create_table "topic_follows", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.bigint "topic_id", null: false
@@ -113,6 +143,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_05_000000) do
     t.index ["token"], name: "index_users_on_token", unique: true
   end
 
+  add_foreign_key "chat_blocks", "users", column: "blocked_id", on_delete: :cascade
+  add_foreign_key "chat_blocks", "users", column: "blocker_id", on_delete: :cascade
   add_foreign_key "device_tokens", "users"
   add_foreign_key "entries", "topics"
   add_foreign_key "entries", "users", column: "created_by_id"
@@ -121,6 +153,10 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_05_000000) do
   add_foreign_key "entry_messages", "users", on_delete: :cascade
   add_foreign_key "entry_reads", "entries"
   add_foreign_key "entry_reads", "users"
+  add_foreign_key "message_reports", "entries", on_delete: :nullify
+  add_foreign_key "message_reports", "entry_messages", on_delete: :nullify
+  add_foreign_key "message_reports", "users", column: "reported_user_id", on_delete: :nullify
+  add_foreign_key "message_reports", "users", column: "reporter_id", on_delete: :cascade
   add_foreign_key "topic_follows", "topics"
   add_foreign_key "topic_follows", "users"
   add_foreign_key "topics", "users"

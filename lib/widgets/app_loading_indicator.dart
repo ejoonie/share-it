@@ -2,32 +2,46 @@ import 'package:flutter/material.dart';
 
 import '../design_system/tokens.dart';
 
-/// Shared loading composition for session startup and the first ledger load.
+/// Startup logo matches the native launch screen; in-page loads omit it.
 class AppLoadingIndicator extends StatelessWidget {
-  const AppLoadingIndicator({super.key});
+  const AppLoadingIndicator({super.key, this.showLogo = true});
+
+  final bool showLogo;
 
   @override
-  Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
+  Widget build(BuildContext context) {
+    const spinner = SizedBox(
+      width: 24,
+      height: 24,
+      child: CircularProgressIndicator(
+        strokeWidth: 2.5,
+        color: PiggyColors.accent,
+        semanticsLabel: 'Loading',
+      ),
+    );
+    if (!showLogo) return const Center(child: spinner);
+
+    return ColoredBox(
+      color: Colors.white,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Center(
+            child: Image.asset(
               'assets/playstore.png',
               width: 160,
               height: 160,
               excludeFromSemantics: true,
             ),
-            const SizedBox(height: 24),
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                color: PiggyColors.accent,
-                semanticsLabel: 'Loading',
-              ),
+          ),
+          Center(
+            child: Transform.translate(
+              offset: const Offset(0, 116),
+              child: spinner,
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
+  }
 }
