@@ -132,16 +132,26 @@ class _ExpenseListState extends ConsumerState<ExpenseList> {
 
   void _syncDockedState({bool forceReport = false}) {
     if (!_scrollController.hasClients) return;
-    final extentAfter = _scrollController.position.extentAfter;
-    final docked = _addButtonDocked
-        ? extentAfter < _undockThreshold
-        : extentAfter <= _dockThreshold;
+    final docked = _shouldDockAddButton(_scrollController.position);
     if (docked != _addButtonDocked) {
       setState(() => _addButtonDocked = docked);
       widget.onAddButtonDockedChanged?.call(docked);
     } else if (forceReport) {
       widget.onAddButtonDockedChanged?.call(_addButtonDocked);
     }
+  }
+
+  bool _shouldDockAddButton(ScrollPosition position) {
+    if (widget.state.selectedDateExpenses.isEmpty) return true;
+
+    final pixels = position.pixels.clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    final extentAfter = position.maxScrollExtent - pixels;
+    return _addButtonDocked
+        ? extentAfter < _undockThreshold
+        : extentAfter <= _dockThreshold;
   }
 
   void _setChromeVisible(bool visible) {

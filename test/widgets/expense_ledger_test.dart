@@ -383,7 +383,7 @@ void main() {
     expect(floatingAdd.hitTestable(), findsNothing);
   });
 
-  testWidgets('empty list renders an inline add action at its scroll end',
+  testWidgets('empty list keeps the add action inline while refreshing',
       (tester) async {
     await mount(
       tester,
@@ -395,7 +395,14 @@ void main() {
     final inlineAdd = find.byKey(const ValueKey('inline-add-expense'));
     final floatingAdd = find.byKey(const ValueKey('floating-add-expense'));
     expect(inlineAdd.hitTestable(), findsNothing);
-    expect(floatingAdd.hitTestable(), findsOneWidget);
+    expect(floatingAdd.hitTestable(), findsNothing);
+
+    await tester.drag(
+      find.byType(CustomScrollView),
+      const Offset(0, 100),
+    );
+    await tester.pumpAndSettle();
+    expect(floatingAdd.hitTestable(), findsNothing);
 
     await tester.scrollUntilVisible(
       inlineAdd,
