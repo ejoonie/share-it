@@ -167,7 +167,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
         ],
       ),
       body: topics.when(
-        loading: () => const AppLoadingIndicator(),
+        loading: () => const AppLoadingIndicator(showLogo: false),
         error: (_, __) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -226,7 +226,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
 
   Widget _buildBody(ExpenseState state, DateTime focusedMonth) {
     if (state.isLoading) {
-      return const AppLoadingIndicator();
+      return const AppLoadingIndicator(showLogo: false);
     }
     if (state.error != null) {
       return Center(
